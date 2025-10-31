@@ -1,6 +1,6 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
 import './App.css'
-import Diary from './pages/Diary.jsx'
+import Diary from './pages/Diary/Diary.jsx'
 import Notice from './pages/Notice.jsx'
 import AI from './pages/AI.jsx'
 import FreeBBS from './pages/FreeBBS.jsx'
