@@ -6,7 +6,6 @@ export default function Login() {
 
   function onSubmit(e) {
     e.preventDefault()
-    // TODO: hook up real auth
     alert(`로그인 요청\nID: ${id}`)
   }
 
@@ -77,12 +76,28 @@ export default function Login() {
         </button>
 
         <div className="mt-6 flex items-center justify-between text-sm">
-          <button className="text-amber hover:opacity-90" onClick={() => alert('계정/비밀번호 찾기 (추가 예정)')}>
-            계정/비밀번호 찾기
-          </button>
-          <button className="text-clay/70 hover:text-clay" onClick={() => alert('회원가입 (추가 예정)')}>
+          <button
+            className="text-clay/70 hover:text-clay"
+            onClick={() => alert('회원가입 (추가 예정)')}
+          >
             회원가입
           </button>
+
+          <div className="flex items-center text-clay/70">
+            <button
+              className="text-amber hover:opacity-90"
+              onClick={() => alert('계정 찾기 (추가 예정)')}
+            >
+              계정찾기
+            </button>
+            <span className="mx-2 select-none text-sand/70">|</span>
+            <button
+              className="text-amber hover:opacity-90"
+              onClick={() => alert('비밀번호 찾기 (추가 예정)')}
+            >
+              비밀번호 찾기
+            </button>
+          </div>
         </div>
       </div>
     </div>
