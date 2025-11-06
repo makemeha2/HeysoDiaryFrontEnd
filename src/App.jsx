@@ -4,6 +4,7 @@ import Diary from './pages/Diary/Diary.jsx'
 import Notice from './pages/Notice.jsx'
 import AI from './pages/AI.jsx'
 import FreeBBS from './pages/FreeBBS.jsx'
+import Login from './pages/Login.jsx'
 
 const navLinkClass = ({ isActive }) =>
   `px-4 py-2 rounded-full transition-colors ${
@@ -29,6 +30,9 @@ export default function App() {
             <NavLink to="/freebbs" className={navLinkClass}>
               FreeBBS
             </NavLink>
+            <NavLink to="/login" className={navLinkClass}>
+              LogIn
+            </NavLink>
           </nav>
         </div>
       </header>
@@ -40,6 +44,7 @@ export default function App() {
             <Route path="notice" element={<Notice />} />
             <Route path="ai" element={<AI />} />
             <Route path="freebbs" element={<FreeBBS />} />
+            <Route path="login" element={<Login />} />
           </Routes>
         </div>
       </main>
