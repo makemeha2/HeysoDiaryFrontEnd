@@ -13,7 +13,7 @@ function savePosts(posts) {
   localStorage.setItem('bbsPosts', JSON.stringify(posts))
 }
 
-export default function FreeBBS() {
+const FreeBBS = (() => {
   const [posts, setPosts] = useState(() => loadPosts())
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -92,5 +92,6 @@ export default function FreeBBS() {
       </section>
     </div>
   )
-}
+});
 
+export default FreeBBS;

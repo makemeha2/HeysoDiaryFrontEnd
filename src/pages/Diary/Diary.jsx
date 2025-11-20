@@ -13,7 +13,7 @@ function saveEntries(entries) {
   localStorage.setItem('diaryEntries', JSON.stringify(entries))
 }
 
-export default function Diary() {
+const Diary = (() => {
   const [entries, setEntries] = useState(() => loadEntries())
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -117,5 +117,6 @@ export default function Diary() {
       </section>
     </div>
   )
-}
+});
 
+export default Diary;

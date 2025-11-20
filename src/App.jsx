@@ -11,7 +11,7 @@ const navLinkClass = ({ isActive }) =>
     isActive ? 'bg-amber/20 text-clay font-semibold' : 'hover:bg-amber/10'
   }`
 
-export default function App() {
+const App = (() => {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-10 backdrop-blur bg-linen/80 shadow-soft">
@@ -56,4 +56,6 @@ export default function App() {
       </footer>
     </div>
   )
-}
+});
+
+export default App;

@@ -1,4 +1,4 @@
-export default function Notice() {
+const Notice = (() => {
   const notices = [
     { id: 1, title: 'Welcome to Heyso Diary', date: '2025-01-01' },
     { id: 2, title: 'Your notes are stored locally', date: '2025-01-10' },
@@ -22,5 +22,6 @@ export default function Notice() {
       </ul>
     </div>
   )
-}
+});
 
+export default Notice;

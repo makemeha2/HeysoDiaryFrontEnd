@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { GoogleLogin } from "@react-oauth/google";
 
-export default function Login() {
+const Login = (() => {
   const [id, setId] = useState('')
   const [pw, setPw] = useState('')
 
@@ -8,6 +9,37 @@ export default function Login() {
     e.preventDefault()
     alert(`로그인 요청\nID: ${id}`)
   }
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const idToken = credentialResponse.credential; // 구글이 준 ID Token (JWT)
+
+    try {
+      // 1) 이 토큰을 백엔드로 보내서
+      // 2) 백엔드가 검증하고 우리 서비스용 JWT/세션을 발급하도록 설계
+      const res = await fetch("/api/auth/oauth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!res.ok) {
+        // 에러 처리
+        console.error("백엔드 인증 실패");
+        return;
+      }
+
+      const data = await res.json();
+      // 예: data.jwtAccessToken, data.refreshToken 등
+      // localStorage 등에 저장하거나, 전역 상태(auth store)에 저장
+      console.log("로그인 성공", data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleGoogleError = () => {
+    console.error("Google 로그인 실패");
+  };
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center">
@@ -59,21 +91,10 @@ export default function Login() {
           <div className="h-px flex-1 bg-sand/60" />
         </div>
 
-        <button
-          type="button"
-          className="w-full rounded-xl border border-sand/60 bg-white/90 px-4 py-3 text-clay hover:bg-white"
-          onClick={() => alert('구글 로그인 (추가 예정)')}
-        >
-          <span className="inline-flex items-center justify-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden className="-mt-px">
-              <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12 c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C33.64,6.053,29.084,4,24,4C12.955,4,4,12.955,4,24 s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
-              <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,16.108,18.961,14,24,14c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657 C33.64,6.053,29.084,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
-              <path fill="#4CAF50" d="M24,44c5.136,0,9.8-1.97,13.304-5.181l-6.146-5.203C29.104,35.091,26.715,36,24,36 c-5.202,0-9.619-3.317-11.283-7.946l-6.524,5.025C9.505,39.556,16.227,44,24,44z"/>
-              <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.146,5.616c0,0,0,0,0,0l6.146,5.203 C36.971,39.064,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
-            </svg>
-            <span>Google로 로그인</span>
-          </span>
-        </button>
+        
+        <div style={{ marginTop: 16 }}>
+          <GoogleLogin onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
+        </div>
 
         <div className="mt-6 flex items-center justify-between text-sm">
           <button
@@ -102,5 +123,7 @@ export default function Login() {
       </div>
     </div>
   )
-}
+});
+
+export default Login;
 

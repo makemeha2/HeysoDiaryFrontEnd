@@ -1,4 +1,4 @@
-export default function AI() {
+const AI = (() => {
   return (
     <div className="max-w-3xl">
       <h2 className="text-xl font-semibold mb-4">AI Assistant</h2>
@@ -19,5 +19,6 @@ export default function AI() {
       </div>
     </div>
   )
-}
+});
 
+export default AI;
