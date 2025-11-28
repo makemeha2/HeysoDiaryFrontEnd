@@ -12,11 +12,12 @@ const Login = (() => {
 
   const handleGoogleSuccess = async (credentialResponse) => {
     const idToken = credentialResponse.credential; // 구글이 준 ID Token (JWT)
+    const baseURL = import.meta.env.VITE_API_BASE_URL;
 
     try {
       // 1) 이 토큰을 백엔드로 보내서
       // 2) 백엔드가 검증하고 우리 서비스용 JWT/세션을 발급하도록 설계
-      const res = await fetch("/api/auth/oauth/google", {
+      const res = await fetch(baseURL + "/api/auth/oauth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
