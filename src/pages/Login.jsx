@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { GoogleLogin } from "@react-oauth/google";
+import { setAuthData } from '../lib/apiClient.js'
 
 const Login = (() => {
   const [id, setId] = useState('')
@@ -11,36 +12,46 @@ const Login = (() => {
   }
 
   const handleGoogleSuccess = async (credentialResponse) => {
-    const idToken = credentialResponse.credential; // 구글이 준 ID Token (JWT)
-    const baseURL = import.meta.env.VITE_API_BASE_URL;
+    const idToken = credentialResponse.credential // 구글에서 준 ID Token (JWT)
+    const baseURL = import.meta.env.VITE_API_BASE_URL
 
     try {
-      // 1) 이 토큰을 백엔드로 보내서
-      // 2) 백엔드가 검증하고 우리 서비스용 JWT/세션을 발급하도록 설계
+      // 1) 이 토큰을 백엔드로 전달
+      // 2) 백엔드에서 검증 후 우리 서비스용 액세스 토큰 발급
       const res = await fetch(baseURL + "/api/auth/oauth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
-      });
+      })
 
       if (!res.ok) {
-        // 에러 처리
-        console.error("백엔드 인증 실패");
-        return;
+        // 실패 처리
+        console.error("구글 인증 처리 실패")
+        return
       }
 
-      const data = await res.json();
-      // 예: data.jwtAccessToken, data.refreshToken 등
-      // localStorage 등에 저장하거나, 전역 상태(auth store)에 저장
-      console.log("로그인 성공", data);
+      const data = await res.json()
+      // 기대 응답:
+      // { accessToken, userId, email, nickname, role }
+      setAuthData({
+        accessToken: data.accessToken,
+        userId: data.userId,
+        email: data.email,
+        nickname: data.nickname,
+        role: data.role,
+        provider: 'google',
+        grantedAt: Date.now(),
+        idToken,
+      })
+      console.log("로그인 성공", data)
     } catch (e) {
-      console.error(e);
+      console.error(e)
     }
-  };
+  }
 
   const handleGoogleError = () => {
-    console.error("Google 로그인 실패");
-  };
+    console.error("Google 로그인 실패")
+  }
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center">
@@ -100,7 +111,7 @@ const Login = (() => {
         <div className="mt-6 flex items-center justify-between text-sm">
           <button
             className="text-clay/70 hover:text-clay"
-            onClick={() => alert('회원가입 (추가 예정)')}
+            onClick={() => alert('회원가입 (추가 필요)')}
           >
             회원가입
           </button>
@@ -108,14 +119,14 @@ const Login = (() => {
           <div className="flex items-center text-clay/70">
             <button
               className="text-amber hover:opacity-90"
-              onClick={() => alert('계정 찾기 (추가 예정)')}
+              onClick={() => alert('아이디 찾기 (추가 필요)')}
             >
-              계정찾기
+              아이디찾기
             </button>
             <span className="mx-2 select-none text-sand/70">|</span>
             <button
               className="text-amber hover:opacity-90"
-              onClick={() => alert('비밀번호 찾기 (추가 예정)')}
+              onClick={() => alert('비밀번호 찾기 (추가 필요)')}
             >
               비밀번호 찾기
             </button>
@@ -127,4 +138,3 @@ const Login = (() => {
 });
 
 export default Login;
-

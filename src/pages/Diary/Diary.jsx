@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
+import { authFetch } from '../../lib/apiClient.js'
 
 function loadEntries() {
   try {
@@ -18,6 +20,21 @@ const Diary = (() => {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
 
+  const mutation = useMutation({
+    mutationFn: async (payload) => {
+      const res = await authFetch('/api/diary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        throw new Error('Failed to create diary entry')
+      }
+      const data = await res.json()
+      return typeof data === 'number' ? data : data?.diaryId
+    },
+  })
+
   const sorted = useMemo(
     () => [...entries].sort((a, b) => new Date(b.date) - new Date(a.date)),
     [entries],
@@ -27,21 +44,33 @@ const Diary = (() => {
     saveEntries(entries)
   }, [entries])
 
-  function addEntry(e) {
+  async function addEntry(e) {
     e.preventDefault()
     if (!title.trim() && !content.trim()) return
     const now = new Date()
-    setEntries((prev) => [
-      {
-        id: crypto.randomUUID(),
-        title: title.trim() || 'Untitled',
-        content: content.trim(),
-        date: now.toISOString(),
-      },
-      ...prev,
-    ])
-    setTitle('')
-    setContent('')
+    const payload = {
+      userId: 2,
+      title: title.trim() || 'Untitled',
+      contentMd: content.trim(),
+      diaryDate: now.toISOString().slice(0, 10),
+    }
+
+    try {
+      const diaryId = await mutation.mutateAsync(payload)
+      setEntries((prev) => [
+        {
+          id: diaryId || crypto.randomUUID(),
+          title: payload.title,
+          content: payload.contentMd,
+          date: now.toISOString(),
+        },
+        ...prev,
+      ])
+      setTitle('')
+      setContent('')
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   function removeEntry(id) {
@@ -70,8 +99,9 @@ const Diary = (() => {
             <button
               type="submit"
               className="rounded-full bg-amber text-white px-5 py-2.5 hover:opacity-95 active:opacity-90"
+              disabled={mutation.isPending}
             >
-              Save
+              {mutation.isPending ? 'Saving...' : 'Save'}
             </button>
             <span className="text-sm text-clay/60">Stored locally in your browser</span>
           </div>
