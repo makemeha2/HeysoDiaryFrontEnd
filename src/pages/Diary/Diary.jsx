@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { authFetch } from '../../lib/apiClient.js'
+import NewEntryDialog from './components/NewEntryDialog.jsx'
 
 function loadEntries() {
   try {
@@ -17,23 +16,6 @@ function saveEntries(entries) {
 
 const Diary = (() => {
   const [entries, setEntries] = useState(() => loadEntries())
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-
-  const mutation = useMutation({
-    mutationFn: async (payload) => {
-      const res = await authFetch('/api/diary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        throw new Error('Failed to create diary entry')
-      }
-      const data = await res.json()
-      return typeof data === 'number' ? data : data?.diaryId
-    },
-  })
 
   const sorted = useMemo(
     () => [...entries].sort((a, b) => new Date(b.date) - new Date(a.date)),
@@ -44,33 +26,8 @@ const Diary = (() => {
     saveEntries(entries)
   }, [entries])
 
-  async function addEntry(e) {
-    e.preventDefault()
-    if (!title.trim() && !content.trim()) return
-    const now = new Date()
-    const payload = {
-      userId: 2,
-      title: title.trim() || 'Untitled',
-      contentMd: content.trim(),
-      diaryDate: now.toISOString().slice(0, 10),
-    }
-
-    try {
-      const diaryId = await mutation.mutateAsync(payload)
-      setEntries((prev) => [
-        {
-          id: diaryId || crypto.randomUUID(),
-          title: payload.title,
-          content: payload.contentMd,
-          date: now.toISOString(),
-        },
-        ...prev,
-      ])
-      setTitle('')
-      setContent('')
-    } catch (err) {
-      console.error(err)
-    }
+  function handleEntryCreated(entry) {
+    setEntries((prev) => [entry, ...prev])
   }
 
   function removeEntry(id) {
@@ -80,32 +37,16 @@ const Diary = (() => {
   return (
     <div className="grid gap-8 md:grid-cols-2">
       <section className="bg-white/70 rounded-2xl p-6 shadow-soft border border-sand/40">
-        <h2 className="text-xl font-semibold mb-4">New Entry</h2>
-        <form onSubmit={addEntry} className="space-y-4">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded-xl border border-sand/60 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber/40"
-            placeholder="Title"
-          />
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={8}
-            className="w-full rounded-xl border border-sand/60 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber/40"
-            placeholder="Write your thoughts..."
-          />
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              className="rounded-full bg-amber text-white px-5 py-2.5 hover:opacity-95 active:opacity-90"
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? 'Saving...' : 'Save'}
-            </button>
-            <span className="text-sm text-clay/60">Stored locally in your browser</span>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-clay/60">Capture a moment</p>
+            <h2 className="text-xl font-semibold">New Entry</h2>
           </div>
-        </form>
+          <NewEntryDialog onAddEntry={handleEntryCreated} />
+        </div>
+        <p className="mt-4 text-sm text-clay/70">
+          Click "New" to open a focused editor and record today&apos;s note.
+        </p>
       </section>
 
       <section className="space-y-4">

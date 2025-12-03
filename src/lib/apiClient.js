@@ -30,5 +30,11 @@ export async function authFetch(url, options = {}) {
         : {}),
   }
 
-  return fetch(url, { ...options, headers })
+  const baseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  const fullUrl = /^(http|https):\/\//i.test(url)
+    ? url
+    : `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
+
+  return fetch(fullUrl, { ...options, headers })
 }
