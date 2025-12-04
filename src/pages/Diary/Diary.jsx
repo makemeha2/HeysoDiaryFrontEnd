@@ -1,37 +1,39 @@
-import { useEffect, useMemo, useState } from 'react'
-import NewEntryDialog from './components/NewEntryDialog.jsx'
+import { useEffect, useMemo, useState } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import NewEntryDialog from './components/NewEntryDialog.jsx';
 
 function loadEntries() {
   try {
-    const raw = localStorage.getItem('diaryEntries')
-    return raw ? JSON.parse(raw) : []
+    const raw = localStorage.getItem('diaryEntries');
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return []
+    return [];
   }
 }
 
 function saveEntries(entries) {
-  localStorage.setItem('diaryEntries', JSON.stringify(entries))
+  localStorage.setItem('diaryEntries', JSON.stringify(entries));
 }
 
-const Diary = (() => {
-  const [entries, setEntries] = useState(() => loadEntries())
+const Diary = () => {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [entries, setEntries] = useState(() => loadEntries());
 
   const sorted = useMemo(
     () => [...entries].sort((a, b) => new Date(b.date) - new Date(a.date)),
     [entries],
-  )
+  );
 
   useEffect(() => {
-    saveEntries(entries)
-  }, [entries])
+    saveEntries(entries);
+  }, [entries]);
 
   function handleEntryCreated(entry) {
-    setEntries((prev) => [entry, ...prev])
+    setEntries((prev) => [entry, ...prev]);
   }
 
   function removeEntry(id) {
-    setEntries((prev) => prev.filter((e) => e.id !== id))
+    setEntries((prev) => prev.filter((e) => e.id !== id));
   }
 
   return (
@@ -42,7 +44,14 @@ const Diary = (() => {
             <p className="text-sm text-clay/60">Capture a moment</p>
             <h2 className="text-xl font-semibold">New Entry</h2>
           </div>
-          <NewEntryDialog onAddEntry={handleEntryCreated} />
+          <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog.Trigger asChild>
+              <button className="rounded-full bg-amber text-white px-4 py-2 text-sm font-medium hover:opacity-95 active:opacity-90">
+                New
+              </button>
+            </Dialog.Trigger>
+            <NewEntryDialog onAddEntry={handleEntryCreated} onClose={() => setDialogOpen(false)} />
+          </Dialog.Root>
         </div>
         <p className="mt-4 text-sm text-clay/70">
           Click "New" to open a focused editor and record today&apos;s note.
@@ -65,9 +74,7 @@ const Diary = (() => {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-semibold mb-1">{e.title}</h3>
-                  <time className="text-sm text-clay/60">
-                    {new Date(e.date).toLocaleString()}
-                  </time>
+                  <time className="text-sm text-clay/60">{new Date(e.date).toLocaleString()}</time>
                 </div>
                 <button
                   onClick={() => removeEntry(e.id)}
@@ -78,16 +85,14 @@ const Diary = (() => {
                 </button>
               </div>
               {e.content && (
-                <p className="mt-3 whitespace-pre-wrap leading-relaxed text-clay/90">
-                  {e.content}
-                </p>
+                <p className="mt-3 whitespace-pre-wrap leading-relaxed text-clay/90">{e.content}</p>
               )}
             </li>
           ))}
         </ul>
       </section>
     </div>
-  )
-});
+  );
+};
 
 export default Diary;
