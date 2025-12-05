@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { DayPicker } from 'react-day-picker';
 import MarkdownIt from 'markdown-it';
 import MdEditor from 'react-markdown-editor-lite';
@@ -14,6 +14,7 @@ const mdParser = new MarkdownIt();
 const formatDate = (date) => (date ? date.toISOString().slice(0, 10) : '');
 
 const NewEntryDialog = ({ onAddEntry, onClose }) => {
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -21,7 +22,7 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
   const [tagInput, setTagInput] = useState('');
   const [showCalendar, setShowCalendar] = useState(false);
 
-  const mutation = useMutation({
+  const addDiary = useMutation({
     mutationFn: async (payload) => {
       const res = await authFetch('/api/diary', {
         method: 'POST',
@@ -40,11 +41,17 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
         id: diaryId || crypto.randomUUID(),
         title: variables.title,
         content: variables.contentMd,
-        date: now.toISOString(),
+        contentMd: variables.contentMd,
+        date: variables.diaryDate || now.toISOString(),
         tags: variables.tags || [],
         diaryDate: variables.diaryDate,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
       };
-      onAddEntry(entry);
+      if (onAddEntry) {
+        onAddEntry(entry);
+      }
+      queryClient.invalidateQueries({ queryKey: ['diaryEntries'] });
       setTitle('');
       setContent('');
       setTags([]);
@@ -57,23 +64,22 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
     },
   });
 
-  function handleSubmit(e) {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim() && !content.trim()) return;
     const now = new Date();
     const diaryDate = formatDate(selectedDate || now);
     const uniqueTags = tags.filter((tag, index) => tags.indexOf(tag) === index);
     const payload = {
-      userId: 2,
       title: title.trim() || 'Untitled',
       contentMd: content.trim(),
       diaryDate,
       tags: uniqueTags,
     };
-    mutation.mutate(payload);
-  }
+    addDiary.mutate(payload);
+  };
 
-  function addTag() {
+  const addTag = () => {
     const trimmed = tagInput.trim();
     if (!trimmed) return;
     const exists = tags.some((tag) => tag.toLowerCase() === trimmed.toLowerCase());
@@ -83,11 +89,11 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
     }
     setTags((prev) => [...prev, trimmed]);
     setTagInput('');
-  }
+  };
 
-  function removeTag(tag) {
+  const removeTag = (tag) => {
     setTags((prev) => prev.filter((t) => t !== tag));
-  }
+  };
 
   return (
     <Dialog.Portal>
@@ -196,13 +202,13 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
           </div>
 
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-clay/60">Stored locally in your browser</span>
+            <span className="text-sm text-clay/60">Entries are saved securely to your diary</span>
             <button
               type="submit"
               className="rounded-full bg-amber text-white px-5 py-2.5 hover:opacity-95 active:opacity-90 disabled:opacity-60"
-              disabled={mutation.isPending}
+              disabled={addDiary.isPending}
             >
-              {mutation.isPending ? 'Saving...' : 'Save'}
+              {addDiary.isPending ? 'Saving...' : 'Save'}
             </button>
           </div>
         </form>
