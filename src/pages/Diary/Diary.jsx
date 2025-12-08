@@ -7,20 +7,12 @@ import { authFetch } from '../../lib/apiClient.js';
 const DEFAULT_PAGE = 1;
 const DEFAULT_SIZE = 20;
 
+// 새 글 작성과 최근 글 목록을 모두 보여주는 다이어리 페이지 컴포넌트.
 const Diary = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const {
-    data: entries = [],
-    isLoading,
-    isError,
-    error,
-  } = useQuery({
-    queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
-    queryFn: ({ signal }) => loadEntries({ signal, page: DEFAULT_PAGE, size: DEFAULT_SIZE }),
-  });
-
+  // 페이지네이션으로 다이어리 목록을 불러오고 응답 형태를 통일합니다.
   const loadEntries = async ({ signal, page = DEFAULT_PAGE, size = DEFAULT_SIZE } = {}) => {
     const safePage = Math.max(1, page);
     const safeSize = Math.min(100, Math.max(1, size));
@@ -35,13 +27,8 @@ const Diary = () => {
     }
 
     const payload = await response.json();
-    const items = Array.isArray(payload?.data)
-      ? payload.data
-      : Array.isArray(payload?.content)
-        ? payload.content
-        : Array.isArray(payload)
-          ? payload
-          : [];
+
+    const items = Array.isArray(payload?.diaries) ? payload.diaries : [];
 
     return items.map((item) => {
       const dateValue =
@@ -59,16 +46,27 @@ const Diary = () => {
         diaryDate: item.diaryDate,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
-        tags: item.tags ?? [],
+        tags: Array.isArray(item.tags) ? item.tags : item.tags ? [item.tags] : [],
       };
     });
   };
+
+  const {
+    data: entries = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
+    queryFn: ({ signal }) => loadEntries({ signal, page: DEFAULT_PAGE, size: DEFAULT_SIZE }),
+  });
 
   const sorted = useMemo(
     () => [...entries].sort((a, b) => new Date(b.date) - new Date(a.date)),
     [entries],
   );
 
+  // 새로 만든 글을 즉시 목록에 반영하고 서버 데이터를 무효화합니다.
   const handleEntryCreated = (entry) => {
     queryClient.setQueryData(['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE], (prev = []) => [
       entry,
@@ -77,6 +75,7 @@ const Diary = () => {
     queryClient.invalidateQueries({ queryKey: ['diaryEntries'] });
   };
 
+  // 로컬 캐시에서 글을 제거합니다.
   const removeEntry = (id) => {
     queryClient.setQueryData(['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE], (prev = []) =>
       prev.filter((entry) => entry.id !== id),

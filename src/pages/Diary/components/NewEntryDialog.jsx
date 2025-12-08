@@ -11,8 +11,10 @@ import { Calendar, Clover, SquareX } from 'lucide-react';
 
 const mdParser = new MarkdownIt();
 
+// Date 객체를 YYYY-MM-DD 문자열로 변환합니다.
 const formatDate = (date) => (date ? date.toISOString().slice(0, 10) : '');
 
+// 새 다이어리 글을 작성하는 다이얼로그.
 const NewEntryDialog = ({ onAddEntry, onClose }) => {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -22,6 +24,7 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
   const [tagInput, setTagInput] = useState('');
   const [showCalendar, setShowCalendar] = useState(false);
 
+  // API로 글을 생성하고 성공 시 캐시를 갱신합니다.
   const addDiary = useMutation({
     mutationFn: async (payload) => {
       const res = await authFetch('/api/diary', {
@@ -64,6 +67,7 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
     },
   });
 
+  // 입력값 검증 후 태그를 포함해 새 글을 제출합니다.
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim() && !content.trim()) return;
@@ -79,6 +83,7 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
     addDiary.mutate(payload);
   };
 
+  // 비어있지 않고 중복되지 않은 태그를 추가합니다.
   const addTag = () => {
     const trimmed = tagInput.trim();
     if (!trimmed) return;
@@ -91,6 +96,7 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
     setTagInput('');
   };
 
+  // 현재 태그 목록에서 태그를 제거합니다.
   const removeTag = (tag) => {
     setTags((prev) => prev.filter((t) => t !== tag));
   };
