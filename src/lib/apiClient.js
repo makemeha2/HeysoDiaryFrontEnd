@@ -1,26 +1,26 @@
 export function getAuthData() {
   try {
-    const raw = localStorage.getItem('auth')
-    return raw ? JSON.parse(raw) : null
+    const raw = localStorage.getItem('auth');
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    return null
+    return null;
   }
 }
 
 export function setAuthData(auth) {
   try {
-    localStorage.setItem('auth', JSON.stringify(auth))
+    localStorage.setItem('auth', JSON.stringify(auth));
   } catch (err) {
-    console.error('Failed to persist auth data', err)
+    console.error('Failed to persist auth data', err);
   }
 }
 
 export function clearAuthData() {
-  localStorage.removeItem('auth')
+  localStorage.removeItem('auth');
 }
 
 export async function authFetch(url, options = {}) {
-  const auth = getAuthData()
+  const auth = getAuthData();
   const headers = {
     ...(options.headers || {}),
     ...(auth?.accessToken
@@ -28,7 +28,7 @@ export async function authFetch(url, options = {}) {
       : auth?.jwtAccessToken
         ? { Authorization: `Bearer ${auth.jwtAccessToken}` }
         : {}),
-  }
+  };
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
@@ -36,5 +36,5 @@ export async function authFetch(url, options = {}) {
     ? url
     : `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
 
-  return fetch(fullUrl, { ...options, headers })
+  return fetch(fullUrl, { ...options, headers });
 }

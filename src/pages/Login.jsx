@@ -1,36 +1,45 @@
-import { useState } from 'react'
-import { GoogleLogin } from "@react-oauth/google";
-import { setAuthData } from '../lib/apiClient.js'
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import { setAuthData } from '../lib/apiClient.js';
 
-const Login = (() => {
-  const [id, setId] = useState('')
-  const [pw, setPw] = useState('')
+const Login = () => {
+  const [id, setId] = useState('');
+  const [pw, setPw] = useState('');
+
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const from = location.state?.from?.pathname || '/';
 
   function onSubmit(e) {
-    e.preventDefault()
-    alert(`로그인 요청\nID: ${id}`)
+    e.preventDefault();
+
+    navigate(from, { replace: true });
+
+    alert(`로그인 요청\nID: ${id}`);
   }
 
   const handleGoogleSuccess = async (credentialResponse) => {
-    const idToken = credentialResponse.credential // 구글에서 준 ID Token (JWT)
-    const baseURL = import.meta.env.VITE_API_BASE_URL
+    const idToken = credentialResponse.credential; // 구글에서 준 ID Token (JWT)
+    const baseURL = import.meta.env.VITE_API_BASE_URL;
 
     try {
       // 1) 이 토큰을 백엔드로 전달
       // 2) 백엔드에서 검증 후 우리 서비스용 액세스 토큰 발급
-      const res = await fetch(baseURL + "/api/auth/oauth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch(baseURL + '/api/auth/oauth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
-      })
+      });
 
       if (!res.ok) {
         // 실패 처리
-        console.error("구글 인증 처리 실패")
-        return
+        console.error('구글 인증 처리 실패');
+        return;
       }
 
-      const data = await res.json()
+      const data = await res.json();
       // 기대 응답:
       // { accessToken, userId, email, nickname, role }
       setAuthData({
@@ -42,16 +51,18 @@ const Login = (() => {
         provider: 'google',
         grantedAt: Date.now(),
         idToken,
-      })
-      console.log("로그인 성공", data)
+      });
+      console.log('로그인 성공', data);
+
+      navigate(from, { replace: true });
     } catch (e) {
-      console.error(e)
+      console.error(e);
     }
-  }
+  };
 
   const handleGoogleError = () => {
-    console.error("Google 로그인 실패")
-  }
+    console.error('Google 로그인 실패');
+  };
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center">
@@ -103,7 +114,6 @@ const Login = (() => {
           <div className="h-px flex-1 bg-sand/60" />
         </div>
 
-        
         <div style={{ marginTop: 16 }}>
           <GoogleLogin onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
         </div>
@@ -134,7 +144,7 @@ const Login = (() => {
         </div>
       </div>
     </div>
-  )
-});
+  );
+};
 
 export default Login;
