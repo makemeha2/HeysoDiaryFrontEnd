@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 export function getAuthData() {
   try {
     const raw = localStorage.getItem('auth');
@@ -19,22 +21,41 @@ export function clearAuthData() {
   localStorage.removeItem('auth');
 }
 
-export async function authFetch(url, options = {}) {
+const baseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
+const api = axios.create({
+  baseURL: baseUrl || undefined,
+});
+
+api.interceptors.request.use((config) => {
   const auth = getAuthData();
-  const headers = {
-    ...(options.headers || {}),
-    ...(auth?.accessToken
-      ? { Authorization: `Bearer ${auth.accessToken}` }
-      : auth?.jwtAccessToken
-        ? { Authorization: `Bearer ${auth.jwtAccessToken}` }
-        : {}),
-  };
+  if (auth?.accessToken) {
+    config.headers = { ...(config.headers || {}), Authorization: `Bearer ${auth.accessToken}` };
+  } else if (auth?.jwtAccessToken) {
+    config.headers = { ...(config.headers || {}), Authorization: `Bearer ${auth.jwtAccessToken}` };
+  }
+  return config;
+});
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL;
+export async function authFetch(url, options = {}) {
+  const {
+    method = 'GET',
+    headers = {},
+    body,
+    data,
+    params,
+    signal,
+    ...rest
+  } = options;
 
-  const fullUrl = /^(http|https):\/\//i.test(url)
-    ? url
-    : `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
-
-  return fetch(fullUrl, { ...options, headers });
+  return api.request({
+    url,
+    method,
+    headers,
+    params,
+    data: data !== undefined ? data : body,
+    signal,
+    validateStatus: () => true,
+    ...rest,
+  });
 }
