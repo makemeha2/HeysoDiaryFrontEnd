@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
-import { setAuthData } from '../lib/apiClient.js';
+import { useAuthStore } from '../stores/authStore.js';
 
 const Login = () => {
   const [id, setId] = useState('');
@@ -9,6 +9,7 @@ const Login = () => {
 
   const location = useLocation();
   const navigate = useNavigate();
+  const setAuth = useAuthStore((s) => s.setAuth);
 
   const from = location.state?.from?.pathname || '/';
 
@@ -42,7 +43,7 @@ const Login = () => {
       const data = await res.json();
       // 기대 응답:
       // { accessToken, userId, email, nickname, role }
-      setAuthData({
+      const authPayload = {
         accessToken: data.accessToken,
         userId: data.userId,
         email: data.email,
@@ -51,7 +52,10 @@ const Login = () => {
         provider: 'google',
         grantedAt: Date.now(),
         idToken,
-      });
+      };
+
+      setAuth(authPayload); // zustand store 에 반영
+
       console.log('로그인 성공', data);
 
       navigate(from, { replace: true });
