@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
@@ -28,19 +29,10 @@ const Login = () => {
     try {
       // 1) 이 토큰을 백엔드로 전달
       // 2) 백엔드에서 검증 후 우리 서비스용 액세스 토큰 발급
-      const res = await fetch(baseURL + '/api/auth/oauth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      });
+      const apiBase = (baseURL || '').replace(/\/$/, '');
+      const res = await axios.post(`${apiBase}/api/auth/oauth/google`, { idToken });
 
-      if (!res.ok) {
-        // 실패 처리
-        console.error('구글 인증 처리 실패');
-        return;
-      }
-
-      const data = await res.json();
+      const data = res.data;
       // 기대 응답:
       // { accessToken, userId, email, nickname, role }
       const authPayload = {

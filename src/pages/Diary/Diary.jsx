@@ -19,45 +19,6 @@ const Diary = () => {
   const location = useLocation();
   const auth = useAuthStore((s) => s.auth);
 
-  // 페이지네이션으로 다이어리 목록을 불러오고 응답 형태를 통일합니다.
-  const loadEntries = async ({ signal, page = DEFAULT_PAGE, size = DEFAULT_SIZE } = {}) => {
-    const safePage = Math.max(1, page);
-    const safeSize = Math.min(100, Math.max(1, size));
-    const params = new URLSearchParams({
-      page: String(safePage),
-      size: String(safeSize),
-    });
-
-    const response = await authFetch(`/api/diary?${params.toString()}`, { signal });
-    if (!response.ok) {
-      throw new Error('Failed to load diary entries');
-    }
-
-    const payload = await response.json();
-
-    const items = Array.isArray(payload?.diaries) ? payload.diaries : [];
-
-    return items.map((item) => {
-      const dateValue =
-        item.diaryDate || item.createdAt || item.updatedAt || new Date().toISOString();
-
-      return {
-        id: item.diaryId ?? crypto.randomUUID(),
-        diaryId: item.diaryId,
-        authorId: item.authorId,
-        authorNickname: item.authorNickname,
-        title: item.title ?? '',
-        content: item.contentMd ?? '',
-        contentMd: item.contentMd ?? '',
-        date: dateValue,
-        diaryDate: item.diaryDate,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        tags: Array.isArray(item.tags) ? item.tags : item.tags ? [item.tags] : [],
-      };
-    });
-  };
-
   const {
     data: entries = [],
     isLoading,
