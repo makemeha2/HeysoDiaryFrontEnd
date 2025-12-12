@@ -7,12 +7,16 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { authFetch } from '../../../lib/apiClient.js';
 import 'react-day-picker/dist/style.css';
 import 'react-markdown-editor-lite/lib/index.css';
-import { Calendar, Clover, SquareX } from 'lucide-react';
 
+import { Calendar, SquareX } from 'lucide-react';
+import dayjs from 'dayjs';
+import 'dayjs/locale/ko';
+
+dayjs.locale('ko');
 const mdParser = new MarkdownIt();
 
-// Date 객체를 YYYY-MM-DD 문자열로 변환합니다.
-const formatDate = (date) => (date ? date.toISOString().slice(0, 10) : '');
+const DEFAULT_PAGE = 1;
+const DEFAULT_SIZE = 20;
 
 // 새 다이어리 글을 작성하는 다이얼로그.
 const NewEntryDialog = ({ onAddEntry, onClose }) => {
@@ -22,6 +26,7 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
+
   const [showCalendar, setShowCalendar] = useState(false);
 
   // API로 글을 생성하고 성공 시 캐시를 갱신합니다.
@@ -39,22 +44,14 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
       return typeof data === 'number' ? data : data?.diaryId;
     },
     onSuccess: (diaryId, variables) => {
-      const now = new Date();
-      const entry = {
-        id: diaryId || crypto.randomUUID(),
-        title: variables.title,
-        content: variables.contentMd,
-        contentMd: variables.contentMd,
-        date: variables.diaryDate || now.toISOString(),
-        tags: variables.tags || [],
-        diaryDate: variables.diaryDate,
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-      };
       if (onAddEntry) {
         onAddEntry(entry);
       }
-      queryClient.invalidateQueries({ queryKey: ['diaryEntries'] });
+
+      queryClient.refetchQueries({
+        queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
+      });
+
       setTitle('');
       setContent('');
       setTags([]);
@@ -71,8 +68,8 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim() && !content.trim()) return;
-    const now = new Date();
-    const diaryDate = formatDate(selectedDate || now);
+
+    const diaryDate = dayjs(selectedDate).format('YYYY-MM-DD');
     const uniqueTags = tags.filter((tag, index) => tags.indexOf(tag) === index);
     const payload = {
       title: title.trim() || 'Untitled',
@@ -104,30 +101,22 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
   return (
     <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm data-[state=open]:animate-fadeIn" />
-      <Dialog.Content className="fixed left-1/2 top-1/2 w-[min(90vw,1120px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-sand/50 bg-white p-6 shadow-2xl focus:outline-none data-[state=open]:animate-scaleIn">
+      <Dialog.Content
+        onPointerDownOutside={(e) => e.preventDefault()} // 바깥 클릭 닫힘 방지
+        className="fixed left-1/2 top-1/2 w-[min(90vw,1120px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-sand/50 bg-white p-6 shadow-2xl focus:outline-none data-[state=open]:animate-scaleIn"
+      >
         <div className="flex items-start justify-between">
           <Dialog.Title className="flex items-center gap-2 text-lg font-semibold text-clay">
-            <Clover className="h-5 w-5" />
-            <span>오늘의 기록을 남겨보세요.</span>
-          </Dialog.Title>
-          <Dialog.Close asChild>
-            <button className="text-clay/60 hover:text-clay/80" aria-label="Close">
-              <SquareX />
-            </button>
-          </Dialog.Close>
-        </div>
-        <Dialog.Description className="mt-1 text-sm text-clay/60"></Dialog.Description>
-
-        <div className="mt-3 flex justify-end">
-          <div className="relative flex items-center gap-2">
+            {/* <Clover className="h-5 w-5" /> */}
+            {/* <span>오늘의 기록을 남겨보세요.</span> */}
             <button type="button" onClick={() => setShowCalendar((prev) => !prev)}>
               <Calendar className="w-5 h-5" />
             </button>
-            <span className="text-[14px] font-medium text-clay/80 underline">
-              {formatDate(selectedDate)}
+            <span className="text-[16px] font-bold text-clay/80 underline">
+              {dayjs(selectedDate).format('YYYY-MM-DD (ddd)')}
             </span>
             {showCalendar && (
-              <div className="absolute right-0 top-12 z-10 rounded-xl border border-sand/60 bg-white shadow-lg">
+              <div className="absolute left-10 top-12 z-10 rounded-xl border border-sand/60 bg-white shadow-lg">
                 <DayPicker
                   mode="single"
                   selected={selectedDate}
@@ -142,7 +131,17 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
                 />
               </div>
             )}
-          </div>
+          </Dialog.Title>
+          <Dialog.Close asChild>
+            <button className="text-clay/60 hover:text-clay/80" aria-label="Close">
+              <SquareX />
+            </button>
+          </Dialog.Close>
+        </div>
+        <Dialog.Description className="mt-1 text-sm text-clay/60"></Dialog.Description>
+
+        <div className="mt-3 flex justify-end">
+          <div className="relative flex items-center gap-2"></div>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-5">

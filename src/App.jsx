@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { getAuthData, clearAuthData } from './lib/apiClient.js';
 import { useAuthStore } from './stores/authStore.js';
 import ConfirmDialog from './pages/ShareComponents/ConfirmDialog.jsx';
+import { useQueryClient } from '@tanstack/react-query';
 
 const navLinkClass = ({ isActive }) =>
   `px-4 py-2 rounded-full transition-colors ${
@@ -25,6 +26,8 @@ const App = () => {
 
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     const saved = getAuthData();
     if (saved) {
@@ -40,6 +43,8 @@ const App = () => {
   const handleLogoutConfirm = () => {
     clearAuthData();
     clearAuth();
+    queryClient.removeQueries({ queryKey: ['diaryEntries'] });
+
     navigate('/', { replace: true });
 
     setLogoutConfirmOpen(false);

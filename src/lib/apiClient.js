@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 export function getAuthData() {
   try {
     const raw = localStorage.getItem('auth');
@@ -20,6 +22,8 @@ export function clearAuthData() {
 }
 
 export async function authFetch(url, options = {}) {
+  const method = options.method || 'GET';
+  const body = options.body;
   const auth = getAuthData();
   const headers = {
     ...(options.headers || {}),
@@ -36,5 +40,24 @@ export async function authFetch(url, options = {}) {
     ? url
     : `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
 
-  return fetch(fullUrl, { ...options, headers });
+  const response = await axios({
+    url: fullUrl,
+    method,
+    headers,
+    data: body,
+    signal: options.signal,
+    validateStatus: () => true, // allow manual ok check
+  });
+
+  return {
+    ok: response.status >= 200 && response.status < 300,
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+    url: response.config?.url || fullUrl,
+    json: async () => response.data,
+    text: async () =>
+      typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
+    raw: response,
+  };
 }
