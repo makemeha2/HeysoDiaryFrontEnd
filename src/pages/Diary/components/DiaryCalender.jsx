@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import reduce from 'lodash/reduce';
 import dayjs from 'dayjs';
 import { DayPicker } from 'react-day-picker';
 import { useQuery } from '@tanstack/react-query';
@@ -39,17 +40,23 @@ const DiaryCalender = ({ entries = [], selectedDate, onSelectDate, onSingleEntry
   });
 
   const countsByDay = useMemo(() => {
-    return monthlyCnts.reduce((acc, item) => {
-      const key = formatDateKey(item?.diaryDate);
-      if (!key) return acc;
-      acc[key] = item.diaryCount ?? 0;
-      return acc;
-    }, {});
+    return reduce(
+      monthlyCnts,
+      (acc, item) => {
+        const key = formatDateKey(item?.diaryDate);
+        if (!key) return acc;
+        acc[key] = item.diaryCount ?? 0;
+
+        return acc;
+      },
+      {},
+    );
   }, [monthlyCnts]);
 
   const greenSteps = ['#e8f6ed', '#c9ead7', '#9fdac0', '#6dc6a1', '#40a777'];
 
   const getCount = (day) => countsByDay[formatDateKey(day)] || 0;
+
   const getTier = (count) => {
     if (count <= 0) return null;
     if (count >= 5) return 4;
@@ -83,16 +90,22 @@ const DiaryCalender = ({ entries = [], selectedDate, onSelectDate, onSingleEntry
         month={currentMonth}
         showOutsideDays
         styles={{
+          root: {
+            '--rdp-accent-color': '#d9b26a',
+            '--rdp-accent-color-dark': '#d9b26a',
+            '--rdp-background-color': '#f8e8c6',
+          },
           caption: { color: '#5c4033', fontWeight: 600 },
           nav_button: { color: '#5c4033' },
+          day: { borderRadius: '10px' },
+          day_button: {
+            outline: 'none',
+            boxShadow: 'none',
+            borderRadius: '10px',
+            color: '#5c4033',
+            transition: 'box-shadow 120ms, background-color 120ms',
+          },
         }}
-        // modifiers={{
-        //   tier1: (day) => getTier(getCount(day)) === 0,
-        //   tier2: (day) => getTier(getCount(day)) === 1,
-        //   tier3: (day) => getTier(getCount(day)) === 2,
-        //   tier4: (day) => getTier(getCount(day)) === 3,
-        //   tier5: (day) => getTier(getCount(day)) === 4,
-        // }}
         modifiers={{
           tier1: (day) => getTier(getCount(day)) === 0,
           tier2: (day) => getTier(getCount(day)) === 1,
@@ -101,7 +114,11 @@ const DiaryCalender = ({ entries = [], selectedDate, onSelectDate, onSingleEntry
           tier5: (day) => getTier(getCount(day)) === 4,
         }}
         modifiersStyles={{
-          selected: { backgroundColor: '#f6b100', color: '#fff' },
+          selected: {
+            backgroundColor: '#f8e8c6',
+            color: '#5c4033',
+            boxShadow: '0 0 0 2px #f6c87a80 inset',
+          },
           tier1: { backgroundColor: greenSteps[0], color: '#0f3b25' },
           tier2: { backgroundColor: greenSteps[1], color: '#0f3b25' },
           tier3: { backgroundColor: greenSteps[2], color: '#0f3b25' },

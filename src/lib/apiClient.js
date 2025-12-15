@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+
 export function getAuthData() {
   try {
     const raw = localStorage.getItem('auth');
@@ -22,18 +24,6 @@ export function clearAuthData() {
 }
 
 export async function authFetch(url, options = {}) {
-  const method = options.method || 'GET';
-  const body = options.body;
-  const auth = getAuthData();
-  if (auth?.accessToken) {
-    config.headers = { ...(config.headers || {}), Authorization: `Bearer ${auth.accessToken}` };
-  } else if (auth?.jwtAccessToken) {
-    config.headers = { ...(config.headers || {}), Authorization: `Bearer ${auth.jwtAccessToken}` };
-  }
-  return config;
-});
-
-export async function authFetch(url, options = {}) {
   const {
     method = 'GET',
     headers = {},
@@ -44,6 +34,16 @@ export async function authFetch(url, options = {}) {
     ...rest
   } = options;
 
+  const auth = getAuthData();
+  const mergedHeaders = {
+    ...headers,
+    ...(auth?.accessToken
+      ? { Authorization: `Bearer ${auth.accessToken}` }
+      : auth?.jwtAccessToken
+        ? { Authorization: `Bearer ${auth.jwtAccessToken}` }
+        : {}),
+  };
+
   const fullUrl = /^(http|https):\/\//i.test(url)
     ? url
     : `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
@@ -51,11 +51,14 @@ export async function authFetch(url, options = {}) {
   const response = await axios({
     url: fullUrl,
     method,
-    headers,
-    data: body,
-    signal: options.signal,
+    headers: mergedHeaders,
+    params,
+    data: body ?? data,
+    signal,
     validateStatus: () => true, // allow manual ok check
   });
+
+  const parsedData = Array.isArray(response.data) ? response.data : response.data;
 
   return {
     ok: response.status >= 200 && response.status < 300,
@@ -63,7 +66,8 @@ export async function authFetch(url, options = {}) {
     statusText: response.statusText,
     headers: response.headers,
     url: response.config?.url || fullUrl,
-    json: async () => response.data,
+    data: parsedData,
+    json: async () => parsedData,
     text: async () =>
       typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
     raw: response,
