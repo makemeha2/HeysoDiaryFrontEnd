@@ -1,101 +1,106 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import * as Dialog from '@radix-ui/react-dialog';
 import { DayPicker } from 'react-day-picker';
 import MarkdownIt from 'markdown-it';
 import MdEditor from 'react-markdown-editor-lite';
-import * as Dialog from '@radix-ui/react-dialog';
-import { authFetch } from '../../../lib/apiClient.js';
-import 'react-day-picker/dist/style.css';
-import 'react-markdown-editor-lite/lib/index.css';
-
 import { Calendar, SquareX } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ko';
 
+import { authFetch } from '../../../lib/apiClient.js';
+import 'react-day-picker/dist/style.css';
+import 'react-markdown-editor-lite/lib/index.css';
+
 dayjs.locale('ko');
+
 const mdParser = new MarkdownIt();
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_SIZE = 20;
 
-// 새 다이어리 글을 작성하는 다이얼로그.
-const NewEntryDialog = ({ onAddEntry, onClose }) => {
+const DiaryEditDialog = ({ onClose }) => {
   const queryClient = useQueryClient();
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [tags, setTags] = useState([]);
-  const [tagInput, setTagInput] = useState('');
 
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [diaryDate, setDiaryDate] = useState(() => new Date());
+  const [titleInput, setTitleInput] = useState('');
+  const [contentMdInput, setContentMdInput] = useState('');
+  const [tagList, setTagList] = useState([]);
+  const [tagDraft, setTagDraft] = useState('');
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  // API로 글을 생성하고 성공 시 캐시를 갱신합니다.
-  const addDiary = useMutation({
+  const resetForm = () => {
+    setTitleInput('');
+    setContentMdInput('');
+    setTagList([]);
+    setTagDraft('');
+    setDiaryDate(new Date());
+    setIsCalendarOpen(false);
+  };
+
+  const createDiaryMutation = useMutation({
     mutationFn: async (payload) => {
       const res = await authFetch('/api/diary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+
       if (!res.ok) {
-        throw new Error('Failed to create diary entry');
+        throw new Error('Failed to create diary');
       }
+
+      // 백엔드가 diaryId(number) 또는 { diaryId } 형태로 주는 기존 가정 유지
       const data = await res.json();
       return typeof data === 'number' ? data : data?.diaryId;
     },
-    onSuccess: (diaryId, variables) => {
-      if (onAddEntry) {
-        onAddEntry(entry);
-      }
 
-      queryClient.refetchQueries({
+    onSuccess: async () => {
+      // ✅ 서버가 진실: 바로 목록 재조회
+      await queryClient.refetchQueries({
         queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
       });
 
-      setTitle('');
-      setContent('');
-      setTags([]);
-      setTagInput('');
-      setSelectedDate(new Date());
-      if (onClose) onClose();
+      resetForm();
+      onClose?.();
     },
+
     onError: (err) => {
       console.error(err);
     },
   });
 
-  // 입력값 검증 후 태그를 포함해 새 글을 제출합니다.
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!title.trim() && !content.trim()) return;
 
-    const diaryDate = dayjs(selectedDate).format('YYYY-MM-DD');
-    const uniqueTags = tags.filter((tag, index) => tags.indexOf(tag) === index);
+    if (!titleInput.trim() && !contentMdInput.trim()) return;
+
     const payload = {
-      title: title.trim() || 'Untitled',
-      contentMd: content.trim(),
-      diaryDate,
-      tags: uniqueTags,
+      title: titleInput.trim() || 'Untitled',
+      contentMd: contentMdInput.trim(),
+      diaryDate: dayjs(diaryDate).format('YYYY-MM-DD'),
+      tags: Array.from(new Set(tagList)), // ✅ 중복 제거
     };
-    addDiary.mutate(payload);
+
+    createDiaryMutation.mutate(payload);
   };
 
-  // 비어있지 않고 중복되지 않은 태그를 추가합니다.
   const addTag = () => {
-    const trimmed = tagInput.trim();
-    if (!trimmed) return;
-    const exists = tags.some((tag) => tag.toLowerCase() === trimmed.toLowerCase());
+    const nextTag = tagDraft.trim();
+    if (!nextTag) return;
+
+    const exists = tagList.some((t) => t.toLowerCase() === nextTag.toLowerCase());
     if (exists) {
-      setTagInput('');
+      setTagDraft('');
       return;
     }
-    setTags((prev) => [...prev, trimmed]);
-    setTagInput('');
+
+    setTagList((prev) => [...prev, nextTag]);
+    setTagDraft('');
   };
 
-  // 현재 태그 목록에서 태그를 제거합니다.
   const removeTag = (tag) => {
-    setTags((prev) => prev.filter((t) => t !== tag));
+    setTagList((prev) => prev.filter((t) => t !== tag));
   };
 
   return (
@@ -107,22 +112,22 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
       >
         <div className="flex items-start justify-between">
           <Dialog.Title className="flex items-center gap-2 text-lg font-semibold text-clay">
-            {/* <Clover className="h-5 w-5" /> */}
-            {/* <span>오늘의 기록을 남겨보세요.</span> */}
-            <button type="button" onClick={() => setShowCalendar((prev) => !prev)}>
+            <button type="button" onClick={() => setIsCalendarOpen((prev) => !prev)}>
               <Calendar className="w-5 h-5" />
             </button>
+
             <span className="text-[16px] font-bold text-clay/80 underline">
-              {dayjs(selectedDate).format('YYYY-MM-DD (ddd)')}
+              {dayjs(diaryDate).format('YYYY-MM-DD (ddd)')}
             </span>
-            {showCalendar && (
+
+            {isCalendarOpen && (
               <div className="absolute left-10 top-12 z-10 rounded-xl border border-sand/60 bg-white shadow-lg">
                 <DayPicker
                   mode="single"
-                  selected={selectedDate}
+                  selected={diaryDate}
                   onSelect={(date) => {
-                    setSelectedDate(date || new Date());
-                    setShowCalendar(false);
+                    setDiaryDate(date || new Date());
+                    setIsCalendarOpen(false);
                   }}
                   captionLayout="dropdown-buttons"
                   styles={{
@@ -132,49 +137,42 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
               </div>
             )}
           </Dialog.Title>
+
           <Dialog.Close asChild>
             <button className="text-clay/60 hover:text-clay/80" aria-label="Close">
               <SquareX />
             </button>
           </Dialog.Close>
         </div>
-        <Dialog.Description className="mt-1 text-sm text-clay/60"></Dialog.Description>
-
-        <div className="mt-3 flex justify-end">
-          <div className="relative flex items-center gap-2"></div>
-        </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-5">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <input
-                id="entry-title"
-                value={title}
-                maxLength={200}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full rounded-xl border border-sand/60 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber/40"
-                placeholder=""
-              />
-            </div>
-
-            <div className="text-right text-xs text-clay/50">{title.length}/200</div>
+            <input
+              id="diary-title"
+              value={titleInput}
+              maxLength={200}
+              onChange={(e) => setTitleInput(e.target.value)}
+              className="w-full rounded-xl border border-sand/60 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber/40"
+              placeholder=""
+            />
+            <div className="text-right text-xs text-clay/50">{titleInput.length}/200</div>
           </div>
 
           <div className="space-y-2">
             <MdEditor
-              value={content}
+              value={contentMdInput}
               style={{ height: '280px' }}
               renderHTML={(text) => mdParser.render(text)}
-              onChange={({ text }) => setContent(text)}
+              onChange={({ text }) => setContentMdInput(text)}
               placeholder="Write your thoughts in Markdown..."
             />
           </div>
 
           <div className="space-y-2">
             <input
-              id="tag-input"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
+              id="diary-tag-input"
+              value={tagDraft}
+              onChange={(e) => setTagDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -184,9 +182,10 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
               className="w-full rounded-xl border border-sand/60 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber/40"
               placeholder="태그를 입력해보세요. Enter를 누르면 추가됩니다."
             />
-            {tags.length > 0 && (
+
+            {tagList.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => (
+                {tagList.map((tag) => (
                   <span
                     key={tag}
                     className="inline-flex items-center gap-2 rounded-full bg-amber/10 px-3 py-1 text-sm text-amber-900 border border-amber/30"
@@ -211,9 +210,9 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
             <button
               type="submit"
               className="rounded-full bg-amber text-white px-5 py-2.5 hover:opacity-95 active:opacity-90 disabled:opacity-60"
-              disabled={addDiary.isPending}
+              disabled={createDiaryMutation.isPending}
             >
-              {addDiary.isPending ? 'Saving...' : 'Save'}
+              {createDiaryMutation.isPending ? 'Saving...' : 'Save'}
             </button>
           </div>
         </form>
@@ -222,4 +221,4 @@ const NewEntryDialog = ({ onAddEntry, onClose }) => {
   );
 };
 
-export default NewEntryDialog;
+export default DiaryEditDialog;

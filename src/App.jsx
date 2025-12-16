@@ -5,8 +5,7 @@ import Notice from './pages/Notice.jsx';
 import AI from './pages/AI.jsx';
 import FreeBBS from './pages/FreeBBS.jsx';
 import Login from './pages/Login.jsx';
-import { useEffect, useState } from 'react';
-import { getAuthData, clearAuthData } from './lib/apiClient.js';
+import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from './stores/authStore.js';
 import ConfirmDialog from './pages/ShareComponents/ConfirmDialog.jsx';
 import { useQueryClient } from '@tanstack/react-query';
@@ -21,27 +20,28 @@ const App = () => {
   const navigate = useNavigate();
 
   const auth = useAuthStore((s) => s.auth);
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const authChecked = useAuthStore((s) => s.authChecked);
+  const validateAuth = useAuthStore((s) => s.validateAuth);
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
   const queryClient = useQueryClient();
+  const hasValidatedRef = useRef(false);
 
   useEffect(() => {
-    const saved = getAuthData();
-    if (saved) {
-      setAuth(saved);
-      console.log(saved);
-    }
-  }, [setAuth, location]);
+    if (hasValidatedRef.current) return;
+    hasValidatedRef.current = true;
+    validateAuth();
+  }, [validateAuth]);
+
+  const isAuthenticated = authChecked && !!auth;
 
   const handleLogout = () => {
     setLogoutConfirmOpen(true);
   };
 
   const handleLogoutConfirm = () => {
-    clearAuthData();
     clearAuth();
     queryClient.removeQueries({ queryKey: ['diaryEntries'] });
 
@@ -72,7 +72,7 @@ const App = () => {
             <NavLink to="/freebbs" className={navLinkClass}>
               FreeBBS
             </NavLink>
-            {auth ? (
+            {isAuthenticated ? (
               <button
                 onClick={handleLogout}
                 className={navLinkClass({ isActive: false })}

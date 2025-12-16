@@ -2,74 +2,112 @@ import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
-import NewEntryDialog from './components/NewEntryDialog.jsx';
+import DiaryEditDialog from './components/DiaryEditDialog.jsx';
 import DiaryCalender from './components/DiaryCalender.jsx';
+import dayjs from 'dayjs';
 import { authFetch } from '../../lib/apiClient.js';
 import { useAuthStore } from '../../stores/authStore.js';
+
+const toDateKey = (date) => {
+  const d = dayjs(date);
+  return d.isValid() ? d.format('YYYY-MM-DD') : '';
+};
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_SIZE = 20;
 
-// 새 글 작성과 최근 글 목록을 모두 보여주는 다이어리 페이지 컴포넌트.
 const Diary = () => {
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isNewDiaryDialogOpen, setIsNewDiaryDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
+
   const auth = useAuthStore((s) => s.auth);
+  const authChecked = useAuthStore((s) => s.authChecked);
+
+  const isSignedIn = authChecked && !!auth;
+  const selectedDateKey = toDateKey(selectedDate);
+
+  // 우측 리스트 조회 (최근 다이어리 목록)
+  const fetchDiaries = async ({ signal, page = DEFAULT_PAGE, size = DEFAULT_SIZE }) => {
+    const query = new URLSearchParams({ page: String(page), size: String(size) }).toString();
+    const res = await authFetch(`/api/diary?${query}`, { method: 'GET', signal });
+
+    const diaries = res.data?.diaries;
+    if (!Array.isArray(diaries)) return [];
+
+    return diaries.map((item) => ({
+      id: item.diaryId ?? item.id,
+      title: item.title ?? '',
+      content: item.contentMd ?? item.content ?? '',
+      date: item.diaryDate ?? item.date,
+      raw: item,
+    }));
+  };
 
   const {
-    data: entries = [],
-    isLoading,
-    isError,
-    error,
+    data: diaries = [],
+    isLoading: isDiariesLoading,
+    isError: isDiariesError,
+    error: diariesError,
   } = useQuery({
     queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
-    queryFn: ({ signal }) => loadEntries({ signal, page: DEFAULT_PAGE, size: DEFAULT_SIZE }),
-    enabled: !!auth,
+    queryFn: ({ signal }) => fetchDiaries({ signal, page: DEFAULT_PAGE, size: DEFAULT_SIZE }),
+    enabled: isSignedIn,
     staleTime: 0,
   });
 
-  const sorted = useMemo(() => {
-    return [...entries].sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [entries]);
+  // 좌측 하단: 선택한 날짜의 다이어리 목록
+  const {
+    data: dailyDiaries = [],
+    isLoading: isDailyDiariesLoading,
+    isError: isDailyDiariesError,
+  } = useQuery({
+    queryKey: ['diaryDaily', selectedDateKey],
+    queryFn: async ({ signal }) => {
+      const res = await authFetch(`/api/diary/daily?day=${selectedDateKey}`, { signal });
+      const diaries = res.data?.diaries;
+      return Array.isArray(diaries) ? diaries : [];
+    },
+    enabled: isSignedIn && !!selectedDateKey,
+    staleTime: 0,
+  });
 
-  const formatDateKey = (date) => {
-    if (!date) return '';
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = `${d.getMonth() + 1}`.padStart(2, '0');
-    const day = `${d.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  // “최근 순”으로 정렬된 목록 (캘린더 & 우측 Recent Entries 공용)
+  const recentDiaries = useMemo(() => {
+    return [...diaries].sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [diaries]);
 
-  // 당장은 필요없지만 추후 사용될지 몰라 일단 남겨둠
-  const handleEntryCreated = (entry) => {};
-
-  // 로컬 캐시에서 글을 제거합니다.
-  const removeEntry = (id) => {
+  // 로컬 캐시에서 다이어리를 제거합니다. (서버 삭제는 추후 TODO)
+  const removeDiaryFromCache = (diaryId) => {
     queryClient.setQueryData(['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE], (prev = []) =>
-      prev.filter((entry) => entry.id !== id),
+      prev.filter((diary) => diary.id !== diaryId),
     );
   };
 
   // 로그인 여부에 따라 새 글 다이얼로그를 열거나 로그인 페이지로 이동합니다.
-  const handleDialogOpenChange = (nextOpen) => {
-    if (nextOpen && !auth) {
+  const handleNewDiaryDialogChange = (nextOpen) => {
+    if (nextOpen && !isSignedIn) {
       navigate('/login', { state: { from: location } });
       return;
     }
-    setDialogOpen(nextOpen);
+    setIsNewDiaryDialogOpen(nextOpen);
   };
 
-  const handleGoLogin = () => {
+  const handleDailyDiaryClick = (diary) => {
+    // TODO: 추후 상세 보기 화면으로 이동
+    console.log('View diary', diary);
+  };
+
+  const goToLogin = () => {
     navigate('/login', { state: { from: location } });
   };
 
-  const handleSingleEntryDoubleClick = (entry) => {
-    // 추후 상세 보기 화면으로 이동하도록 사용할 수 있습니다.
-    console.log('Open entry detail', entry);
+  const handleDiaryDoubleClick = (diary) => {
+    // TODO: 추후 상세 보기 화면으로 이동
+    console.log('Open diary detail', diary);
   };
 
   return (
@@ -80,28 +118,67 @@ const Diary = () => {
             <p className="text-sm text-clay/60">Capture a moment</p>
             <h2 className="text-xl font-semibold">New Entry</h2>
           </div>
-          <Dialog.Root open={dialogOpen} onOpenChange={handleDialogOpenChange}>
+
+          <Dialog.Root open={isNewDiaryDialogOpen} onOpenChange={handleNewDiaryDialogChange}>
             <Dialog.Trigger asChild>
               <button className="rounded-full bg-amber text-white px-4 py-2 text-sm font-medium hover:opacity-95 active:opacity-90">
                 New
               </button>
             </Dialog.Trigger>
-            <NewEntryDialog onAddEntry={handleEntryCreated} onClose={() => setDialogOpen(false)} />
+            <DiaryEditDialog onClose={() => setIsNewDiaryDialogOpen(false)} />
           </Dialog.Root>
         </div>
+
         <div className="mt-4">
           <DiaryCalender
-            entries={sorted}
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
-            onSingleEntryDoubleClick={handleSingleEntryDoubleClick}
+            onSingleEntryDoubleClick={handleDiaryDoubleClick}
           />
         </div>
+
+        {selectedDateKey && (
+          <div className="mt-6 rounded-xl border border-sand/40 bg-white/70 p-4">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h3 className="text-sm font-semibold text-clay/80">{selectedDateKey} 작성 글</h3>
+            </div>
+
+            {!isSignedIn ? (
+              <p className="text-sm text-clay/60">
+                로그인 후 선택한 날짜의 글을 확인할 수 있습니다.
+              </p>
+            ) : isDailyDiariesLoading ? (
+              <p className="text-sm text-clay/60">불러오는 중입니다...</p>
+            ) : isDailyDiariesError ? (
+              <p className="text-sm text-red-600">일기를 불러오지 못했습니다.</p>
+            ) : dailyDiaries.length === 0 ? (
+              <p className="text-sm text-clay/60">해당 날짜의 글이 없습니다.</p>
+            ) : (
+              <ul className="space-y-2">
+                {dailyDiaries.map((diary) => (
+                  <li
+                    key={diary.diaryId ?? diary.id}
+                    className="cursor-pointer rounded-lg border border-sand/40 bg-white/90 px-3 py-2 text-sm text-clay/90 hover:bg-amber/10"
+                    onClick={() => handleDailyDiaryClick(diary)}
+                    title={diary.title}
+                  >
+                    <span className="truncate block">{diary.title}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">Recent Entries</h2>
-        {!auth ? (
+
+        {!authChecked ? (
+          <div className="rounded-2xl border border-sand/40 bg-white/60 p-6 text-clay/70">
+            인증 상태를 확인하는 중입니다...
+          </div>
+        ) : !isSignedIn ? (
           <div className="rounded-2xl border border-sand/40 bg-white/60 p-6 text-clay/80 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
               <p className="font-semibold">로그인을 하면 내가 쓴 글이 보입니다.</p>
@@ -110,7 +187,7 @@ const Diary = () => {
               </p>
             </div>
             <button
-              onClick={handleGoLogin}
+              onClick={goToLogin}
               className="self-start rounded-full bg-amber text-white px-4 py-2 text-sm font-medium hover:opacity-95 active:opacity-90"
             >
               로그인
@@ -118,45 +195,49 @@ const Diary = () => {
           </div>
         ) : (
           <>
-            {isLoading && (
+            {isDiariesLoading && (
               <div className="rounded-2xl border border-sand/40 bg-white/60 p-6 text-clay/70">
-                Loading entries...
+                Loading diaries...
               </div>
             )}
-            {isError && (
+
+            {isDiariesError && (
               <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
-                {error?.message || 'Failed to load diary entries.'}
+                {diariesError?.message || 'Failed to load diaries.'}
               </div>
             )}
-            {!isLoading && !isError && sorted.length === 0 && (
+
+            {!isDiariesLoading && !isDiariesError && recentDiaries.length === 0 && (
               <div className="rounded-2xl border border-sand/40 bg-white/60 p-6 text-clay/70">
-                No entries yet. Your first note will appear here.
+                No diaries yet. Your first note will appear here.
               </div>
             )}
+
             <ul className="space-y-3">
-              {sorted.map((e) => (
+              {recentDiaries.map((diary) => (
                 <li
-                  key={e.id}
+                  key={diary.id}
                   className="group rounded-2xl border border-sand/50 bg-white/70 p-5 shadow-soft"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-semibold mb-1">{e.title}</h3>
+                      <h3 className="text-lg font-semibold mb-1">{diary.title}</h3>
                       <time className="text-sm text-clay/60">
-                        {new Date(e.date).toLocaleString()}
+                        {new Date(diary.date).toLocaleString()}
                       </time>
                     </div>
                     <button
-                      onClick={() => removeEntry(e.id)}
+                      onClick={() => removeDiaryFromCache(diary.id)}
                       className="text-sm text-clay/60 hover:text-clay/90"
-                      title="Delete entry"
+                      title="Delete diary"
                     >
                       Delete
                     </button>
                   </div>
-                  {e.content && (
+
+                  {diary.content && (
                     <p className="mt-3 whitespace-pre-wrap leading-relaxed text-clay/90">
-                      {e.content}
+                      {diary.content}
                     </p>
                   )}
                 </li>

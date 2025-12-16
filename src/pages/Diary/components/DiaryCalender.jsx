@@ -1,82 +1,91 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import reduce from 'lodash/reduce';
 import dayjs from 'dayjs';
 import { DayPicker } from 'react-day-picker';
 import { useQuery } from '@tanstack/react-query';
 import { authFetch } from '../../../lib/apiClient';
+import { useAuthStore } from '../../../stores/authStore.js';
 
 // YYYY-MM-DD (local) 키를 반환합니다.
-const formatDateKey = (date) => {
+const toDateKey = (date) => {
   const d = dayjs(date);
-  if (!d.isValid()) return '';
-  return d.format('YYYY-MM-DD');
+  return d.isValid() ? d.format('YYYY-MM-DD') : '';
 };
 
-const isSameDay = (a, b) => {
+const isSameCalendarDay = (a, b) => {
   if (!a || !b) return false;
   return dayjs(a).isSame(dayjs(b), 'day');
 };
 
 /**
- * 다이어리 일수를 캘린더로 표시합니다.
+ * 다이어리 캘린더
  * - 월 이동/선택 시 월별 일기 개수를 API로 불러옵니다.
  * - 하루 여러 건이 있는 경우 농도가 다른 초록색으로 표시합니다.
  * - 같은 셀을 다시 클릭하면 선택 해제합니다.
- * - 더블 클릭시 단일 항목만 있는 날이면 상세 보기 콜백을 호출합니다.
+ * - 더블 클릭 시 해당 날짜에 1건만 있으면 상세 보기 콜백을 호출합니다.
  */
-const DiaryCalender = ({ entries = [], selectedDate, onSelectDate, onSingleEntryDoubleClick }) => {
-  const [currentMonth, setCurrentMonth] = useState(() => dayjs(new Date()).toDate());
-  const monthParam = dayjs(currentMonth).format('YYYY-MM');
+const DiaryCalender = ({ selectedDate, onSelectDate, onSingleDiaryDoubleClick }) => {
+  const [visibleMonth, setVisibleMonth] = useState(() => dayjs().toDate());
+  const monthKey = dayjs(visibleMonth).format('YYYY-MM');
 
-  const { data: monthlyCnts = [] } = useQuery({
-    queryKey: ['monthlyDiary', monthParam],
+  const auth = useAuthStore((s) => s.auth);
+  const authChecked = useAuthStore((s) => s.authChecked);
+  const isSignedIn = authChecked && !!auth;
+
+  const { data: monthlyDiaryCounts = [] } = useQuery({
+    queryKey: ['monthlyDiaryCounts', monthKey],
     queryFn: async () => {
-      const res = await authFetch('/api/diary/monthly?month=' + monthParam);
+      const res = await authFetch(`/api/diary/monthly?month=${monthKey}`);
       return Array.isArray(res.data) ? res.data : [];
     },
-    onError: (err) => {
-      console.error('Failed to load monthly diary counts', err);
-    },
+    enabled: isSignedIn,
   });
 
-  const countsByDay = useMemo(() => {
+  // { '2025-12-16': 3, '2025-12-15': 1, ... }
+  const dailyCountByDateKey = useMemo(() => {
     return reduce(
-      monthlyCnts,
+      monthlyDiaryCounts,
       (acc, item) => {
-        const key = formatDateKey(item?.diaryDate);
-        if (!key) return acc;
-        acc[key] = item.diaryCount ?? 0;
-
+        const dateKey = toDateKey(item?.diaryDate);
+        if (!dateKey) return acc;
+        acc[dateKey] = item?.diaryCount ?? 0;
         return acc;
       },
       {},
     );
-  }, [monthlyCnts]);
+  }, [monthlyDiaryCounts]);
 
-  const greenSteps = ['#e8f6ed', '#c9ead7', '#9fdac0', '#6dc6a1', '#40a777'];
+  const greenTierColors = ['#e8f6ed', '#c9ead7', '#9fdac0', '#6dc6a1', '#40a777'];
 
-  const getCount = (day) => countsByDay[formatDateKey(day)] || 0;
+  const getDiaryCountForDate = (date) => dailyCountByDateKey[toDateKey(date)] || 0;
 
-  const getTier = (count) => {
+  const getGreenTier = (count) => {
     if (count <= 0) return null;
     if (count >= 5) return 4;
     return count - 1; // 1..4 -> 0..3
   };
 
-  const handleDayClick = (day, _, evt) => {
-    if (!day) return;
-    const dayKey = formatDateKey(day);
-    const isSelected = isSameDay(day, selectedDate);
-    const dayEntries = entries.filter((entry) => formatDateKey(entry.date) === dayKey);
+  const handleDateClick = (date, _, evt) => {
+    if (!date) return;
+
+    const dateKey = toDateKey(date);
+    const isSelected = isSameCalendarDay(date, selectedDate);
+
     if (isSelected) {
       onSelectDate?.(null);
       return;
     }
-    setCurrentMonth(day);
-    onSelectDate?.(day);
+
+    setVisibleMonth(date);
+    onSelectDate?.(date);
+
     const isDoubleClick = evt?.detail === 2;
-    if (isDoubleClick && dayEntries.length === 1 && onSingleEntryDoubleClick) {
-      onSingleEntryDoubleClick(dayEntries[0]);
+    if (!isDoubleClick || !onSingleDiaryDoubleClick) return;
+
+    const count = dailyCountByDateKey[dateKey] ?? 0;
+    if (count === 1) {
+      // “1건이면 상세 보기로” 라는 의미만 전달 (상세 조회는 상위에서 수행)
+      onSingleDiaryDoubleClick(date);
     }
   };
 
@@ -85,9 +94,9 @@ const DiaryCalender = ({ entries = [], selectedDate, onSelectDate, onSingleEntry
       <DayPicker
         mode="single"
         selected={selectedDate}
-        onDayClick={handleDayClick}
-        onMonthChange={(month) => setCurrentMonth(dayjs(month || new Date()).toDate())}
-        month={currentMonth}
+        onDayClick={handleDateClick}
+        onMonthChange={(month) => setVisibleMonth(dayjs(month || new Date()).toDate())}
+        month={visibleMonth}
         showOutsideDays
         styles={{
           root: {
@@ -107,11 +116,11 @@ const DiaryCalender = ({ entries = [], selectedDate, onSelectDate, onSingleEntry
           },
         }}
         modifiers={{
-          tier1: (day) => getTier(getCount(day)) === 0,
-          tier2: (day) => getTier(getCount(day)) === 1,
-          tier3: (day) => getTier(getCount(day)) === 2,
-          tier4: (day) => getTier(getCount(day)) === 3,
-          tier5: (day) => getTier(getCount(day)) === 4,
+          tier1: (day) => getGreenTier(getDiaryCountForDate(day)) === 0,
+          tier2: (day) => getGreenTier(getDiaryCountForDate(day)) === 1,
+          tier3: (day) => getGreenTier(getDiaryCountForDate(day)) === 2,
+          tier4: (day) => getGreenTier(getDiaryCountForDate(day)) === 3,
+          tier5: (day) => getGreenTier(getDiaryCountForDate(day)) === 4,
         }}
         modifiersStyles={{
           selected: {
@@ -119,26 +128,13 @@ const DiaryCalender = ({ entries = [], selectedDate, onSelectDate, onSingleEntry
             color: '#5c4033',
             boxShadow: '0 0 0 2px #f6c87a80 inset',
           },
-          tier1: { backgroundColor: greenSteps[0], color: '#0f3b25' },
-          tier2: { backgroundColor: greenSteps[1], color: '#0f3b25' },
-          tier3: { backgroundColor: greenSteps[2], color: '#0f3b25' },
-          tier4: { backgroundColor: greenSteps[3], color: '#0f3b25' },
-          tier5: { backgroundColor: greenSteps[4], color: '#fff' },
+          tier1: { backgroundColor: greenTierColors[0], color: '#0f3b25' },
+          tier2: { backgroundColor: greenTierColors[1], color: '#0f3b25' },
+          tier3: { backgroundColor: greenTierColors[2], color: '#0f3b25' },
+          tier4: { backgroundColor: greenTierColors[3], color: '#0f3b25' },
+          tier5: { backgroundColor: greenTierColors[4], color: '#fff' },
         }}
       />
-      {/* <div className="mt-2 flex items-center gap-3 text-xs text-clay/60">
-        <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-amber"></span>
-        <span>Selected day</span>
-        {greenSteps.map((color, idx) => (
-          <span key={color} className="flex items-center gap-1">
-            <span
-              className="inline-flex h-3 w-3 rounded-full"
-              style={{ backgroundColor: color }}
-            ></span>
-            <span>{idx + 1}+</span>
-          </span>
-        ))}
-      </div> */}
     </div>
   );
 };
