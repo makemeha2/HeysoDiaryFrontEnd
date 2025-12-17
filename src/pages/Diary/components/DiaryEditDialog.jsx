@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
 import { DayPicker } from 'react-day-picker';
 import MarkdownIt from 'markdown-it';
@@ -19,8 +19,9 @@ const mdParser = new MarkdownIt();
 const DEFAULT_PAGE = 1;
 const DEFAULT_SIZE = 20;
 
-const DiaryEditDialog = ({ onClose }) => {
+const DiaryEditDialog = ({ diaryId, onClose }) => {
   const queryClient = useQueryClient();
+  const isEditMode = !!diaryId;
 
   const [diaryDate, setDiaryDate] = useState(() => new Date());
   const [titleInput, setTitleInput] = useState('');
@@ -38,8 +39,56 @@ const DiaryEditDialog = ({ onClose }) => {
     setIsCalendarOpen(false);
   };
 
-  const createDiaryMutation = useMutation({
+  // 상세 조회
+  const { data: diaryDetail, isFetching: isDiaryLoading } = useQuery({
+    queryKey: ['diaryDetail', diaryId],
+    enabled: !!diaryId,
+    queryFn: async ({ signal }) => {
+      const res = await authFetch(`/api/diary/${diaryId}`, { method: 'GET', signal });
+      if (!res.ok) {
+        throw new Error('Failed to load diary');
+      }
+      return res.data;
+    },
+  });
+
+  // 저장 버튼 클릭 이벤트
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!titleInput.trim() && !contentMdInput.trim()) return;
+
+    const payload = {
+      diaryId: diaryId,
+      title: titleInput.trim() || 'Untitled',
+      contentMd: contentMdInput.trim(),
+      diaryDate: dayjs(diaryDate).format('YYYY-MM-DD'),
+      tags: Array.from(new Set(tagList)),
+    };
+
+    saveDiaryMutation.mutate(payload);
+  };
+
+  // 일기 저장
+  const saveDiaryMutation = useMutation({
     mutationFn: async (payload) => {
+      const shouldUpdate = diaryId && diaryDetail;
+
+      // diary 수정
+      if (shouldUpdate) {
+        const res = await authFetch(`/api/diary/${diaryId}/edit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to update diary');
+        }
+
+        return res.data;
+      }
+
       const res = await authFetch('/api/diary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -50,18 +99,25 @@ const DiaryEditDialog = ({ onClose }) => {
         throw new Error('Failed to create diary');
       }
 
-      // 백엔드가 diaryId(number) 또는 { diaryId } 형태로 주는 기존 가정 유지
       const data = await res.json();
       return typeof data === 'number' ? data : data?.diaryId;
     },
 
     onSuccess: async () => {
-      // ✅ 서버가 진실: 바로 목록 재조회
-      await queryClient.refetchQueries({
-        queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
-      });
+      await Promise.all([
+        queryClient.refetchQueries({
+          queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['diaryDaily'] }),
+        diaryId
+          ? queryClient.invalidateQueries({ queryKey: ['diaryDetail', diaryId] })
+          : Promise.resolve(),
+      ]);
 
-      resetForm();
+      if (!diaryId) {
+        resetForm();
+      }
+
       onClose?.();
     },
 
@@ -70,21 +126,7 @@ const DiaryEditDialog = ({ onClose }) => {
     },
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (!titleInput.trim() && !contentMdInput.trim()) return;
-
-    const payload = {
-      title: titleInput.trim() || 'Untitled',
-      contentMd: contentMdInput.trim(),
-      diaryDate: dayjs(diaryDate).format('YYYY-MM-DD'),
-      tags: Array.from(new Set(tagList)), // ✅ 중복 제거
-    };
-
-    createDiaryMutation.mutate(payload);
-  };
-
+  // 태그 등록
   const addTag = () => {
     const nextTag = tagDraft.trim();
     if (!nextTag) return;
@@ -99,15 +141,47 @@ const DiaryEditDialog = ({ onClose }) => {
     setTagDraft('');
   };
 
+  // 태그 삭제
   const removeTag = (tag) => {
     setTagList((prev) => prev.filter((t) => t !== tag));
   };
+
+  // 태그 normalize
+  const normalizedTags = useMemo(() => {
+    if (!diaryDetail?.tags) return [];
+    if (Array.isArray(diaryDetail.tags)) return diaryDetail.tags;
+    if (typeof diaryDetail.tags === 'string') {
+      return diaryDetail.tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, [diaryDetail]);
+
+  useEffect(() => {
+    if (!diaryId) {
+      resetForm();
+      return;
+    }
+  }, [diaryId]);
+
+  useEffect(() => {
+    if (!diaryId || !diaryDetail) return;
+
+    setTitleInput(diaryDetail.title || '');
+    setContentMdInput(diaryDetail.contentMd ?? diaryDetail.content ?? '');
+    setTagList(normalizedTags);
+
+    const parsedDate = dayjs(diaryDetail.diaryDate ?? diaryDetail.date);
+    setDiaryDate(parsedDate.isValid() ? parsedDate.toDate() : new Date());
+  }, [diaryId, diaryDetail, normalizedTags]);
 
   return (
     <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm data-[state=open]:animate-fadeIn" />
       <Dialog.Content
-        onPointerDownOutside={(e) => e.preventDefault()} // 바깥 클릭 닫힘 방지
+        onPointerDownOutside={(e) => e.preventDefault()}
         className="fixed left-1/2 top-1/2 w-[min(90vw,1120px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-sand/50 bg-white p-6 shadow-2xl focus:outline-none data-[state=open]:animate-scaleIn"
       >
         <div className="flex items-start justify-between">
@@ -206,13 +280,15 @@ const DiaryEditDialog = ({ onClose }) => {
           </div>
 
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-clay/60">Entries are saved securely to your diary</span>
+            <span className="text-sm text-clay/60">
+              {isEditMode ? '기존 글을 수정합니다.' : 'Entries are saved securely to your diary'}
+            </span>
             <button
               type="submit"
               className="rounded-full bg-amber text-white px-5 py-2.5 hover:opacity-95 active:opacity-90 disabled:opacity-60"
-              disabled={createDiaryMutation.isPending}
+              disabled={saveDiaryMutation.isPending || isDiaryLoading}
             >
-              {createDiaryMutation.isPending ? 'Saving...' : 'Save'}
+              {saveDiaryMutation.isPending ? 'Saving...' : isEditMode ? 'Update' : 'Save'}
             </button>
           </div>
         </form>
