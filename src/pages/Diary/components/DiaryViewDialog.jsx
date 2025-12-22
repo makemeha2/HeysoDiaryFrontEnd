@@ -58,7 +58,7 @@ const DiaryViewDialog = ({ diaryId, onClose, onEdit }) => {
         className="fixed left-1/2 top-1/2 z-50 w-[min(94vw,980px)] max-h-[90vh] min-h-[75vh] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-sand/40 bg-white shadow-2xl focus:outline-none data-[state=open]:animate-scaleIn"
       >
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-sand/30 bg-sand/10 px-8 py-2">
+        <div className="flex items-center justify-between border-b border-sand/30 bg-sand/10 px-8 py-2">
           <div className="min-w-0 space-y-0">
             <Dialog.Title className="text-lg font-semibold text-clay/80">
               {diary

@@ -42,9 +42,10 @@ const AlertDialog = ({
   );
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    // modal={false}: DiaryEditDialog도 Dialog 모달이라 중첩될 때 가려지는 문제 예방
+    <Dialog.Root open={open} onOpenChange={onOpenChange} modal={false}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+        <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm" />
 
         <Dialog.Content
           onPointerDownOutside={(e) => e.preventDefault()}
@@ -54,7 +55,7 @@ const AlertDialog = ({
             e.preventDefault();
             actionBtnRef.current?.focus();
           }}
-          className="fixed left-1/2 top-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-sand/60 bg-white/90 p-6 shadow-xl"
+          className="fixed left-1/2 top-1/2 z-[61] w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-sand/60 bg-white/90 p-6 shadow-xl"
         >
           <Dialog.Title className="text-lg font-semibold text-clay">{title}</Dialog.Title>
 
