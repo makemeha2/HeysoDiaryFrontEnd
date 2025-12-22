@@ -5,6 +5,7 @@ import { DayPicker } from 'react-day-picker';
 import MarkdownIt from 'markdown-it';
 import MdEditor from 'react-markdown-editor-lite';
 import { Calendar, SquareX } from 'lucide-react';
+import AlertDialog from '../../ShareComponents/AlertDialog.jsx';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ko';
 
@@ -29,6 +30,7 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
   const [tagList, setTagList] = useState([]);
   const [tagDraft, setTagDraft] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
 
   const resetForm = () => {
     setTitleInput('');
@@ -69,6 +71,20 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
     saveDiaryMutation.mutate(payload);
   };
 
+  const handleAlertConfirm = async () => {
+    setIsAlertOpen(false);
+
+    await Promise.all([
+      queryClient.refetchQueries({
+        queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
+      }),
+      queryClient.invalidateQueries({ queryKey: ['diaryDaily'] }),
+      queryClient.refetchQueries({ queryKey: ['monthlyDiaryCounts'] }),
+    ]);
+
+    onClose?.();
+  };
+
   // 일기 저장
   const saveDiaryMutation = useMutation({
     mutationFn: async (payload) => {
@@ -89,36 +105,22 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
         return res.data;
       }
 
-      const res = await authFetch('/api/diary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      // const res = await authFetch('/api/diary', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(payload),
+      // });
 
-      if (!res.ok) {
-        throw new Error('Failed to create diary');
-      }
+      // if (!res.ok) {
+      //   throw new Error('Failed to create diary');
+      // }
 
-      const data = await res.json();
-      return typeof data === 'number' ? data : data?.diaryId;
+      // const data = await res.json();
+      // return typeof data === 'number' ? data : data?.diaryId;
     },
 
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.refetchQueries({
-          queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
-        }),
-        queryClient.invalidateQueries({ queryKey: ['diaryDaily'] }),
-        diaryId
-          ? queryClient.invalidateQueries({ queryKey: ['diaryDetail', diaryId] })
-          : Promise.resolve(),
-      ]);
-
-      if (!diaryId) {
-        resetForm();
-      }
-
-      onClose?.();
+    onSuccess: () => {
+      setIsAlertOpen(true);
     },
 
     onError: (err) => {
@@ -178,11 +180,22 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
   }, [diaryId, diaryDetail, normalizedTags]);
 
   return (
-    <Dialog.Portal>
+    <>
+      <AlertDialog
+        open={isAlertOpen}
+        onOpenChange={setIsAlertOpen}
+        title="알림"
+        description="수정되었습니다."
+        actionLabel="확인"
+        onAction={() => {
+          handleAlertConfirm().catch((err) => console.error(err));
+        }}
+      />
+      <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm data-[state=open]:animate-fadeIn" />
       <Dialog.Content
         onPointerDownOutside={(e) => e.preventDefault()}
-        className="fixed left-1/2 top-1/2 w-[min(90vw,1120px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-sand/50 bg-white p-6 shadow-2xl focus:outline-none data-[state=open]:animate-scaleIn"
+        className="fixed left-1/2 top-1/2 z-50 w-[min(90vw,1120px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-sand/50 bg-white p-6 shadow-2xl focus:outline-none data-[state=open]:animate-scaleIn"
       >
         <div className="flex items-start justify-between">
           <Dialog.Title className="flex items-center gap-2 text-lg font-semibold text-clay">
@@ -293,7 +306,8 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
           </div>
         </form>
       </Dialog.Content>
-    </Dialog.Portal>
+      </Dialog.Portal>
+    </>
   );
 };
 
