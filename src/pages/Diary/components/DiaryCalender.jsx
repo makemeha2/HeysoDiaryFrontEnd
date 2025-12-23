@@ -4,13 +4,8 @@ import dayjs from 'dayjs';
 import { DayPicker } from 'react-day-picker';
 import { useQuery } from '@tanstack/react-query';
 import { authFetch } from '../../../lib/apiClient';
+import { formatDate, formatMonthKey } from '../../../lib/dateFormatters.js';
 import { useAuthStore } from '../../../stores/authStore.js';
-
-// YYYY-MM-DD (local) 키를 반환합니다.
-const toDateKey = (date) => {
-  const d = dayjs(date);
-  return d.isValid() ? d.format('YYYY-MM-DD') : '';
-};
 
 const isSameCalendarDay = (a, b) => {
   if (!a || !b) return false;
@@ -26,7 +21,7 @@ const isSameCalendarDay = (a, b) => {
  */
 const DiaryCalender = ({ selectedDate, onSelectDate, onSingleDiaryDoubleClick }) => {
   const [visibleMonth, setVisibleMonth] = useState(() => dayjs().toDate());
-  const monthKey = dayjs(visibleMonth).format('YYYY-MM');
+  const monthKey = formatMonthKey(visibleMonth);
 
   const auth = useAuthStore((s) => s.auth);
   const authChecked = useAuthStore((s) => s.authChecked);
@@ -46,7 +41,7 @@ const DiaryCalender = ({ selectedDate, onSelectDate, onSingleDiaryDoubleClick })
     return reduce(
       monthlyDiaryCounts,
       (acc, item) => {
-        const dateKey = toDateKey(item?.diaryDate);
+        const dateKey = formatDate(item?.diaryDate);
         if (!dateKey) return acc;
         acc[dateKey] = item?.diaryCount ?? 0;
         return acc;
@@ -57,7 +52,7 @@ const DiaryCalender = ({ selectedDate, onSelectDate, onSingleDiaryDoubleClick })
 
   const greenTierColors = ['#e8f6ed', '#c9ead7', '#9fdac0', '#6dc6a1', '#40a777'];
 
-  const getDiaryCountForDate = (date) => dailyCountByDateKey[toDateKey(date)] || 0;
+  const getDiaryCountForDate = (date) => dailyCountByDateKey[formatDate(date)] || 0;
 
   const getGreenTier = (count) => {
     if (count <= 0) return null;
@@ -68,7 +63,7 @@ const DiaryCalender = ({ selectedDate, onSelectDate, onSingleDiaryDoubleClick })
   const handleDateClick = (date, _, evt) => {
     if (!date) return;
 
-    const dateKey = toDateKey(date);
+    const dateKey = formatDate(date);
     const isSelected = isSameCalendarDay(date, selectedDate);
 
     if (isSelected) {

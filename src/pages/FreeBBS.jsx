@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { formatDateTime } from '../lib/dateFormatters.js'
 
 function loadPosts() {
   try {
@@ -77,7 +78,7 @@ const FreeBBS = (() => {
                 <div>
                   <h3 className="text-lg font-semibold">{p.title}</h3>
                   <time className="text-sm text-clay/60">
-                    {new Date(p.date).toLocaleString()}
+                    {formatDateTime(p.date)}
                   </time>
                 </div>
               </div>

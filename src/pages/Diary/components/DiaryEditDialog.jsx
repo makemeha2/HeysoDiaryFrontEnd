@@ -7,24 +7,19 @@ import MdEditor from 'react-markdown-editor-lite';
 import { Calendar, SquareX } from 'lucide-react';
 import { useAlertDialog } from '../../ShareComponents/useAlertDialog.jsx';
 import dayjs from 'dayjs';
-import 'dayjs/locale/ko';
-
 import { authFetch } from '../../../lib/apiClient.js';
+import { formatDate, formatDateWithWeekday } from '../../../lib/dateFormatters.js';
 import 'react-day-picker/dist/style.css';
 import 'react-markdown-editor-lite/lib/index.css';
-
-dayjs.locale('ko');
 
 const mdParser = new MarkdownIt();
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_SIZE = 20;
 
-const DiaryEditDialog = ({ diaryId, onClose }) => {
+const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   const queryClient = useQueryClient();
   const { alert, Alert } = useAlertDialog();
-
-  const isEditMode = !!diaryId;
 
   const [diaryDate, setDiaryDate] = useState(() => new Date());
   const [titleInput, setTitleInput] = useState('');
@@ -33,19 +28,10 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
   const [tagDraft, setTagDraft] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  const resetForm = () => {
-    setTitleInput('');
-    setContentMdInput('');
-    setTagList([]);
-    setTagDraft('');
-    setDiaryDate(new Date());
-    setIsCalendarOpen(false);
-  };
-
   // 상세 조회
   const { data: diaryDetail, isFetching: isDiaryLoading } = useQuery({
     queryKey: ['diaryDetail', diaryId],
-    enabled: !!diaryId,
+    enabled: isOpen && !!diaryId, // ✅ 열려있을 때만 + 수정 모드일 때만
     queryFn: async ({ signal }) => {
       const res = await authFetch(`/api/diary/${diaryId}`, { method: 'GET', signal });
       if (!res.ok) {
@@ -65,7 +51,7 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
       diaryId: diaryId,
       title: titleInput.trim() || 'Untitled',
       contentMd: contentMdInput.trim(),
-      diaryDate: dayjs(diaryDate).format('YYYY-MM-DD'),
+      diaryDate: formatDate(diaryDate),
       tags: Array.from(new Set(tagList)),
     };
 
@@ -91,24 +77,9 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
 
         return res.data;
       }
-
-      // const res = await authFetch('/api/diary', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload),
-      // });
-
-      // if (!res.ok) {
-      //   throw new Error('Failed to create diary');
-      // }
-
-      // const data = await res.json();
-      // return typeof data === 'number' ? data : data?.diaryId;
     },
 
-    onSuccess: async () => {
-      console.log('성공?');
-
+    onSuccess: async (data) => {
       await alert({ title: '알림', description: '수정되었습니다.', actionLabel: '확인' });
 
       await Promise.all([
@@ -116,16 +87,23 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
         queryClient.refetchQueries({
           queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
         }),
+
         // 날짜 선택시 일자별 목록 갱신
         queryClient.invalidateQueries({ queryKey: ['diaryDaily'] }),
 
         // 달력의 날짜 갱신
         queryClient.refetchQueries({ queryKey: ['monthlyDiaryCounts'] }),
 
+        // 날짜 상세 갱신
         queryClient.refetchQueries({ queryKey: ['diaryDetail', diaryId] }),
       ]);
 
-      // resetForm();
+      const savedDiaryId = diaryId ?? data?.diaryId;
+      if (savedDiaryId && onView) {
+        onView(savedDiaryId);
+        return;
+      }
+
       onClose?.();
     },
 
@@ -167,23 +145,17 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
     return [];
   }, [diaryDetail]);
 
-  useEffect(() => {
-    if (!diaryId) {
-      resetForm();
-      return;
-    }
-  }, [diaryId]);
-
+  // 수정 모드에서는 서버에서 diaryDetail이 비동기로 늦게 도착할 경우, 미리 세팅값을 화면에 보여주기 위한 용도
   useEffect(() => {
     if (!diaryId || !diaryDetail) return;
 
     setTitleInput(diaryDetail.title || '');
-    setContentMdInput(diaryDetail.contentMd ?? diaryDetail.content ?? '');
+    setContentMdInput(diaryDetail.contentMd ?? '');
     setTagList(normalizedTags);
 
-    const parsedDate = dayjs(diaryDetail.diaryDate ?? diaryDetail.date);
+    const parsedDate = dayjs(diaryDetail.diaryDate);
     setDiaryDate(parsedDate.isValid() ? parsedDate.toDate() : new Date());
-  }, [diaryId, diaryDetail, normalizedTags]);
+  }, [diaryId]);
 
   return (
     <>
@@ -202,7 +174,7 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
               </button>
 
               <span className="text-[16px] font-bold text-clay/80 underline">
-                {dayjs(diaryDate).format('YYYY-MM-DD (ddd)')}
+                {formatDateWithWeekday(diaryDate)}
               </span>
 
               {isCalendarOpen && (
@@ -291,15 +263,13 @@ const DiaryEditDialog = ({ diaryId, onClose }) => {
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-clay/60">
-                {isEditMode ? '기존 글을 수정합니다.' : 'Entries are saved securely to your diary'}
-              </span>
+              <span className="text-sm text-clay/60">내가 쓰고 싶을 말을 여기에 써보자!!!!!!</span>
               <button
                 type="submit"
                 className="rounded-full bg-amber text-white px-5 py-2.5 hover:opacity-95 active:opacity-90 disabled:opacity-60"
                 disabled={saveDiaryMutation.isPending || isDiaryLoading}
               >
-                {saveDiaryMutation.isPending ? 'Saving...' : isEditMode ? 'Update' : 'Save'}
+                {saveDiaryMutation.isPending ? '저장중...' : '저장'}
               </button>
             </div>
           </form>

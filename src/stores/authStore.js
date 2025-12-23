@@ -5,16 +5,19 @@ export const useAuthStore = create((set, get) => ({
   auth: getAuthData(),
   authChecked: false,
 
+  // 인증을 받아 auth토큰을 저장하고, 인증체크여부를 true로 변경
   setAuth: (auth) => {
     setAuthData(auth);
     set({ auth, authChecked: true });
   },
 
+  // 로그아웃시 인증토큰 상태
   clearAuth: () => {
     clearAuthData();
     set({ auth: null, authChecked: true });
   },
 
+  // browser나 store에 남아있는 토큰이 유효한 토큰인지 서버 체크
   validateAuth: async () => {
     const storedAuth = get().auth ?? getAuthData();
 

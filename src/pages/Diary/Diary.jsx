@@ -5,14 +5,9 @@ import * as Dialog from '@radix-ui/react-dialog';
 import DiaryEditDialog from './components/DiaryEditDialog.jsx';
 import DiaryViewDialog from './components/DiaryViewDialog.jsx';
 import DiaryCalender from './components/DiaryCalender.jsx';
-import dayjs from 'dayjs';
 import { authFetch } from '../../lib/apiClient.js';
+import { formatDate, formatDateTime } from '../../lib/dateFormatters.js';
 import { useAuthStore } from '../../stores/authStore.js';
-
-const toDateKey = (date) => {
-  const d = dayjs(date);
-  return d.isValid() ? d.format('YYYY-MM-DD') : '';
-};
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_SIZE = 20;
@@ -32,7 +27,7 @@ const Diary = () => {
   const authChecked = useAuthStore((s) => s.authChecked);
 
   const isSignedIn = authChecked && !!auth;
-  const selectedDateKey = toDateKey(selectedDate);
+  const selectedDateKey = formatDate(selectedDate);
 
   // 우측 리스트 조회 (최근 다이어리 목록)
   const fetchDiaries = async ({ signal, page = DEFAULT_PAGE, size = DEFAULT_SIZE }) => {
@@ -42,13 +37,7 @@ const Diary = () => {
     const diaries = res.data?.diaries;
     if (!Array.isArray(diaries)) return [];
 
-    return diaries.map((item) => ({
-      id: item.diaryId ?? item.id,
-      title: item.title ?? '',
-      content: item.contentMd ?? item.content ?? '',
-      date: item.diaryDate ?? item.date,
-      raw: item,
-    }));
+    return diaries;
   };
 
   // 다이어리 리스트
@@ -82,15 +71,15 @@ const Diary = () => {
 
   // “최근 순”으로 정렬된 목록 (캘린더 & 우측 Recent Entries 공용)
   const recentDiaries = useMemo(() => {
-    return [...diaries].sort((a, b) => new Date(b.date) - new Date(a.date));
+    return [...diaries].sort((a, b) => new Date(b.diaryId) - new Date(a.diaryId));
   }, [diaries]);
 
   // 로컬 캐시에서 다이어리를 제거합니다. (서버 삭제는 추후 TODO)
-  const removeDiaryFromCache = (diaryId) => {
-    queryClient.setQueryData(['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE], (prev = []) =>
-      prev.filter((diary) => diary.id !== diaryId),
-    );
-  };
+  // const removeDiaryFromCache = (diaryId) => {
+  //   queryClient.setQueryData(['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE], (prev = []) =>
+  //     prev.filter((diary) => diary.id !== diaryId),
+  //   );
+  // };
 
   // 로그인 여부에 따라 새 글 다이얼로그를 열거나 로그인 페이지로 이동합니다.
   const handleEditDialogChange = (nextOpen) => {
@@ -106,14 +95,15 @@ const Diary = () => {
     setIsEditDialogOpen(nextOpen);
   };
 
+  // 캘런더 하단의 목록에서 날짜를 선택한 경우
   const handleDailyDiaryClick = (diary) => {
-    const targetId = diary.diaryId ?? diary.id;
-    if (!targetId) return;
+    if (!diary?.diaryId) return;
 
-    setViewDiaryId(targetId);
+    setViewDiaryId(diary.diaryId);
     setIsViewDialogOpen(true);
   };
 
+  // View 모달팝업 열기/닫기
   const handleViewDialogChange = (nextOpen) => {
     if (!nextOpen) {
       setViewDiaryId(null);
@@ -121,10 +111,19 @@ const Diary = () => {
     setIsViewDialogOpen(nextOpen);
   };
 
+  // 저장 후 View 화면으로 이동
+  const handleEditSaved = (savedDiaryId) => {
+    handleEditDialogChange(false);
+    if (!savedDiaryId) return;
+    setViewDiaryId(savedDiaryId);
+    setIsViewDialogOpen(true);
+  };
+
   const goToLogin = () => {
     navigate('/login', { state: { from: location } });
   };
 
+  // View화면에서 Edit화면으로 이동
   const handleEditFromView = (diaryId) => {
     if (!diaryId) return;
     setIsViewDialogOpen(false);
@@ -132,6 +131,7 @@ const Diary = () => {
     setIsEditDialogOpen(true);
   };
 
+  // 캘린더 더블클릭 이벤트
   const handleDiaryDoubleClick = (diary) => {
     // TODO: 추후 상세 보기 화면으로 이동
     console.log('Open diary detail', diary);
@@ -140,15 +140,24 @@ const Diary = () => {
   return (
     <>
       <Dialog.Root open={isViewDialogOpen} onOpenChange={handleViewDialogChange}>
-        <DiaryViewDialog
-          diaryId={viewDiaryId}
-          onClose={() => handleViewDialogChange(false)}
-          onEdit={handleEditFromView}
-        />
+        {isViewDialogOpen && (
+          <DiaryViewDialog
+            diaryId={viewDiaryId}
+            onClose={() => handleViewDialogChange(false)}
+            onEdit={handleEditFromView}
+          />
+        )}
       </Dialog.Root>
 
       <Dialog.Root open={isEditDialogOpen} onOpenChange={handleEditDialogChange}>
-        <DiaryEditDialog diaryId={editingDiaryId} onClose={() => handleEditDialogChange(false)} />
+        {isEditDialogOpen && (
+          <DiaryEditDialog
+            diaryId={editingDiaryId}
+            isOpen={isEditDialogOpen}
+            onClose={() => handleEditDialogChange(false)}
+            onView={handleEditSaved}
+          />
+        )}
       </Dialog.Root>
 
       <div className="grid gap-8 md:grid-cols-2">
@@ -257,18 +266,18 @@ const Diary = () => {
               <ul className="space-y-3">
                 {recentDiaries.map((diary) => (
                   <li
-                    key={diary.id}
+                    key={diary.diaryId}
                     className="group rounded-2xl border border-sand/50 bg-white/70 p-5 shadow-soft"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h3 className="text-lg font-semibold mb-1">{diary.title}</h3>
                         <time className="text-sm text-clay/60">
-                          {new Date(diary.date).toLocaleString()}
+                          {formatDateTime(diary.diaryDate)}
                         </time>
                       </div>
                       <button
-                        onClick={() => removeDiaryFromCache(diary.id)}
+                        onClick={() => removeDiaryFromCache(diary.diaryId)}
                         className="text-sm text-clay/60 hover:text-clay/90"
                         title="Delete diary"
                       >
@@ -276,9 +285,9 @@ const Diary = () => {
                       </button>
                     </div>
 
-                    {diary.content && (
+                    {diary.contentMd && (
                       <p className="mt-3 whitespace-pre-wrap leading-relaxed text-clay/90">
-                        {diary.content}
+                        {diary.contentMd}
                       </p>
                     )}
                   </li>
