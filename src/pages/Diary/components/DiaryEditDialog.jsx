@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
 import { DayPicker } from 'react-day-picker';
 import MarkdownIt from 'markdown-it';
@@ -7,18 +6,14 @@ import MdEditor from 'react-markdown-editor-lite';
 import { Calendar, SquareX } from 'lucide-react';
 import { useAlertDialog } from '../../ShareComponents/useAlertDialog.jsx';
 import dayjs from 'dayjs';
-import { authFetch } from '../../../lib/apiClient.js';
 import { formatDate, formatDateWithWeekday } from '../../../lib/dateFormatters.js';
+import useDiary from '../useDiary.jsx';
 import 'react-day-picker/dist/style.css';
 import 'react-markdown-editor-lite/lib/index.css';
 
 const mdParser = new MarkdownIt();
 
-const DEFAULT_PAGE = 1;
-const DEFAULT_SIZE = 20;
-
 const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
-  const queryClient = useQueryClient();
   const { alert, Alert } = useAlertDialog();
 
   const [diaryDate, setDiaryDate] = useState(() => new Date());
@@ -28,17 +23,12 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   const [tagDraft, setTagDraft] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
+  const { useDiaryDetail, useSaveDiary } = useDiary();
+
   // 상세 조회
-  const { data: diaryDetail, isFetching: isDiaryLoading } = useQuery({
-    queryKey: ['diaryDetail', diaryId],
-    enabled: isOpen && !!diaryId, // ✅ 열려있을 때만 + 수정 모드일 때만
-    queryFn: async ({ signal }) => {
-      const res = await authFetch(`/api/diary/${diaryId}`, { method: 'GET', signal });
-      if (!res.ok) {
-        throw new Error('Failed to load diary');
-      }
-      return res.data;
-    },
+  const { data: diaryDetail, isFetching: isDiaryLoading } = useDiaryDetail({
+    diaryId,
+    enabled: isOpen && !!diaryId,
   });
 
   // 저장 버튼 클릭 이벤트
@@ -59,44 +49,11 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   };
 
   // 일기 저장
-  const saveDiaryMutation = useMutation({
-    mutationFn: async (payload) => {
-      const shouldUpdate = diaryId && diaryDetail;
-
-      // diary 수정
-      if (shouldUpdate) {
-        const res = await authFetch(`/api/diary/${diaryId}/edit`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (!res.ok) {
-          throw new Error('Failed to update diary');
-        }
-
-        return res.data;
-      }
-    },
-
+  const saveDiaryMutation = useSaveDiary({
+    diaryId,
+    diaryDetail,
     onSuccess: async (data) => {
       await alert({ title: '알림', description: '수정되었습니다.', actionLabel: '확인' });
-
-      await Promise.all([
-        // 오른쪽 최신 목록 현행화
-        queryClient.refetchQueries({
-          queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
-        }),
-
-        // 날짜 선택시 일자별 목록 갱신
-        queryClient.invalidateQueries({ queryKey: ['diaryDaily'] }),
-
-        // 달력의 날짜 갱신
-        queryClient.refetchQueries({ queryKey: ['monthlyDiaryCounts'] }),
-
-        // 날짜 상세 갱신
-        queryClient.refetchQueries({ queryKey: ['diaryDetail', diaryId] }),
-      ]);
 
       const savedDiaryId = diaryId ?? data?.diaryId;
       if (savedDiaryId && onView) {
@@ -106,7 +63,6 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
 
       onClose?.();
     },
-
     onError: (err) => {
       console.error(err);
     },
@@ -218,7 +174,7 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
             <div className="space-y-2">
               <MdEditor
                 value={contentMdInput}
-                style={{ height: '280px' }}
+                style={{ height: '550px' }}
                 renderHTML={(text) => mdParser.render(text)}
                 onChange={({ text }) => setContentMdInput(text)}
                 placeholder="Write your thoughts in Markdown..."

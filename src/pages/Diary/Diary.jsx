@@ -1,16 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
 import DiaryEditDialog from './components/DiaryEditDialog.jsx';
 import DiaryViewDialog from './components/DiaryViewDialog.jsx';
 import DiaryCalender from './components/DiaryCalender.jsx';
-import { authFetch } from '../../lib/apiClient.js';
 import { formatDate, formatDateTime } from '../../lib/dateFormatters.js';
 import { useAuthStore } from '../../stores/authStore.js';
-
-const DEFAULT_PAGE = 1;
-const DEFAULT_SIZE = 20;
+import useDiary, { DEFAULT_PAGE, DEFAULT_SIZE } from './useDiary.jsx';
 
 const Diary = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -19,26 +15,16 @@ const Diary = () => {
   const [viewDiaryId, setViewDiaryId] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
 
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
 
   const auth = useAuthStore((s) => s.auth);
   const authChecked = useAuthStore((s) => s.authChecked);
-
   const isSignedIn = authChecked && !!auth;
+
   const selectedDateKey = formatDate(selectedDate);
 
-  // 우측 리스트 조회 (최근 다이어리 목록)
-  const fetchDiaries = async ({ signal, page = DEFAULT_PAGE, size = DEFAULT_SIZE }) => {
-    const query = new URLSearchParams({ page: String(page), size: String(size) }).toString();
-    const res = await authFetch(`/api/diary?${query}`, { method: 'GET', signal });
-
-    const diaries = res.data?.diaries;
-    if (!Array.isArray(diaries)) return [];
-
-    return diaries;
-  };
+  const { useDailyDiaries, useDiaryEntries } = useDiary();
 
   // 다이어리 리스트
   const {
@@ -46,40 +32,19 @@ const Diary = () => {
     isLoading: isDiariesLoading,
     isError: isDiariesError,
     error: diariesError,
-  } = useQuery({
-    queryKey: ['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE],
-    queryFn: ({ signal }) => fetchDiaries({ signal, page: DEFAULT_PAGE, size: DEFAULT_SIZE }),
-    enabled: isSignedIn,
-    staleTime: 0,
-  });
+  } = useDiaryEntries({ page: DEFAULT_PAGE, size: DEFAULT_SIZE });
 
   // 좌측 하단: 선택한 날짜의 다이어리 목록
   const {
     data: dailyDiaries = [],
     isLoading: isDailyDiariesLoading,
     isError: isDailyDiariesError,
-  } = useQuery({
-    queryKey: ['diaryDaily', selectedDateKey],
-    queryFn: async ({ signal }) => {
-      const res = await authFetch(`/api/diary/daily?day=${selectedDateKey}`, { signal });
-      const diaries = res.data?.diaries;
-      return Array.isArray(diaries) ? diaries : [];
-    },
-    enabled: isSignedIn && !!selectedDateKey,
-    staleTime: 0,
-  });
+  } = useDailyDiaries(selectedDateKey);
 
   // “최근 순”으로 정렬된 목록 (캘린더 & 우측 Recent Entries 공용)
   const recentDiaries = useMemo(() => {
     return [...diaries].sort((a, b) => new Date(b.diaryId) - new Date(a.diaryId));
   }, [diaries]);
-
-  // 로컬 캐시에서 다이어리를 제거합니다. (서버 삭제는 추후 TODO)
-  // const removeDiaryFromCache = (diaryId) => {
-  //   queryClient.setQueryData(['diaryEntries', DEFAULT_PAGE, DEFAULT_SIZE], (prev = []) =>
-  //     prev.filter((diary) => diary.id !== diaryId),
-  //   );
-  // };
 
   // 로그인 여부에 따라 새 글 다이얼로그를 열거나 로그인 페이지로 이동합니다.
   const handleEditDialogChange = (nextOpen) => {
@@ -165,7 +130,7 @@ const Diary = () => {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm text-clay/60">Capture a moment</p>
-              <h2 className="text-xl font-semibold">New Entry</h2>
+              {/* <h2 className="text-xl font-semibold">New Entry</h2> */}
             </div>
 
             <button
@@ -222,7 +187,7 @@ const Diary = () => {
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold">Recent Entries</h2>
+          {/* <h2 className="text-xl font-semibold"></h2> */}
 
           {!authChecked ? (
             <div className="rounded-2xl border border-sand/40 bg-white/60 p-6 text-clay/70">

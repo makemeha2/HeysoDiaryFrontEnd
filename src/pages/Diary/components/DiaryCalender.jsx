@@ -2,10 +2,8 @@ import { useMemo, useState } from 'react';
 import reduce from 'lodash/reduce';
 import dayjs from 'dayjs';
 import { DayPicker } from 'react-day-picker';
-import { useQuery } from '@tanstack/react-query';
-import { authFetch } from '../../../lib/apiClient';
 import { formatDate, formatMonthKey } from '../../../lib/dateFormatters.js';
-import { useAuthStore } from '../../../stores/authStore.js';
+import useDiary from '../useDiary.jsx';
 
 const isSameCalendarDay = (a, b) => {
   if (!a || !b) return false;
@@ -23,18 +21,9 @@ const DiaryCalender = ({ selectedDate, onSelectDate, onSingleDiaryDoubleClick })
   const [visibleMonth, setVisibleMonth] = useState(() => dayjs().toDate());
   const monthKey = formatMonthKey(visibleMonth);
 
-  const auth = useAuthStore((s) => s.auth);
-  const authChecked = useAuthStore((s) => s.authChecked);
-  const isSignedIn = authChecked && !!auth;
+  const { useMonthlyDiaryCounts } = useDiary();
 
-  const { data: monthlyDiaryCounts = [] } = useQuery({
-    queryKey: ['monthlyDiaryCounts', monthKey],
-    queryFn: async () => {
-      const res = await authFetch(`/api/diary/monthly?month=${monthKey}`);
-      return Array.isArray(res.data) ? res.data : [];
-    },
-    enabled: isSignedIn,
-  });
+  const { data: monthlyDiaryCounts = [] } = useMonthlyDiaryCounts(monthKey);
 
   // { '2025-12-16': 3, '2025-12-15': 1, ... }
   const dailyCountByDateKey = useMemo(() => {

@@ -1,30 +1,17 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
 import { SquareX } from 'lucide-react';
 import MarkdownIt from 'markdown-it';
-import { authFetch } from '../../../lib/apiClient.js';
 import { formatDateTime, formatDateWithWeekday } from '../../../lib/dateFormatters.js';
+import useDiary from '../useDiary.jsx';
 
 const mdParser = new MarkdownIt();
 
 const DiaryViewDialog = ({ diaryId, onClose, onEdit }) => {
+  const { useDiaryDetail } = useDiary();
   // 조회쿼리
-  const {
-    data: diary,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ['diaryDetail', diaryId],
-    enabled: !!diaryId,
-    queryFn: async ({ signal }) => {
-      const res = await authFetch(`/api/diary/${diaryId}`, { method: 'GET', signal });
-      if (!res.ok) throw new Error('Failed to load diary detail');
-      return res.data;
-    },
-  });
+  const { data: diary, isLoading, isError } = useDiaryDetail({ diaryId });
 
-  
   const tagList = useMemo(() => {
     if (!diary?.tags) return [];
     if (Array.isArray(diary.tags)) return diary.tags;
