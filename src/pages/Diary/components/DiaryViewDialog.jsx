@@ -8,9 +8,8 @@ import useDiary from '../useDiary.jsx';
 const mdParser = new MarkdownIt();
 
 const DiaryViewDialog = ({ diaryId, onClose, onEdit }) => {
-  const { useDiaryDetail } = useDiary();
-  // 조회쿼리
-  const { data: diary, isLoading, isError } = useDiaryDetail({ diaryId });
+  const { diaryDetailQuery } = useDiary({ diaryId });
+  const { data: diary, isLoading, isError } = diaryDetailQuery;
 
   const tagList = useMemo(() => {
     if (!diary?.tags) return [];

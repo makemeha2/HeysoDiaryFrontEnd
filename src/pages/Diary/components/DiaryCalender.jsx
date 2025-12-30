@@ -21,9 +21,8 @@ const DiaryCalender = ({ selectedDate, onSelectDate, onSingleDiaryDoubleClick })
   const [visibleMonth, setVisibleMonth] = useState(() => dayjs().toDate());
   const monthKey = formatMonthKey(visibleMonth);
 
-  const { useMonthlyDiaryCounts } = useDiary();
-
-  const { data: monthlyDiaryCounts = [] } = useMonthlyDiaryCounts(monthKey);
+  const { monthlyDiaryCountsQuery } = useDiary({ monthKey });
+  const monthlyDiaryCounts = monthlyDiaryCountsQuery.data ?? [];
 
   // { '2025-12-16': 3, '2025-12-15': 1, ... }
   const dailyCountByDateKey = useMemo(() => {

@@ -23,13 +23,42 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   const [tagDraft, setTagDraft] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  const { useDiaryDetail, useSaveDiary } = useDiary();
+  const isEditMode = !!diaryId;
 
-  // 상세 조회
-  const { data: diaryDetail, isFetching: isDiaryLoading } = useDiaryDetail({
-    diaryId,
-    enabled: isOpen && !!diaryId,
+  const resetForm = () => {
+    setDiaryDate(new Date());
+    setTitleInput('');
+    setContentMdInput('');
+    setTagList([]);
+    setTagDraft('');
+    setIsCalendarOpen(false);
+  };
+
+  const { diaryDetailQuery, saveDiaryMutation } = useDiary({
+    diaryId: isOpen ? diaryId : null,
+    onSaveSuccess: async (data, _variables, { refreshAfterSave }) => {
+      await alert({
+        title: '알림',
+        description: isEditMode ? '수정되었습니다.' : '등록되었습니다.',
+        actionLabel: '확인',
+      });
+
+      const savedDiaryId = diaryId ?? data?.diaryId;
+      await refreshAfterSave(savedDiaryId);
+
+      if (savedDiaryId && onView) {
+        onView(savedDiaryId);
+        return;
+      }
+
+      onClose?.();
+    },
+    onSaveError: (err) => {
+      console.error(err);
+    },
   });
+
+  const { data: diaryDetail, isFetching: isDiaryLoading } = diaryDetailQuery;
 
   // 저장 버튼 클릭 이벤트
   const handleSubmit = (e) => {
@@ -47,26 +76,6 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
 
     saveDiaryMutation.mutate(payload);
   };
-
-  // 일기 저장
-  const saveDiaryMutation = useSaveDiary({
-    diaryId,
-    diaryDetail,
-    onSuccess: async (data) => {
-      await alert({ title: '알림', description: '수정되었습니다.', actionLabel: '확인' });
-
-      const savedDiaryId = diaryId ?? data?.diaryId;
-      if (savedDiaryId && onView) {
-        onView(savedDiaryId);
-        return;
-      }
-
-      onClose?.();
-    },
-    onError: (err) => {
-      console.error(err);
-    },
-  });
 
   // 태그 등록
   const addTag = () => {
@@ -101,9 +110,17 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
     return [];
   }, [diaryDetail]);
 
-  // 수정 모드에서는 서버에서 diaryDetail이 비동기로 늦게 도착할 경우, 미리 세팅값을 화면에 보여주기 위한 용도
+  // 수정 모드: diaryDetail이 늦게 도착할 수 있으니, 데이터가 들어오면 폼을 동기화합니다.
   useEffect(() => {
-    if (!diaryId || !diaryDetail) return;
+    if (!isOpen) return;
+
+    // create mode
+    if (!diaryId) {
+      resetForm();
+      return;
+    }
+
+    if (!diaryDetail) return;
 
     setTitleInput(diaryDetail.title || '');
     setContentMdInput(diaryDetail.contentMd ?? '');
@@ -111,7 +128,7 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
 
     const parsedDate = dayjs(diaryDetail.diaryDate);
     setDiaryDate(parsedDate.isValid() ? parsedDate.toDate() : new Date());
-  }, [diaryId]);
+  }, [isOpen, diaryId, diaryDetail, normalizedTags]);
 
   return (
     <>

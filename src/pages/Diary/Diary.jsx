@@ -24,26 +24,26 @@ const Diary = () => {
 
   const selectedDateKey = formatDate(selectedDate);
 
-  const { useDailyDiaries, useDiaryEntries } = useDiary();
+  const { diariesQuery, dailyDiariesQuery, removeDiaryFromCache } = useDiary({
+    page: DEFAULT_PAGE,
+    size: DEFAULT_SIZE,
+    selectedDateKey,
+  });
 
-  // 다이어리 리스트
-  const {
-    data: diaries = [],
-    isLoading: isDiariesLoading,
-    isError: isDiariesError,
-    error: diariesError,
-  } = useDiaryEntries({ page: DEFAULT_PAGE, size: DEFAULT_SIZE });
+  // 우측 다이어리 목록
+  const diaries = diariesQuery.data ?? [];
+  const isDiariesLoading = diariesQuery.isLoading;
+  const isDiariesError = diariesQuery.isError;
+  const diariesError = diariesQuery.error;
 
   // 좌측 하단: 선택한 날짜의 다이어리 목록
-  const {
-    data: dailyDiaries = [],
-    isLoading: isDailyDiariesLoading,
-    isError: isDailyDiariesError,
-  } = useDailyDiaries(selectedDateKey);
+  const dailyDiaries = dailyDiariesQuery.data ?? [];
+  const isDailyDiariesLoading = dailyDiariesQuery.isLoading;
+  const isDailyDiariesError = dailyDiariesQuery.isError;
 
   // “최근 순”으로 정렬된 목록 (캘린더 & 우측 Recent Entries 공용)
   const recentDiaries = useMemo(() => {
-    return [...diaries].sort((a, b) => new Date(b.diaryId) - new Date(a.diaryId));
+    return [...diaries].sort((a, b) => new Date(b.diaryDate) - new Date(a.diaryDate));
   }, [diaries]);
 
   // 로그인 여부에 따라 새 글 다이얼로그를 열거나 로그인 페이지로 이동합니다.
@@ -148,7 +148,7 @@ const Diary = () => {
             <DiaryCalender
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
-              onSingleEntryDoubleClick={handleDiaryDoubleClick}
+              onSingleDiaryDoubleClick={handleDiaryDoubleClick}
             />
           </div>
 
