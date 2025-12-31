@@ -5,7 +5,9 @@ import MarkdownIt from 'markdown-it';
 import { formatDateTime, formatDateWithWeekday } from '../../../lib/dateFormatters.js';
 import useDiary from '../useDiary.jsx';
 
-const mdParser = new MarkdownIt();
+const mdParser = new MarkdownIt({
+  breaks: true,
+});
 
 const DiaryViewDialog = ({ diaryId, onClose, onEdit }) => {
   const { diaryDetailQuery } = useDiary({ diaryId });

@@ -236,7 +236,12 @@ const Diary = () => {
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h3 className="text-lg font-semibold mb-1">{diary.title}</h3>
+                        <h3
+                          className="text-lg font-semibold mb-1 cursor-pointer"
+                          onClick={() => handleDailyDiaryClick(diary)}
+                        >
+                          {diary.title}
+                        </h3>
                         <time className="text-sm text-clay/60">
                           {formatDateTime(diary.diaryDate)}
                         </time>
@@ -251,7 +256,7 @@ const Diary = () => {
                     </div>
 
                     {diary.contentMd && (
-                      <p className="mt-3 whitespace-pre-wrap leading-relaxed text-clay/90">
+                      <p className="mt-3 whitespace-pre-wrap leading-relaxed max-h-[96px] text-clay/90 overflow-hidden">
                         {diary.contentMd}
                       </p>
                     )}
