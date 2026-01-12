@@ -2,7 +2,7 @@ import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-d
 import './App.css';
 import Diary from './pages/Diary/Diary.jsx';
 import Notice from './pages/Notice.jsx';
-import AI from './pages/AI.jsx';
+import AIChatExample from './pages/AIChat/example.jsx';
 import FreeBBS from './pages/FreeBBS.jsx';
 import Login from './pages/Login.jsx';
 import { useEffect, useRef, useState } from 'react';
@@ -66,8 +66,8 @@ const App = () => {
             <NavLink to="/notice" className={navLinkClass}>
               Notice
             </NavLink>
-            <NavLink to="/ai" className={navLinkClass}>
-              AI
+            <NavLink to="/aichat" className={navLinkClass}>
+              AI Chat
             </NavLink>
             <NavLink to="/freebbs" className={navLinkClass}>
               FreeBBS
@@ -98,7 +98,7 @@ const App = () => {
           <Routes>
             <Route index element={<Diary />} />
             <Route path="notice" element={<Notice />} />
-            <Route path="ai" element={<AI />} />
+            <Route path="aichat" element={<AIChatExample />} />
             <Route path="freebbs" element={<FreeBBS />} />
             <Route path="login" element={<Login />} />
           </Routes>
