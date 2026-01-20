@@ -21,6 +21,7 @@ const AiChatMain = () => {
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [renameTargetId, setRenameTargetId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   // 입력창 내용
   const [inputValue, setInputValue] = useState('');
@@ -239,9 +240,7 @@ const AiChatMain = () => {
     },
     onSuccess: (_data, { conversationId, title }) => {
       queryClient.setQueryData(['aiChatConversations', DEFAULT_PAGE, DEFAULT_SIZE], (prev = []) =>
-        prev.map((item) =>
-          item.conversationId === conversationId ? { ...item, title } : item,
-        ),
+        prev.map((item) => (item.conversationId === conversationId ? { ...item, title } : item)),
       );
       queryClient.setQueryData(['aiChatConversation', conversationId, MESSAGE_LIMIT], (prev) =>
         prev ? { ...prev, title } : prev,
@@ -321,21 +320,52 @@ const AiChatMain = () => {
     });
   }, [isRenameOpen]);
 
-  const openRenameDialog = () => {
+  // const fetchSummaryByConversationId = async (conversationId) => {
+  //   if (!conversationId) return null;
+  //   return queryClient.fetchQuery({
+  //     queryKey: ['aiChatSummary', conversationId],
+  //     staleTime: 0,
+  //     queryFn: async () => {
+  //       const res = await authFetch(`/api/aichat/conversations/${conversationId}/summary`, {
+  //         method: 'GET',
+  //       });
+  //       if (!res.ok) return null;
+  //       return res.data ?? null;
+  //     },
+  //   });
+  // };
+
+  const openRenameDialog = async (targetId) => {
+    const targetConversationId = targetId ?? openMenuId ?? activeConversationId;
+
+    const cachedSummary = queryClient.getQueryData(['aiChatConversation', targetConversationId]);
+    const targetSummary =
+      cachedSummary ??
+      queryClient.getQueryData(['aiChatConversation', targetConversationId, MESSAGE_LIMIT]);
+
+    const fallbackTitle = conversations.find(
+      (item) => item.conversationId === targetConversationId,
+    )?.title;
     const defaultTitle =
-      summary?.title ?? summary?.conversationTitle ?? activeConversation?.title ?? 'New chat';
+      targetSummary?.title ?? targetSummary?.conversationTitle ?? fallbackTitle ?? 'New chat';
     setRenameValue(defaultTitle);
+    setRenameTargetId(targetConversationId);
     setIsRenameOpen(true);
   };
 
   // 이름 바꾸기
   const handleRenameSave = () => {
-    if (!activeConversationId || renameConversationMutation.isPending) return;
+    const targetConversationId = renameTargetId ?? activeConversationId;
+
+    if (!targetConversationId || renameConversationMutation.isPending) return;
     const nextTitle = renameValue.trim() || 'New chat';
     renameConversationMutation.mutate({
-      conversationId: activeConversationId,
+      conversationId: targetConversationId,
       title: nextTitle,
     });
+
+    setOpenMenuId(null);
+    setRenameTargetId(null);
   };
 
   return (
@@ -438,7 +468,7 @@ const AiChatMain = () => {
                             onClick={(event) => {
                               event.stopPropagation();
                               setOpenMenuId(null);
-                              openRenameDialog();
+                              openRenameDialog(conversation.conversationId);
                             }}
                           >
                             이름바꾸기
@@ -603,7 +633,13 @@ const AiChatMain = () => {
       </div>
 
       {/* 이름 바꾸기 모달 팝업 */}
-      <Dialog.Root open={isRenameOpen} onOpenChange={setIsRenameOpen}>
+      <Dialog.Root
+        open={isRenameOpen}
+        onOpenChange={(nextOpen) => {
+          setIsRenameOpen(nextOpen);
+          if (!nextOpen) setRenameTargetId(null);
+        }}
+      >
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-sand/60 bg-white/95 p-4 shadow-xl">
@@ -618,7 +654,7 @@ const AiChatMain = () => {
               <button
                 type="button"
                 className="rounded-xl bg-clay px-3 py-2 text-xs font-semibold text-white transition hover:bg-clay/90"
-                onClick={handleRenameSave}
+                onClick={() => handleRenameSave()}
               >
                 저장
               </button>
