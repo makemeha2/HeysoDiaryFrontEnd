@@ -2,7 +2,7 @@ import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-d
 import './App.css';
 import Diary from './pages/Diary/Diary.jsx';
 import Notice from './pages/Notice.jsx';
-import AIChatExample from './pages/AIChat/example.jsx';
+import AiChatMain from './pages/AIChat/AiChatMain.jsx';
 import FreeBBS from './pages/FreeBBS.jsx';
 import Login from './pages/Login.jsx';
 import { useEffect, useRef, useState } from 'react';
@@ -94,11 +94,11 @@ const App = () => {
       </header>
 
       <main className="flex-1">
-        <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="max-w-6xl mx-auto px-4 py-0">
           <Routes>
             <Route index element={<Diary />} />
             <Route path="notice" element={<Notice />} />
-            <Route path="aichat" element={<AIChatExample />} />
+            <Route path="aichat" element={<AiChatMain />} />
             <Route path="freebbs" element={<FreeBBS />} />
             <Route path="login" element={<Login />} />
           </Routes>
