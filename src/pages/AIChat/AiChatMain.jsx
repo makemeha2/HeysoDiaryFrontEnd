@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -8,48 +8,127 @@ import { EllipsisVertical } from 'lucide-react';
 import { authFetch } from '@lib/apiClient.js';
 import ConfirmDialog from '@components/ConfirmDialog.jsx';
 
-const DEFAULT_PAGE = 1;
-const DEFAULT_SIZE = 100;
+dayjs.extend(relativeTime);
+
+const PAGE = 1;
+const SIZE = 100;
 const MESSAGE_LIMIT = 100;
 
-dayjs.extend(relativeTime);
+/* ===========================
+ * Reducer: 메뉴/다이얼로그(이름변경/삭제) UI 상태 통합
+ * =========================== */
+const initialUiState = {
+  openedMenuConversationId: null, // 현재 ... 메뉴가 열린 대화방ID
+  mode: 'idle', // 'idle' | 'rename' | 'delete'
+  targetConversationId: null, // rename/delete 대상 대화방ID
+  renameTitle: '', // rename 입력값
+};
+
+function uiReducer(state, action) {
+  switch (action.type) {
+    case 'MENU_TOGGLE': {
+      const nextId =
+        state.openedMenuConversationId === action.conversationId ? null : action.conversationId;
+      return { ...state, openedMenuConversationId: nextId };
+    }
+
+    case 'MENU_CLOSE':
+      return { ...state, openedMenuConversationId: null };
+
+    case 'RENAME_OPEN':
+      return {
+        ...state,
+        mode: 'rename',
+        targetConversationId: action.conversationId,
+        renameTitle: action.title ?? '',
+        openedMenuConversationId: null, // 모달 열 때 메뉴는 닫기
+      };
+
+    case 'RENAME_CHANGE':
+      return { ...state, renameTitle: action.value };
+
+    case 'RENAME_CLOSE':
+      return {
+        ...state,
+        mode: 'idle',
+        targetConversationId: null,
+        renameTitle: '',
+      };
+
+    case 'DELETE_OPEN':
+      return {
+        ...state,
+        mode: 'delete',
+        targetConversationId: action.conversationId,
+        openedMenuConversationId: null, // 다이얼로그 열 때 메뉴는 닫기
+      };
+
+    case 'DELETE_CLOSE':
+      return {
+        ...state,
+        mode: 'idle',
+        targetConversationId: null,
+      };
+
+    case 'RESET':
+      return initialUiState;
+
+    default:
+      return state;
+  }
+}
 
 const AiChatMain = () => {
   const queryClient = useQueryClient();
 
-  // 대화 목록 상태
-  // 선택된 대화 ID
+  /* ===========================
+   * State
+   * =========================== */
   const [activeConversationId, setActiveConversationId] = useState(null);
-  const [openMenuId, setOpenMenuId] = useState(null);
-  const [isRenameOpen, setIsRenameOpen] = useState(false);
-  const [handleId, sethandleId] = useState(null); // 삭제, 이름변경 등에 사용되는 대화방ID
-  const [renameValue, setRenameValue] = useState('');
-  // 입력창 내용
-  const [inputValue, setInputValue] = useState('');
-  // 오류 메시지 표시용
+
+  // 입력 + 오류
+  const [messageInput, setMessageInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const [deleteConversationsConfirmOpen, setDeleteConversationsConfirmOpen] = useState(false);
+  // UI 상태(reducer)
+  const [ui, dispatchUi] = useReducer(uiReducer, initialUiState);
 
+  /* ===========================
+   * Refs
+   * =========================== */
   const messageEndRef = useRef(null);
   const inputRef = useRef(null);
   const renameInputRef = useRef(null);
 
-  // 채팅방 목록 가져오기
+  /* ===========================
+   * Utils
+   * =========================== */
+
+  /** 상대 시간 표시 (예: 3분 전) */
+  const formatRelativeTime = (timestamp) => {
+    if (!timestamp) return '';
+    return dayjs(timestamp).fromNow();
+  };
+
+  /* ===========================
+   * Queries
+   * =========================== */
+
+  /** 대화방 목록 조회 */
   const conversationsQuery = useQuery({
-    queryKey: ['aiChatConversations', DEFAULT_PAGE, DEFAULT_SIZE],
+    queryKey: ['aiChatConversations', PAGE, SIZE],
     staleTime: 0,
     queryFn: async ({ signal }) => {
       const res = await authFetch('/api/aichat/conversations', {
         method: 'GET',
-        params: { page: DEFAULT_PAGE, size: DEFAULT_SIZE },
+        params: { page: PAGE, size: SIZE },
         signal,
       });
       if (!res.ok) throw new Error('Failed to load conversations');
-      const list = res.data?.conversations;
-      return Array.isArray(list) ? list : [];
+      return Array.isArray(res.data?.conversations) ? res.data.conversations : [];
     },
     onSuccess: () => {
+      // 목록 조회 성공 시 오류 메시지 클리어
       setErrorMessage('');
     },
     onError: () => {
@@ -57,7 +136,7 @@ const AiChatMain = () => {
     },
   });
 
-  // 채팅방 상세 및 이전 대화 가져오기
+  /** 선택된 대화방 상세(메시지 포함) 조회 */
   const conversationDetailQuery = useQuery({
     queryKey: ['aiChatConversation', activeConversationId, MESSAGE_LIMIT],
     enabled: !!activeConversationId,
@@ -79,7 +158,7 @@ const AiChatMain = () => {
     },
   });
 
-  // 요약정보 가져오기
+  /** 선택된 대화방 요약 조회 */
   const summaryQuery = useQuery({
     queryKey: ['aiChatSummary', activeConversationId],
     enabled: !!activeConversationId,
@@ -99,27 +178,18 @@ const AiChatMain = () => {
   const messages = conversationDetail?.messages ?? [];
   const summary = summaryQuery.data ?? null;
 
-  const sortedConversations = useMemo(() => {
-    return [...conversations].sort((a, b) => {
-      const left = new Date(a?.updatedAt || a?.createdAt || 0).getTime();
-      const right = new Date(b?.updatedAt || b?.createdAt || 0).getTime();
-      return right - left;
-    });
-  }, [conversations]);
-
-  // 활성화된 대화방 정보
+  // 활성 대화방 정보 (detail 우선, 없으면 목록에서 찾기)
   const activeConversation =
     conversationDetail?.conversationId === activeConversationId
       ? conversationDetail
       : conversations.find((item) => item.conversationId === activeConversationId);
 
-  const formatRelativeTime = (timestamp) => {
-    if (!timestamp) return '';
-    return dayjs(timestamp).fromNow();
-  };
+  /* ===========================
+   * Mutations
+   * =========================== */
 
-  // 새 대화방 만들기
-  const createNewChatMutation = useMutation({
+  /** 새 대화방 생성 */
+  const createConversationMutation = useMutation({
     mutationFn: async () => {
       const res = await authFetch('/api/aichat/conversations', {
         method: 'POST',
@@ -130,11 +200,16 @@ const AiChatMain = () => {
       return res.data ?? null;
     },
     onMutate: () => {
+      // 생성 시도 전 오류 메시지 클리어
       setErrorMessage('');
     },
     onSuccess: async (data) => {
       const createdId = data?.conversationId ?? null;
+
+      // 목록 최신화
       await queryClient.invalidateQueries({ queryKey: ['aiChatConversations'] });
+
+      // 캐시 초기값(옵션)
       if (createdId) {
         queryClient.setQueryData(['aiChatConversation', createdId, MESSAGE_LIMIT], {
           conversationId: createdId,
@@ -142,15 +217,18 @@ const AiChatMain = () => {
         });
         queryClient.setQueryData(['aiChatSummary', createdId], null);
       }
+
+      // 신규 대화로 이동
       setActiveConversationId(createdId);
-      setInputValue('');
+      setMessageInput('');
+      dispatchUi({ type: 'RESET' }); // UI상태 초기화
     },
     onError: () => {
       setErrorMessage('새 대화를 만들지 못했습니다.');
     },
   });
 
-  // 메세지 보내기
+  /** 메시지 전송(optimistic update 포함) */
   const sendMessageMutation = useMutation({
     mutationFn: async ({ conversationId, messageText, localMessageId, parentMessageId }) => {
       const res = await authFetch(`/api/aichat/conversations/${conversationId}/assistant-reply`, {
@@ -167,15 +245,18 @@ const AiChatMain = () => {
       return res.data ?? {};
     },
     onMutate: async ({ conversationId, messageText, localMessageId }) => {
+      // 전송 전: 에러 제거 + 해당 대화 캐시 업데이트를 위한 cancel
       setErrorMessage('');
       await queryClient.cancelQueries({
         queryKey: ['aiChatConversation', conversationId, MESSAGE_LIMIT],
       });
+
       const prevDetail = queryClient.getQueryData([
         'aiChatConversation',
         conversationId,
         MESSAGE_LIMIT,
       ]);
+
       const prevMessages = prevDetail?.messages ?? [];
       const nextDetail = {
         ...(prevDetail ?? { conversationId }),
@@ -189,18 +270,24 @@ const AiChatMain = () => {
           },
         ],
       };
+
+      // optimistic UI 반영
       queryClient.setQueryData(['aiChatConversation', conversationId, MESSAGE_LIMIT], nextDetail);
-      setInputValue('');
+      setMessageInput('');
       return { prevDetail };
     },
     onSuccess: (data, { conversationId, localMessageId }) => {
+      // 서버에서 내려준 messageId로 치환 + assistant reply append
       const { userMessageId, assistantMessageId, assistantContent } = data ?? {};
+
       queryClient.setQueryData(['aiChatConversation', conversationId, MESSAGE_LIMIT], (prev) => {
         if (!prev) return prev;
+
         const nextMessages = (prev.messages ?? []).map((message) => {
           if (message.messageId !== localMessageId) return message;
           return { ...message, messageId: userMessageId ?? message.messageId };
         });
+
         if (assistantContent) {
           nextMessages.push({
             messageId: assistantMessageId ?? `assistant-${Date.now()}`,
@@ -209,18 +296,24 @@ const AiChatMain = () => {
             createdAt: new Date().toISOString(),
           });
         }
+
         return { ...prev, messages: nextMessages };
       });
-      queryClient.setQueryData(['aiChatConversations', DEFAULT_PAGE, DEFAULT_SIZE], (prev = []) =>
+
+      // 목록의 updatedAt 갱신(표시용)
+      queryClient.setQueryData(['aiChatConversations', PAGE, SIZE], (prev = []) =>
         prev.map((item) =>
           item.conversationId === conversationId
             ? { ...item, updatedAt: new Date().toISOString() }
             : item,
         ),
       );
+
+      // summary 무효화
       queryClient.invalidateQueries({ queryKey: ['aiChatSummary', conversationId] });
     },
     onError: (_err, { conversationId }, context) => {
+      // optimistic rollback
       if (context?.prevDetail) {
         queryClient.setQueryData(
           ['aiChatConversation', conversationId, MESSAGE_LIMIT],
@@ -231,6 +324,7 @@ const AiChatMain = () => {
     },
   });
 
+  /** 대화방 이름 변경 */
   const renameConversationMutation = useMutation({
     mutationFn: async ({ conversationId, title }) => {
       const res = await authFetch(`/api/aichat/conversations/${conversationId}/update`, {
@@ -242,30 +336,65 @@ const AiChatMain = () => {
       return res.data ?? null;
     },
     onSuccess: (_data, { conversationId, title }) => {
-      queryClient.setQueryData(['aiChatConversations', DEFAULT_PAGE, DEFAULT_SIZE], (prev = []) =>
+      // 목록/상세 캐시 동기화
+      queryClient.setQueryData(['aiChatConversations', PAGE, SIZE], (prev = []) =>
         prev.map((item) => (item.conversationId === conversationId ? { ...item, title } : item)),
       );
       queryClient.setQueryData(['aiChatConversation', conversationId, MESSAGE_LIMIT], (prev) =>
         prev ? { ...prev, title } : prev,
       );
-      setIsRenameOpen(false);
+
+      dispatchUi({ type: 'RENAME_CLOSE' });
     },
     onError: () => {
       setErrorMessage('이름을 변경하지 못했습니다.');
     },
   });
 
-  // 새채팅 버튼 누르기
-  const createNewChat = () => {
-    if (createNewChatMutation.isPending) return;
-    createNewChatMutation.mutate();
+  /** 대화방 삭제 */
+  const deleteConversationMutation = useMutation({
+    mutationFn: async ({ conversationId }) => {
+      const res = await authFetch(`/api/aichat/conversations/${conversationId}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('Failed to delete conversation');
+      return res.data ?? null;
+    },
+    onSuccess: async () => {
+      setErrorMessage('');
+
+      // 삭제 후 목록 재조회(백엔드 정렬 신뢰)
+      const { data } = await conversationsQuery.refetch();
+      const nextList = Array.isArray(data) ? data : [];
+
+      setActiveConversationId(nextList[0]?.conversationId ?? null);
+
+      dispatchUi({ type: 'DELETE_CLOSE' });
+    },
+    onError: () => {
+      setErrorMessage('대화방 삭제에 실패했습니다.');
+    },
+  });
+
+  /* ===========================
+   * Handlers
+   * =========================== */
+
+  /** 새 채팅 생성 */
+  const handleCreateNewChat = () => {
+    if (createConversationMutation.isPending) return;
+    createConversationMutation.mutate();
   };
 
-  // 메세지 보내기 버튼 누르기
-  const sendMessage = () => {
-    if (!activeConversationId || !inputValue.trim() || sendMessageMutation.isPending) return;
-    const messageText = inputValue.trim();
+  /** 메시지 전송(Enter/Send 버튼) */
+  const handleSendMessage = () => {
+    if (!activeConversationId || !messageInput.trim() || sendMessageMutation.isPending) return;
+
+    const messageText = messageInput.trim();
     const localMessageId = `local-${Date.now()}`;
+
+    // 마지막 서버 메시지 ID를 parentMessageId로 사용
     const lastServerMessageId = [...messages]
       .map((message) => message?.messageId)
       .filter((value) => typeof value === 'number')
@@ -279,151 +408,112 @@ const AiChatMain = () => {
     });
   };
 
+  /** Quick action: 입력창 채우기 */
   const handleQuickAction = (label) => {
-    setInputValue(label);
+    setMessageInput(label);
     inputRef.current?.focus();
   };
 
-  useEffect(() => {
-    if (!activeConversationId && sortedConversations.length > 0) {
-      setActiveConversationId(sortedConversations[0].conversationId);
-    }
-  }, [activeConversationId, sortedConversations]);
+  /** rename 다이얼로그 열기(대상 ID + 기본 제목 세팅) */
+  const openRenameDialog = (conversationId) => {
+    const fallbackTitle = conversations.find(
+      (item) => item.conversationId === conversationId,
+    )?.title;
 
+    //const cachedDetail = queryClient.getQueryData(['aiChatConversation', conversationId, MESSAGE_LIMIT]) ?? null;
+    //const defaultTitle = cachedDetail?.title ?? fallbackTitle ?? 'New chat';
+
+    const defaultTitle = cachedDetail?.title ?? 'New chat';
+
+    dispatchUi({
+      type: 'RENAME_OPEN',
+      conversationId,
+      title: defaultTitle,
+    });
+  };
+
+  /** rename 저장 */
+  const handleRenameSave = () => {
+    if (ui.mode !== 'rename' || !ui.targetConversationId) return;
+    if (renameConversationMutation.isPending) return;
+
+    renameConversationMutation.mutate({
+      conversationId: ui.targetConversationId,
+      title: ui.renameTitle.trim() || 'New chat',
+    });
+  };
+
+  /** delete 다이얼로그 열기 */
+  const openDeleteDialog = (conversationId) => {
+    dispatchUi({ type: 'DELETE_OPEN', conversationId });
+  };
+
+  /** delete 확정 */
+  const handleDeleteConfirm = () => {
+    if (ui.mode !== 'delete' || !ui.targetConversationId) return;
+    if (deleteConversationMutation.isPending) return;
+
+    deleteConversationMutation.mutate({ conversationId: ui.targetConversationId });
+  };
+
+  /* ===========================
+   * Effects
+   * =========================== */
+
+  /** 최초 로딩 시 activeConversationId 자동 선택 */
+  useEffect(() => {
+    if (!activeConversationId && conversations.length > 0) {
+      setActiveConversationId(conversations[0].conversationId);
+    }
+  }, [activeConversationId, conversations]);
+
+  /** 메시지 변화 시 스크롤 하단 + 포커스 */
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     inputRef.current?.focus();
   }, [messages.length, sendMessageMutation.isPending]);
 
+  /** 메뉴 오픈 상태에서 바깥 클릭하면 닫기 */
   useEffect(() => {
-    if (!openMenuId) return;
+    if (!ui.openedMenuConversationId) return;
 
     const handleOutsideClick = (event) => {
-      const menuRoot = document.querySelector(`[data-menu-id="${openMenuId}"]`);
+      const menuRoot = document.querySelector(`[data-menu-id="${ui.openedMenuConversationId}"]`);
       if (!menuRoot) {
-        setOpenMenuId(null);
+        dispatchUi({ type: 'MENU_CLOSE' });
         return;
       }
       if (!menuRoot.contains(event.target)) {
-        setOpenMenuId(null);
+        dispatchUi({ type: 'MENU_CLOSE' });
       }
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [openMenuId]);
+  }, [ui.openedMenuConversationId]);
 
+  /** rename 모달이 열리면 인풋 자동 포커스/선택 */
   useEffect(() => {
-    if (!isRenameOpen) return;
+    if (ui.mode !== 'rename') return;
     const input = renameInputRef.current;
     if (!input) return;
+
     requestAnimationFrame(() => {
       input.focus();
       input.select();
     });
-  }, [isRenameOpen]);
+  }, [ui.mode]);
 
-  // const fetchSummaryByConversationId = async (conversationId) => {
-  //   if (!conversationId) return null;
-  //   return queryClient.fetchQuery({
-  //     queryKey: ['aiChatSummary', conversationId],
-  //     staleTime: 0,
-  //     queryFn: async () => {
-  //       const res = await authFetch(`/api/aichat/conversations/${conversationId}/summary`, {
-  //         method: 'GET',
-  //       });
-  //       if (!res.ok) return null;
-  //       return res.data ?? null;
-  //     },
-  //   });
-  // };
-
-  const openRenameDialog = async (targetId) => {
-    const targetConversationId = targetId ?? openMenuId ?? activeConversationId;
-
-    const cachedSummary = queryClient.getQueryData(['aiChatConversation', targetConversationId]);
-    const targetSummary =
-      cachedSummary ??
-      queryClient.getQueryData(['aiChatConversation', targetConversationId, MESSAGE_LIMIT]);
-
-    const fallbackTitle = conversations.find(
-      (item) => item.conversationId === targetConversationId,
-    )?.title;
-    const defaultTitle =
-      targetSummary?.title ?? targetSummary?.conversationTitle ?? fallbackTitle ?? 'New chat';
-    setRenameValue(defaultTitle);
-    sethandleId(targetConversationId);
-    setIsRenameOpen(true);
-  };
-
-  // 이름 바꾸기
-  const handleRenameSave = () => {
-    const targetConversationId = handleId ?? activeConversationId;
-
-    if (!targetConversationId || renameConversationMutation.isPending) return;
-    const nextTitle = renameValue.trim() || 'New chat';
-    renameConversationMutation.mutate({
-      conversationId: targetConversationId,
-      title: nextTitle,
-    });
-
-    setOpenMenuId(null);
-    sethandleId(null);
-  };
-
-  const openDeleteConversationsDialog = (targetId) => {
-    console.log('openDeleteConversationsDialog.targetId', targetId);
-    if (!targetId) return;
-
-    sethandleId(targetId);
-    setDeleteConversationsConfirmOpen(true);
-  };
-
-  // 삭제
-  const handleDeleteConversationsConfirm = () => {
-    console.log('handleDeleteConversationsConfirm.targetId', handleId);
-
-    deleteConversationMutation.mutate({ conversationId: handleId });
-    setDeleteConversationsConfirmOpen(false);
-    sethandleId(null);
-  };
-
-  const deleteConversationMutation = useMutation({
-    mutationFn: async ({ conversationId }) => {
-      const res = await authFetch(`/api/aichat/conversations/${conversationId}/delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!res.ok) throw new Error('Failed to update conversation');
-      return res.data ?? null;
-    },
-    onSuccess: (_data, { conversationId, title }) => {
-      queryClient.setQueryData(['aiChatConversations', DEFAULT_PAGE, DEFAULT_SIZE], (prev = []) =>
-        prev.map((item) => (item.conversationId === conversationId ? { ...item, title } : item)),
-      );
-      queryClient.setQueryData(['aiChatConversation', conversationId, MESSAGE_LIMIT], (prev) =>
-        prev ? { ...prev, title } : prev,
-      );
-    },
-    onError: () => {
-      setErrorMessage('이름을 변경하지 못했습니다.');
-    },
-  });
-
-  const handleDeleteConversationsCancel = () => {};
+  /* ===========================
+   * Render
+   * =========================== */
 
   return (
     <div className="relative min-h-screen bg-[radial-gradient(circle_at_top,#f9f2e7_0%,#f2e4d2_45%,#e9d2b8_100%)] text-clay">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Newsreader:wght@300;500;700&family=Space+Grotesk:wght@400;600&display=swap');
-        @keyframes floaty {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-12px); }
-        }
-        @keyframes fadeUp {
-          0% { opacity: 0; transform: translateY(10px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+        @keyframes fadeUp { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
       `}</style>
 
       <div className="pointer-events-none absolute bottom-10 left-10 h-52 w-52 rounded-full bg-blush/40 blur-3xl animate-[floaty_14s_ease-in-out_infinite]" />
@@ -439,7 +529,7 @@ const AiChatMain = () => {
 
           <button
             className="mt-5 w-full rounded-2xl bg-amber px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-amber/30 transition hover:translate-y-[-1px] hover:shadow-amber/40"
-            onClick={createNewChat}
+            onClick={handleCreateNewChat}
           >
             New chat
           </button>
@@ -451,18 +541,21 @@ const AiChatMain = () => {
                 {conversations.length}
               </span>
             </div>
+
             <div className="space-y-2 text-sm">
               {conversationsQuery.isLoading && (
                 <div className="rounded-2xl border border-sand/50 bg-white/80 px-3 py-3 text-clay/60">
                   Loading...
                 </div>
               )}
-              {!conversationsQuery.isLoading && sortedConversations.length === 0 && (
+
+              {!conversationsQuery.isLoading && conversations.length === 0 && (
                 <div className="rounded-2xl border border-sand/50 bg-white/80 px-3 py-3 text-clay/60">
                   No conversations yet.
                 </div>
               )}
-              {sortedConversations.map((conversation) => (
+
+              {conversations.map((conversation) => (
                 <button
                   key={conversation.conversationId}
                   className={`relative w-full rounded-2xl border px-3 py-3 text-left font-medium transition ${
@@ -479,50 +572,52 @@ const AiChatMain = () => {
                         {formatRelativeTime(conversation.updatedAt || conversation.createdAt)}
                       </span>
                     </div>
+
                     <div className="relative" data-menu-id={conversation.conversationId}>
                       <button
                         type="button"
                         className="flex h-8 w-8 items-center justify-center"
                         onClick={(event) => {
                           event.stopPropagation();
-                          setOpenMenuId((prev) =>
-                            prev === conversation.conversationId
-                              ? null
-                              : conversation.conversationId,
-                          );
+                          dispatchUi({
+                            type: 'MENU_TOGGLE',
+                            conversationId: conversation.conversationId,
+                          });
                         }}
                       >
                         <EllipsisVertical />
                       </button>
-                      {openMenuId === conversation.conversationId && (
+
+                      {ui.openedMenuConversationId === conversation.conversationId && (
                         <div className="absolute right-0 top-10 z-10 w-36 overflow-hidden rounded-2xl border border-sand/60 bg-white/95 text-xs text-clay/70 shadow-lg">
                           <button
                             type="button"
                             className="block w-full px-4 py-3 text-left transition hover:bg-amber/10"
                             onClick={(event) => {
                               event.stopPropagation();
-                              setOpenMenuId(null);
+                              dispatchUi({ type: 'MENU_CLOSE' });
                             }}
                           >
                             공유하기
                           </button>
+
                           <button
                             type="button"
                             className="block w-full px-4 py-3 text-left transition hover:bg-amber/10"
                             onClick={(event) => {
                               event.stopPropagation();
-                              setOpenMenuId(null);
                               openRenameDialog(conversation.conversationId);
                             }}
                           >
                             이름바꾸기
                           </button>
+
                           <button
                             type="button"
                             className="block w-full px-4 py-3 text-left text-blush transition hover:bg-blush/10"
                             onClick={(event) => {
                               event.stopPropagation();
-                              openDeleteConversationsDialog(conversation.conversationId);
+                              openDeleteDialog(conversation.conversationId);
                             }}
                           >
                             삭제
@@ -610,6 +705,7 @@ const AiChatMain = () => {
               {messages.map((message, index) => {
                 const role = (message.role || '').toUpperCase();
                 const key = message.messageId ?? message.id ?? index;
+
                 if (role === 'USER') {
                   return (
                     <div key={key} className="flex justify-end">
@@ -629,17 +725,6 @@ const AiChatMain = () => {
                 );
               })}
 
-              {/* <div className="grid gap-4 md:grid-cols-2">
-                {['오늘의 날씨를 알려줘.', '오늘의 주요 뉴스는?'].map((chip) => (
-                  <button
-                    key={chip}
-                    className="animate-[fadeUp_1s_ease-out] rounded-2xl border border-sand/60 bg-white/80 px-4 py-3 text-left text-sm text-clay/70 transition hover:border-amber/60 hover:bg-amber/10"
-                    onClick={() => handleQuickAction(chip)}
-                  >
-                    {chip}
-                  </button>
-                ))}
-              </div> */}
               <div ref={messageEndRef} />
             </div>
           </div>
@@ -652,18 +737,18 @@ const AiChatMain = () => {
                 className="flex-1 resize-none bg-transparent text-sm text-clay/80 placeholder:text-clay/40 focus:outline-none"
                 placeholder="Message Heyso AI..."
                 rows={1}
-                value={inputValue}
-                onChange={(event) => setInputValue(event.target.value)}
+                value={messageInput}
+                onChange={(event) => setMessageInput(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();
-                    sendMessage();
+                    handleSendMessage();
                   }
                 }}
               />
               <button
                 className="rounded-xl bg-clay px-4 py-2 text-xs font-semibold text-white transition hover:bg-clay/90 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={sendMessage}
+                onClick={handleSendMessage}
                 disabled={sendMessageMutation.isPending}
               >
                 {sendMessageMutation.isPending ? 'Sending...' : 'Send'}
@@ -676,12 +761,13 @@ const AiChatMain = () => {
         </main>
       </div>
 
-      {/* 이름 바꾸기 모달 팝업 */}
+      {/* ===========================
+       * Rename Dialog
+       * =========================== */}
       <Dialog.Root
-        open={isRenameOpen}
+        open={ui.mode === 'rename'}
         onOpenChange={(nextOpen) => {
-          setIsRenameOpen(nextOpen);
-          if (!nextOpen) sethandleId(null);
+          if (!nextOpen) dispatchUi({ type: 'RENAME_CLOSE' });
         }}
       >
         <Dialog.Portal>
@@ -692,20 +778,22 @@ const AiChatMain = () => {
               <input
                 ref={renameInputRef}
                 className="flex-1 rounded-xl border border-sand/70 bg-white/90 px-3 py-2 text-sm text-clay/80 focus:outline-none focus:ring-2 focus:ring-amber/40"
-                value={renameValue}
-                onChange={(event) => setRenameValue(event.target.value)}
+                value={ui.renameTitle}
+                onChange={(event) =>
+                  dispatchUi({ type: 'RENAME_CHANGE', value: event.target.value })
+                }
               />
               <button
                 type="button"
                 className="rounded-xl bg-clay px-3 py-2 text-xs font-semibold text-white transition hover:bg-clay/90"
-                onClick={() => handleRenameSave()}
+                onClick={handleRenameSave}
               >
                 저장
               </button>
               <button
                 type="button"
                 className="rounded-xl border border-sand/70 bg-white/80 px-3 py-2 text-xs font-semibold text-clay/70 transition hover:bg-white"
-                onClick={() => setIsRenameOpen(false)}
+                onClick={() => dispatchUi({ type: 'RENAME_CLOSE' })}
               >
                 취소
               </button>
@@ -714,16 +802,20 @@ const AiChatMain = () => {
         </Dialog.Portal>
       </Dialog.Root>
 
-      {/* 삭제 다이얼로그 */}
+      {/* ===========================
+       * Delete Confirm Dialog
+       * =========================== */}
       <ConfirmDialog
-        open={deleteConversationsConfirmOpen}
-        onOpenChange={setDeleteConversationsConfirmOpen}
+        open={ui.mode === 'delete'}
+        onOpenChange={(open) => {
+          if (!open) dispatchUi({ type: 'DELETE_CLOSE' });
+        }}
         title="삭제하시겠습니까?"
         description="이 작업은 되돌릴 수 없습니다."
         confirmLabel="확인"
         cancelLabel="취소"
-        onConfirm={handleDeleteConversationsConfirm}
-        onCancel={handleDeleteConversationsCancel}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => dispatchUi({ type: 'DELETE_CLOSE' })}
       />
     </div>
   );
