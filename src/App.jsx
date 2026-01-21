@@ -1,13 +1,13 @@
 import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
-import Diary from './pages/Diary/Diary.jsx';
-import Notice from './pages/Notice.jsx';
-import AiChatMain from './pages/AIChat/AiChatMain.jsx';
-import FreeBBS from './pages/FreeBBS.jsx';
-import Login from './pages/Login.jsx';
+import Diary from '@pages/Diary/Diary.jsx';
+import Notice from '@pages/Notice.jsx';
+import AiChatMain from '@pages/AIChat/AiChatMain.jsx';
+import FreeBBS from '@pages/FreeBBS.jsx';
+import Login from '@pages/Login.jsx';
 import { useEffect, useRef, useState } from 'react';
-import { useAuthStore } from './stores/authStore.js';
-import ConfirmDialog from './pages/ShareComponents/ConfirmDialog.jsx';
+import { useAuthStore } from '@stores/authStore.js';
+import ConfirmDialog from '@components/ConfirmDialog.jsx';
 import { useQueryClient } from '@tanstack/react-query';
 
 const navLinkClass = ({ isActive }) =>

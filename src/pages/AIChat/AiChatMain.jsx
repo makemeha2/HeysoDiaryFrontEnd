@@ -5,7 +5,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import * as Dialog from '@radix-ui/react-dialog';
 import { EllipsisVertical } from 'lucide-react';
 
-import { authFetch } from '../../lib/apiClient.js';
+import { authFetch } from '@lib/apiClient.js';
+import ConfirmDialog from '@components/ConfirmDialog.jsx';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_SIZE = 100;
@@ -21,12 +22,14 @@ const AiChatMain = () => {
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
-  const [renameTargetId, setRenameTargetId] = useState(null);
+  const [handleId, sethandleId] = useState(null); // 삭제, 이름변경 등에 사용되는 대화방ID
   const [renameValue, setRenameValue] = useState('');
   // 입력창 내용
   const [inputValue, setInputValue] = useState('');
   // 오류 메시지 표시용
   const [errorMessage, setErrorMessage] = useState('');
+
+  const [deleteConversationsConfirmOpen, setDeleteConversationsConfirmOpen] = useState(false);
 
   const messageEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -349,13 +352,13 @@ const AiChatMain = () => {
     const defaultTitle =
       targetSummary?.title ?? targetSummary?.conversationTitle ?? fallbackTitle ?? 'New chat';
     setRenameValue(defaultTitle);
-    setRenameTargetId(targetConversationId);
+    sethandleId(targetConversationId);
     setIsRenameOpen(true);
   };
 
   // 이름 바꾸기
   const handleRenameSave = () => {
-    const targetConversationId = renameTargetId ?? activeConversationId;
+    const targetConversationId = handleId ?? activeConversationId;
 
     if (!targetConversationId || renameConversationMutation.isPending) return;
     const nextTitle = renameValue.trim() || 'New chat';
@@ -365,8 +368,49 @@ const AiChatMain = () => {
     });
 
     setOpenMenuId(null);
-    setRenameTargetId(null);
+    sethandleId(null);
   };
+
+  const openDeleteConversationsDialog = (targetId) => {
+    console.log('openDeleteConversationsDialog.targetId', targetId);
+    if (!targetId) return;
+
+    sethandleId(targetId);
+    setDeleteConversationsConfirmOpen(true);
+  };
+
+  // 삭제
+  const handleDeleteConversationsConfirm = () => {
+    console.log('handleDeleteConversationsConfirm.targetId', handleId);
+
+    deleteConversationMutation.mutate({ conversationId: handleId });
+    setDeleteConversationsConfirmOpen(false);
+    sethandleId(null);
+  };
+
+  const deleteConversationMutation = useMutation({
+    mutationFn: async ({ conversationId }) => {
+      const res = await authFetch(`/api/aichat/conversations/${conversationId}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('Failed to update conversation');
+      return res.data ?? null;
+    },
+    onSuccess: (_data, { conversationId, title }) => {
+      queryClient.setQueryData(['aiChatConversations', DEFAULT_PAGE, DEFAULT_SIZE], (prev = []) =>
+        prev.map((item) => (item.conversationId === conversationId ? { ...item, title } : item)),
+      );
+      queryClient.setQueryData(['aiChatConversation', conversationId, MESSAGE_LIMIT], (prev) =>
+        prev ? { ...prev, title } : prev,
+      );
+    },
+    onError: () => {
+      setErrorMessage('이름을 변경하지 못했습니다.');
+    },
+  });
+
+  const handleDeleteConversationsCancel = () => {};
 
   return (
     <div className="relative min-h-screen bg-[radial-gradient(circle_at_top,#f9f2e7_0%,#f2e4d2_45%,#e9d2b8_100%)] text-clay">
@@ -478,7 +522,7 @@ const AiChatMain = () => {
                             className="block w-full px-4 py-3 text-left text-blush transition hover:bg-blush/10"
                             onClick={(event) => {
                               event.stopPropagation();
-                              setOpenMenuId(null);
+                              openDeleteConversationsDialog(conversation.conversationId);
                             }}
                           >
                             삭제
@@ -637,7 +681,7 @@ const AiChatMain = () => {
         open={isRenameOpen}
         onOpenChange={(nextOpen) => {
           setIsRenameOpen(nextOpen);
-          if (!nextOpen) setRenameTargetId(null);
+          if (!nextOpen) sethandleId(null);
         }}
       >
         <Dialog.Portal>
@@ -669,6 +713,18 @@ const AiChatMain = () => {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* 삭제 다이얼로그 */}
+      <ConfirmDialog
+        open={deleteConversationsConfirmOpen}
+        onOpenChange={setDeleteConversationsConfirmOpen}
+        title="삭제하시겠습니까?"
+        description="이 작업은 되돌릴 수 없습니다."
+        confirmLabel="확인"
+        cancelLabel="취소"
+        onConfirm={handleDeleteConversationsConfirm}
+        onCancel={handleDeleteConversationsCancel}
+      />
     </div>
   );
 };
