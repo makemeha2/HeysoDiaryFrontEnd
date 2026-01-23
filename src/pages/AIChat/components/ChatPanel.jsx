@@ -190,13 +190,13 @@ const ChatPanel = ({
         </div>
       </header>
 
-      {/* Summary */}
+      {/* Summary 
       {summary?.summary && (
         <section className={styles.chat.summary.root}>
           <div className={styles.chat.summary.title}>Summary</div>
           <p className={styles.chat.summary.body}>{summary.summary}</p>
         </section>
-      )}
+      )} */}
 
       {/* Body */}
       <div className={styles.chat.body.root}>
