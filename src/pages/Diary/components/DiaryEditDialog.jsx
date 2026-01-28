@@ -2,16 +2,19 @@ import { useEffect, useMemo, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { DayPicker } from 'react-day-picker';
 import MarkdownIt from 'markdown-it';
+import markdownItIns from 'markdown-it-ins';
 import MdEditor from 'react-markdown-editor-lite';
 import { Calendar, SquareX } from 'lucide-react';
-import { useAlertDialog } from '../../ShareComponents/useAlertDialog.jsx';
+import { useAlertDialog } from '@components/useAlertDialog.jsx';
 import dayjs from 'dayjs';
-import { formatDate, formatDateWithWeekday } from '../../../lib/dateFormatters.js';
+import { formatDate, formatDateWithWeekday } from '@lib/dateFormatters.js';
 import useDiary from '../useDiary.jsx';
 import 'react-day-picker/dist/style.css';
 import 'react-markdown-editor-lite/lib/index.css';
+import { normalizeTags } from '../diaryUtil.js';
 
 const mdParser = new MarkdownIt();
+mdParser.use(markdownItIns);
 
 const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   const { alert, Alert } = useAlertDialog();
@@ -98,17 +101,7 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   };
 
   // 태그 normalize
-  const normalizedTags = useMemo(() => {
-    if (!diaryDetail?.tags) return [];
-    if (Array.isArray(diaryDetail.tags)) return diaryDetail.tags;
-    if (typeof diaryDetail.tags === 'string') {
-      return diaryDetail.tags
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean);
-    }
-    return [];
-  }, [diaryDetail]);
+  const normalizedTags = useMemo(() => normalizeTags(diaryDetail?.tags), [diaryDetail]);
 
   // 수정 모드: diaryDetail이 늦게 도착할 수 있으니, 데이터가 들어오면 폼을 동기화합니다.
   useEffect(() => {
@@ -192,6 +185,11 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
               <MdEditor
                 value={contentMdInput}
                 style={{ height: '550px' }}
+                view={{
+                  menu: true,
+                  md: true,
+                  html: false,
+                }}
                 renderHTML={(text) => mdParser.render(text)}
                 onChange={({ text }) => setContentMdInput(text)}
                 placeholder="Write your thoughts in Markdown..."

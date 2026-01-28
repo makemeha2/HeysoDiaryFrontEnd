@@ -1,29 +1,23 @@
 import { useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { MessageSquareHeart, SquareX } from 'lucide-react';
+import { SquareX } from 'lucide-react';
 import MarkdownIt from 'markdown-it';
-import { formatDateTime, formatDateWithWeekday } from '../../../lib/dateFormatters.js';
+import markdownItIns from 'markdown-it-ins';
+import { formatDateTime, formatDateWithWeekday } from '@lib/dateFormatters.js';
 import useDiary from '../useDiary.jsx';
+import DiaryAiCommentSection from './DiaryAiCommentSection.jsx';
+import { normalizeTags } from '../diaryUtil.js';
 
 const mdParser = new MarkdownIt({
   breaks: true,
 });
+mdParser.use(markdownItIns);
 
 const DiaryViewDialog = ({ diaryId, onClose, onEdit }) => {
   const { diaryDetailQuery } = useDiary({ diaryId });
   const { data: diary, isLoading, isError } = diaryDetailQuery;
 
-  const tagList = useMemo(() => {
-    if (!diary?.tags) return [];
-    if (Array.isArray(diary.tags)) return diary.tags;
-    if (typeof diary.tags === 'string') {
-      return diary.tags
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean);
-    }
-    return [];
-  }, [diary]);
+  const tagList = useMemo(() => normalizeTags(diary?.tags), [diary]);
 
   return (
     <Dialog.Portal>
@@ -108,24 +102,9 @@ const DiaryViewDialog = ({ diaryId, onClose, onEdit }) => {
                 <aside className="w-full shrink-0 lg:w-[512px]">
                   <div className="flex max-h-[520px] h-full flex-col gap-4 overflow-y-auto pr-1">
                     {/* AI 댓글 */}
-                    <section className="rounded-2xl border border-sand/30 bg-sand/5 p-5 shadow-soft">
-                      <div className="mb-2 flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-clay/80">한마디 들어볼까?</h3>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-2 rounded-full border border-amber/30 bg-amber px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-600 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber/60 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm"
-                          aria-label="AI 댓글 준비중"
-                        >
-                          <MessageSquareHeart className="h-3.5 w-3.5" />
-                          OK
-                        </button>
-                      </div>
-                      <p className="text-sm leading-6 text-clay/80">
-                        AI가 이 일기를 읽고 공감과 피드백을 남겨줄 공간입니다. 추후 이곳에 댓글이
-                        표시됩니다.
-                      </p>
-                    </section>
+                    <DiaryAiCommentSection diaryId={diaryId} />
 
+                    {/* 연관 일기보기 */}
                     <section className="rounded-2xl border border-sand/30 bg-white p-5 shadow-soft">
                       <h3 className="mb-3 text-sm font-semibold text-clay/80">연관 일기 보기</h3>
                       <div className="space-y-2">
