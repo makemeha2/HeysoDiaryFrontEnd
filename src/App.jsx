@@ -57,7 +57,7 @@ const App = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-10 backdrop-blur bg-linen/80 shadow-soft">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="text-2xl font-bold text-clay">Heyso Diary</div>
           <nav className="flex gap-2">
             <NavLink to="/" end className={navLinkClass}>
@@ -94,14 +94,24 @@ const App = () => {
       </header>
 
       <main className="flex-1">
-        <div className="max-w-6xl mx-auto px-4 py-0">
-          <Routes>
-            <Route index element={<Diary />} />
-            <Route path="notice" element={<Notice />} />
-            <Route path="aichat" element={<AiChatMain />} />
-            <Route path="freebbs" element={<FreeBBS />} />
-            <Route path="login" element={<Login />} />
-          </Routes>
+        <div className="grid gap-6 lg:grid-cols-[180px_minmax(0,1fr)_180px]">
+          <aside className="hidden lg:ml-[10px] lg:flex h-full min-h-[200px] items-start justify-center rounded-2xl border border-sand/40 bg-white/60 p-4 text-sm font-semibold text-clay/70">
+            {/* 광고주 모집 */}
+          </aside>
+          <div className="min-w-0">
+            <div className="max-w-7xl mx-auto px-4 py-0">
+              <Routes>
+                <Route index element={<Diary />} />
+                <Route path="notice" element={<Notice />} />
+                <Route path="aichat" element={<AiChatMain />} />
+                <Route path="freebbs" element={<FreeBBS />} />
+                <Route path="login" element={<Login />} />
+              </Routes>
+            </div>
+          </div>
+          <aside className="hidden lg:mr-[10px] lg:flex h-full min-h-[200px] items-start justify-center rounded-2xl border border-sand/40 bg-white/60 p-4 text-sm font-semibold text-clay/70">
+            {/* 광고주 모집 */}
+          </aside>
         </div>
       </main>
 

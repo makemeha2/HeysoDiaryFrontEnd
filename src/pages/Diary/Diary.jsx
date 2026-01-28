@@ -125,7 +125,7 @@ const Diary = () => {
         )}
       </Dialog.Root>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-8 md:grid-cols-[3fr_7fr]">
         <section className="bg-white/70 rounded-2xl p-6 shadow-soft border border-sand/40">
           <div className="flex items-center justify-between gap-4">
             <div>
