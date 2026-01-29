@@ -6,6 +6,7 @@ import markdownItIns from 'markdown-it-ins';
 import MdEditor from 'react-markdown-editor-lite';
 import { Calendar, SquareX } from 'lucide-react';
 import { useAlertDialog } from '@components/useAlertDialog.jsx';
+import AutocompleteCommitInput from '@components/TagInput.jsx';
 import dayjs from 'dayjs';
 import { formatDate, formatDateWithWeekday } from '@lib/dateFormatters.js';
 import useDiary from '../useDiary.jsx';
@@ -37,25 +38,27 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
     setIsCalendarOpen(false);
   };
 
-  const { diaryDetailQuery, saveDiaryMutation } = useDiary({
+  const handleSaveSuccess = async (data, _variables, { refreshAfterSave }) => {
+    await alert({
+      title: '알림',
+      description: isEditMode ? '수정되었습니다.' : '등록되었습니다.',
+      actionLabel: '확인',
+    });
+
+    const savedDiaryId = diaryId ?? data?.diaryId;
+    await refreshAfterSave(savedDiaryId);
+
+    if (savedDiaryId && onView) {
+      onView(savedDiaryId);
+      return;
+    }
+
+    onClose?.();
+  };
+
+  const { diaryDetailQuery, saveDiaryMutation, myTags, myTagsQuery } = useDiary({
     diaryId: isOpen ? diaryId : null,
-    onSaveSuccess: async (data, _variables, { refreshAfterSave }) => {
-      await alert({
-        title: '알림',
-        description: isEditMode ? '수정되었습니다.' : '등록되었습니다.',
-        actionLabel: '확인',
-      });
-
-      const savedDiaryId = diaryId ?? data?.diaryId;
-      await refreshAfterSave(savedDiaryId);
-
-      if (savedDiaryId && onView) {
-        onView(savedDiaryId);
-        return;
-      }
-
-      onClose?.();
-    },
+    onSaveSuccess: handleSaveSuccess,
     onSaveError: (err) => {
       console.error(err);
     },
@@ -81,8 +84,8 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   };
 
   // 태그 등록
-  const addTag = () => {
-    const nextTag = tagDraft.trim();
+  const addTag = (rawTag = tagDraft) => {
+    const nextTag = rawTag.trim();
     if (!nextTag) return;
 
     const exists = tagList.some((t) => t.toLowerCase() === nextTag.toLowerCase());
@@ -131,6 +134,7 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
         <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm data-[state=open]:animate-fadeIn" />
         <Dialog.Content
           onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
           className="fixed left-1/2 top-1/2 z-40 w-[min(90vw,1120px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-sand/50 bg-white p-6 shadow-2xl focus:outline-none data-[state=open]:animate-scaleIn"
         >
           <div className="flex items-start justify-between">
@@ -197,20 +201,14 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
             </div>
 
             <div className="space-y-2">
-              <input
-                id="diary-tag-input"
-                value={tagDraft}
-                onChange={(e) => setTagDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addTag();
-                  }
-                }}
-                className="w-full rounded-xl border border-sand/60 bg-white/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber/40"
-                placeholder="태그를 입력해보세요. Enter를 누르면 추가됩니다."
+              <AutocompleteCommitInput
+                items={Array.isArray(myTags) ? myTags : []}
+                // exclude={tagList}
+                onCommit={(value) => addTag(value)}
+                placeholder="태그를 입력해보세요. Enter 또는 콤마로 추가됩니다."
+                disabled={myTagsQuery?.isLoading}
+                className="w-full"
               />
-
               {tagList.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {tagList.map((tag) => (
@@ -234,7 +232,7 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-clay/60">내가 쓰고 싶을 말을 여기에 써보자!!!!!!</span>
+              <span className="text-sm text-clay/60">AI와 친구가 되어보세요.</span>
               <button
                 type="submit"
                 className="rounded-full bg-amber text-white px-5 py-2.5 hover:opacity-95 active:opacity-90 disabled:opacity-60"
