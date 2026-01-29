@@ -47,14 +47,19 @@ function isChoseongQuery(q) {
   return /^[ㄱ-ㅎ]+$/.test(q);
 }
 
+function normalizeText(str) {
+  return String(str ?? '')
+    .normalize('NFKC')
+    .toLowerCase();
+}
+
 function defaultFilter(items, inputValue, maxItems = 10) {
-  const q = (inputValue ?? '').trim();
+  const q = normalizeText(inputValue).trim();
   if (!q) return [];
   if (isChoseongQuery(q)) {
     return items.filter((it) => toChoseongString(it).includes(q)).slice(0, maxItems);
   }
-  const qLower = q.toLowerCase();
-  return items.filter((it) => it.toLowerCase().includes(qLower)).slice(0, maxItems);
+  return items.filter((it) => normalizeText(it).includes(q)).slice(0, maxItems);
 }
 
 /** ===== 재사용 컴포넌트 ===== */
@@ -93,6 +98,11 @@ export default function AutocompleteCommitInput({
     itemToString: (item) => item ?? '',
     onInputValueChange: ({ inputValue }) => {
       setValue(inputValue ?? '');
+      if ((inputValue ?? '').trim()) {
+        openMenu();
+      } else {
+        closeMenu();
+      }
     },
     onSelectedItemChange: ({ selectedItem }) => {
       if (!selectedItem) return;
@@ -137,6 +147,11 @@ export default function AutocompleteCommitInput({
     onCompositionEnd: (e) => {
       setIsComposing(false);
       setValue(e.currentTarget.value ?? '');
+      if ((e.currentTarget.value ?? '').trim()) {
+        openMenu();
+      } else {
+        closeMenu();
+      }
     },
     onKeyDown: (e) => {
       if (disabled) return;
