@@ -14,10 +14,10 @@ const ConfirmDialog = ({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         {/* 배경 오버레이 */}
-        <Dialog.Overlay className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+        <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm" />
 
         {/* 모달 컨텐츠 */}
-        <Dialog.Content className="fixed left-1/2 top-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-sand/60 bg-white/90 p-6 shadow-xl">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[60] w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-sand/60 bg-white/90 p-6 shadow-xl">
           <Dialog.Title className="text-lg font-semibold text-clay">{title}</Dialog.Title>
           {description && (
             <Dialog.Description className="mt-2 text-sm text-clay/70 whitespace-pre-line">

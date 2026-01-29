@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { SquareX } from 'lucide-react';
 import MarkdownIt from 'markdown-it';
 import markdownItIns from 'markdown-it-ins';
+import ConfirmDialog from '@components/ConfirmDialog.jsx';
 import { formatDateTime, formatDateWithWeekday } from '@lib/dateFormatters.js';
 import useDiary from '../useDiary.jsx';
 import DiaryAiCommentSection from './DiaryAiCommentSection.jsx';
+import { useAlertDialog } from '@components/useAlertDialog.jsx';
 import { normalizeTags } from '../diaryUtil.js';
 
 const mdParser = new MarkdownIt({
@@ -13,11 +15,59 @@ const mdParser = new MarkdownIt({
 });
 mdParser.use(markdownItIns);
 
-const DiaryViewDialog = ({ diaryId, onClose, onEdit }) => {
-  const { diaryDetailQuery } = useDiary({ diaryId });
+const DiaryViewDialog = ({
+  diaryId,
+  onClose,
+  onEdit,
+  onDeleteSuccess,
+  pendingDeleteId,
+  onPendingDeleteHandled,
+}) => {
+  const { alert, Alert } = useAlertDialog();
+
+  const { diaryDetailQuery, deleteDiaryMutation } = useDiary({ diaryId });
   const { data: diary, isLoading, isError } = diaryDetailQuery;
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteTargetDiaryId, setDeleteTargetDiaryId] = useState(null);
 
   const tagList = useMemo(() => normalizeTags(diary?.tags), [diary]);
+
+  const openDeleteDialog = useCallback(
+    (targetId = diaryId) => {
+      if (!targetId) return;
+      setDeleteTargetDiaryId(targetId);
+      setIsDeleteDialogOpen(true);
+    },
+    [diaryId],
+  );
+
+  const closeDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setDeleteTargetDiaryId(null);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTargetDiaryId || deleteDiaryMutation.isPending) return;
+    deleteDiaryMutation.mutate(deleteTargetDiaryId, {
+      onSuccess: async () => {
+        closeDeleteDialog();
+
+        await alert({
+          title: '알림',
+          description: '삭제되었습니다.',
+          actionLabel: '확인',
+        });
+
+        onDeleteSuccess?.(deleteTargetDiaryId);
+      },
+    });
+  };
+
+  useEffect(() => {
+    if (!pendingDeleteId) return;
+    openDeleteDialog(pendingDeleteId);
+    onPendingDeleteHandled?.();
+  }, [pendingDeleteId, onPendingDeleteHandled, openDeleteDialog]);
 
   return (
     <Dialog.Portal>
@@ -48,12 +98,12 @@ const DiaryViewDialog = ({ diaryId, onClose, onEdit }) => {
 
         {/* Body */}
         {diary?.title && (
-          <p className="text-2xl font-bold tracking-tight text-clay px-8 py-3">{diary.title}</p>
+          <p className="text-2xl font-bold tracking-tight text-clay px-8 pt-3">{diary.title}</p>
         )}
         {!diaryId ? (
           <div className="px-8 py-10 text-sm text-clay/60">선택된 다이어리가 없습니다.</div>
         ) : isLoading ? (
-          <div className="px-8 py-10 text-sm text-clay/60">불러오는 중입니다...</div>
+          <div className="px-8 py-10 text-sm text-clay/60"></div>
         ) : isError ? (
           <div className="px-8 py-10 text-sm text-red-600">다이어리를 불러오지 못했습니다.</div>
         ) : !diary ? (
@@ -84,7 +134,7 @@ const DiaryViewDialog = ({ diaryId, onClose, onEdit }) => {
                     </div>
 
                     {tagList.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2 pb-4">
+                      <div className="mt-1 flex flex-wrap gap-2 pb-4">
                         {tagList.map((tag) => (
                           <span
                             key={tag}
@@ -150,14 +200,22 @@ const DiaryViewDialog = ({ diaryId, onClose, onEdit }) => {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    className="rounded-full border border-sand/60 px-4 py-2 text-sm text-clay/80 hover:bg-black/5"
+                    className="rounded-full border px-4 py-2 mr-7 text-sm cursor-pointer border-amber-600 text-amber-600 hover:text-amber-800"
+                    onClick={() => openDeleteDialog(diaryId)}
+                    disabled={!diaryId}
+                  >
+                    삭제
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border border-sand/60 px-4 py-2 text-sm text-clay/80 hover:bg-black/5 cursor-pointer"
                     onClick={onClose}
                   >
                     취소
                   </button>
                   <button
                     type="button"
-                    className="rounded-full bg-amber px-5 py-2 text-sm font-semibold text-white hover:opacity-95 active:opacity-90 disabled:opacity-60"
+                    className="rounded-full bg-amber px-5 py-2 text-sm font-semibold text-white hover:opacity-95 active:opacity-90 disabled:opacity-60 cursor-pointer"
                     onClick={() => diaryId && onEdit?.(diaryId)}
                     disabled={!diaryId}
                   >
@@ -169,6 +227,21 @@ const DiaryViewDialog = ({ diaryId, onClose, onEdit }) => {
           </div>
         )}
       </Dialog.Content>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDeleteDialog();
+        }}
+        title="삭제하시겠습니까?"
+        description="이 작업은 되돌릴 수 없습니다."
+        confirmLabel="확인"
+        cancelLabel="취소"
+        onConfirm={handleDeleteConfirm}
+        onCancel={closeDeleteDialog}
+      />
+
+      <Alert />
     </Dialog.Portal>
   );
 };

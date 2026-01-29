@@ -64,6 +64,17 @@ const useDiary = ({
     },
   });
 
+  const myTagsQuery = useQuery({
+    queryKey: ['diaryMyTags'],
+    enabled: isSignedIn,
+    staleTime: 0,
+    queryFn: async ({ signal }) => {
+      const res = await authFetch('/api/diary/mytags', { method: 'GET', signal });
+      const tags = res.data?.tags ?? res.data;
+      return Array.isArray(tags) ? tags : [];
+    },
+  });
+
   // 캘린더용: 월별 날짜별 작성 개수
   const monthlyDiaryCountsQuery = useQuery({
     queryKey: ['monthlyDiaryCounts', monthKey],
@@ -101,6 +112,19 @@ const useDiary = ({
       targetDiaryId
         ? queryClient.invalidateQueries({ queryKey: ['diaryDetail', targetDiaryId] })
         : Promise.resolve(),
+    ]);
+  };
+
+  const refreshAfterDelete = async (deletedDiaryId) => {
+    if (!deletedDiaryId) return;
+    // removeDiaryFromCache(deletedDiaryId);
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ['diaryEntries', page, size] }),
+      queryClient.invalidateQueries({ queryKey: ['diaryDaily'] }),
+      monthKey
+        ? queryClient.refetchQueries({ queryKey: ['monthlyDiaryCounts', monthKey] })
+        : queryClient.invalidateQueries({ queryKey: ['monthlyDiaryCounts'] }),
+      queryClient.removeQueries({ queryKey: ['diaryDetail', deletedDiaryId] }),
     ]);
   };
 
@@ -146,6 +170,7 @@ const useDiary = ({
   // 화면에서 자주 쓰는 파생 데이터
   const diaries = diariesQuery.data ?? [];
   const dailyDiaries = dailyDiariesQuery.data ?? [];
+  const myTags = myTagsQuery.data ?? [];
   const monthlyDiaryCounts = monthlyDiaryCountsQuery.data ?? [];
   const diaryDetail = diaryDetailQuery.data ?? null;
 
@@ -154,17 +179,25 @@ const useDiary = ({
     return [...diaries].sort((a, b) => (b?.diaryId ?? 0) - (a?.diaryId ?? 0));
   }, [diaries]);
 
-  const removeDiaryFromCache = (diaryId) => {
-    if (!diaryId) return;
-    queryClient.setQueryData(['diaryEntries', page, size], (prev = []) =>
-      prev.filter((d) => (d?.diaryId ?? d?.id) !== diaryId),
-    );
-  };
+  // const removeDiaryFromCache = (diaryId) => {
+  //   if (!diaryId) return;
+  //   queryClient.setQueryData(['diaryEntries', page, size], (prev = []) =>
+  //     prev.filter((d) => (d?.diaryId ?? d?.id) !== diaryId),
+  //   );
+  // };
 
-  // (선택) 삭제 뮤테이션이 생기면 여기로 통합 가능
+  // 삭제
   const deleteDiaryMutation = useMutation({
-    mutationFn: async () => {
-      throw new Error('Not implemented');
+    mutationFn: async (payload) => {
+      const targetId = payload?.diaryId ?? payload ?? diaryId;
+      if (!targetId) throw new Error('Missing diaryId for delete');
+
+      const res = await authFetch(`/api/diary/${targetId}/delete`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to delete diary');
+      return { diaryId: targetId };
+    },
+    onSuccess: async (data) => {
+      await refreshAfterDelete(data?.diaryId);
     },
   });
 
@@ -176,6 +209,7 @@ const useDiary = ({
     // queries
     diariesQuery,
     dailyDiariesQuery,
+    myTagsQuery,
     monthlyDiaryCountsQuery,
     diaryDetailQuery,
     saveDiaryMutation,
@@ -184,12 +218,13 @@ const useDiary = ({
     // data
     diaries,
     dailyDiaries,
+    myTags,
     monthlyDiaryCounts,
     diaryDetail,
     recentDiaries,
 
     // actions
-    removeDiaryFromCache,
+    // removeDiaryFromCache,
     deleteDiaryMutation,
   };
 };

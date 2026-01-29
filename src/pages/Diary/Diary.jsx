@@ -19,6 +19,7 @@ const Diary = () => {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [viewDiaryId, setViewDiaryId] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,7 +30,7 @@ const Diary = () => {
 
   const selectedDateKey = formatDate(selectedDate);
 
-  const { diariesQuery, dailyDiariesQuery, removeDiaryFromCache } = useDiary({
+  const { diariesQuery, dailyDiariesQuery } = useDiary({
     page: DEFAULT_PAGE,
     size: DEFAULT_SIZE,
     selectedDateKey,
@@ -77,6 +78,7 @@ const Diary = () => {
   const handleViewDialogChange = (nextOpen) => {
     if (!nextOpen) {
       setViewDiaryId(null);
+      setPendingDeleteId(null);
     }
     setIsViewDialogOpen(nextOpen);
   };
@@ -107,6 +109,18 @@ const Diary = () => {
     console.log('Open diary detail', diary);
   };
 
+  const requestDelete = (diaryId) => {
+    if (!diaryId) return;
+    setViewDiaryId(diaryId);
+    setPendingDeleteId(diaryId);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleDeleteSuccess = () => {
+    setPendingDeleteId(null);
+    handleViewDialogChange(false);
+  };
+
   return (
     <>
       <Dialog.Root open={isViewDialogOpen} onOpenChange={handleViewDialogChange}>
@@ -115,6 +129,9 @@ const Diary = () => {
             diaryId={viewDiaryId}
             onClose={() => handleViewDialogChange(false)}
             onEdit={handleEditFromView}
+            onDeleteSuccess={handleDeleteSuccess}
+            pendingDeleteId={pendingDeleteId}
+            onPendingDeleteHandled={() => setPendingDeleteId(null)}
           />
         )}
       </Dialog.Root>
@@ -253,13 +270,13 @@ const Diary = () => {
                           {formatDateTime(diary.diaryDate)}
                         </time>
                       </div>
-                      <button
-                        onClick={() => removeDiaryFromCache(diary.diaryId)}
+                      {/* <button
+                        onClick={() => requestDelete(diary.diaryId)}
                         className="text-sm text-clay/60 hover:text-clay/90"
                         title="Delete diary"
                       >
                         Delete
-                      </button>
+                      </button> */}
                     </div>
 
                     {diary.contentMd && (
