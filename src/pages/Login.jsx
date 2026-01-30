@@ -33,6 +33,7 @@ const Login = () => {
       const res = await axios.post(`${apiBase}/api/auth/oauth/google`, { idToken });
 
       const data = res.data;
+
       // 기대 응답:
       // { accessToken, userId, email, nickname, role }
       const authPayload = {
@@ -40,6 +41,7 @@ const Login = () => {
         userId: data.userId,
         email: data.email,
         nickname: data.nickname,
+        profileImgUrl: data.profileImgUrl,
         role: data.role,
         provider: 'google',
         grantedAt: Date.now(),
@@ -47,8 +49,6 @@ const Login = () => {
       };
 
       setAuth(authPayload); // zustand store 에 반영
-
-      console.log('로그인 성공', data);
 
       navigate(from, { replace: true });
     } catch (e) {

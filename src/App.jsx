@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@stores/authStore.js';
 import ConfirmDialog from '@components/ConfirmDialog.jsx';
 import { useQueryClient } from '@tanstack/react-query';
+import defaultUserPic from '@assets/default_user_pic.svg';
 
 const navLinkClass = ({ isActive }) =>
   `px-4 py-2 rounded-full transition-colors ${
@@ -25,9 +26,11 @@ const App = () => {
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const queryClient = useQueryClient();
   const hasValidatedRef = useRef(false);
+  const userMenuRef = useRef(null);
 
   useEffect(() => {
     if (hasValidatedRef.current) return;
@@ -36,6 +39,13 @@ const App = () => {
   }, [validateAuth]);
 
   const isAuthenticated = authChecked && !!auth;
+  const rawUserName = auth?.userName ?? auth?.username ?? auth?.nickname;
+  const displayName = typeof rawUserName === 'string' && rawUserName.trim() ? rawUserName : 'My';
+  const rawProfileImgUrl = auth?.profileImgUrl;
+  const profileImgUrl =
+    typeof rawProfileImgUrl === 'string' && rawProfileImgUrl.trim()
+      ? rawProfileImgUrl
+      : defaultUserPic;
 
   const handleLogout = () => {
     setLogoutConfirmOpen(true);
@@ -54,11 +64,43 @@ const App = () => {
     setLogoutConfirmOpen(false);
   };
 
+  const handleMyPage = () => {
+    console.log('TODO: mypage');
+    setUserMenuOpen(false);
+  };
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+
+    const handleOutsideClick = (event) => {
+      if (!userMenuRef.current || userMenuRef.current.contains(event.target)) return;
+      setUserMenuOpen(false);
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [userMenuOpen]);
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-10 backdrop-blur bg-linen/80 shadow-soft">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="text-2xl font-bold text-clay">Heyso Diary</div>
+          <div className="text-2xl font-bold text-clay">
+            <NavLink to="/" className="text-2xl font-bold text-clay">
+              Heyso Diary
+            </NavLink>
+          </div>
           <nav className="flex gap-2">
             <NavLink to="/" end className={navLinkClass}>
               Diary
@@ -73,13 +115,51 @@ const App = () => {
               FreeBBS
             </NavLink>
             {isAuthenticated ? (
-              <button
-                onClick={handleLogout}
-                className={navLinkClass({ isActive: false })}
-                type="button"
-              >
-                Logout
-              </button>
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen((prev) => !prev)}
+                  className={navLinkClass({ isActive: false })}
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
+                >
+                  <span className="flex items-center gap-2">
+                    <img
+                      src={profileImgUrl}
+                      alt={`${displayName}`}
+                      img-src="https://lh3.googleusercontent.com"
+                      className="h-7 w-7 rounded-full object-cover"
+                    />
+                    <span className="hidden sm:inline">{displayName}</span>
+                  </span>
+                </button>
+                {userMenuOpen && (
+                  <div
+                    className="absolute right-0 mt-2 w-44 rounded-2xl border border-sand/50 bg-white/95 p-2 text-sm shadow-soft backdrop-blur"
+                    role="menu"
+                  >
+                    <button
+                      className="w-full rounded-xl px-3 py-2 text-left text-clay transition-colors hover:bg-amber/10 navLinkClass"
+                      type="button"
+                      onClick={handleMyPage}
+                      role="menuitem"
+                    >
+                      마이페이지
+                    </button>
+                    <button
+                      className="mt-1 w-full rounded-xl px-3 py-2 text-left text-clay transition-colors hover:bg-amber/10"
+                      type="button"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        handleLogout();
+                      }}
+                      role="menuitem"
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <NavLink
                 to="/login"

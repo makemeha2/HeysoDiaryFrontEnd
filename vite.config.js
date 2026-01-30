@@ -12,6 +12,7 @@ export default defineConfig({
       '@components': path.resolve(__dirname, 'src/pages/ShareComponents'),
       '@stores': path.resolve(__dirname, 'src/stores'),
       '@lib': path.resolve(__dirname, 'src/lib'),
+      '@assets': path.resolve(__dirname, 'src/assets'),
     },
   },
 })

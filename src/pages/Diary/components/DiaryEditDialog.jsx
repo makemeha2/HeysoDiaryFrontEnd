@@ -13,6 +13,7 @@ import useDiary from '../useDiary.jsx';
 import 'react-day-picker/dist/style.css';
 import 'react-markdown-editor-lite/lib/index.css';
 import { normalizeTags } from '../diaryUtil.js';
+import { ko } from 'date-fns/locale';
 
 const mdParser = new MarkdownIt();
 mdParser.use(markdownItIns);
@@ -148,7 +149,7 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
               </span>
 
               {isCalendarOpen && (
-                <div className="absolute left-10 top-12 z-10 rounded-xl border border-sand/60 bg-white shadow-lg">
+                <div className="absolute left-10 top-12 z-10 flex justify-center rounded-2xl border border-sand/60 bg-white/95 p-3 shadow-[0_30px_80px_-50px_rgba(91,70,54,0.8)] backdrop-blur">
                   <DayPicker
                     mode="single"
                     selected={diaryDate}
@@ -156,9 +157,75 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
                       setDiaryDate(date || new Date());
                       setIsCalendarOpen(false);
                     }}
-                    captionLayout="dropdown-buttons"
+                    captionLayout="label"
+                    navLayout="around"
+                    formatters={{
+                      formatCaption: (month) => dayjs(month).format('YYYY-MM'),
+                    }}
+                    className="rounded-2xl"
+                    locale={ko}
                     styles={{
-                      caption: { color: '#5c4033', fontWeight: 600 },
+                      root: {
+                        '--rdp-accent-color': '#d9b26a',
+                        '--rdp-accent-color-dark': '#d9b26a',
+                        '--rdp-background-color': '#ffffff',
+                      },
+                    }}
+                    classNames={{
+                      // 전체 wrapper
+                      root: 'p-3',
+
+                      // month 레이아웃
+                      months: 'flex flex-col items-center',
+                      month:
+                        'grid grid-cols-[auto_1fr_auto] grid-rows-[auto_1fr] items-center gap-y-3',
+
+                      // 상단 캡션 영역(월/네비)
+                      month_caption:
+                        'col-start-2 row-start-1 flex items-center justify-center px-1',
+                      caption: 'flex items-center justify-center gap-2',
+                      caption_label: 'text-sm font-semibold text-clay/90 whitespace-nowrap',
+                      dropdowns: 'flex items-center gap-2',
+                      dropdown:
+                        'rounded-lg border border-sand/60 bg-white px-2 py-1 text-sm text-clay shadow-sm focus:outline-none focus:ring-2 focus:ring-amber/30',
+
+                      // 네비 버튼(이전/다음)
+                      nav: 'absolute inset-x-0 flex items-center justify-between',
+                      button:
+                        'inline-flex h-8 w-8 items-center justify-center rounded-xl border border-sand/60 bg-white text-clay/70 shadow-sm transition hover:bg-sand/20 hover:text-clay focus:outline-none focus:ring-2 focus:ring-amber/30',
+                      button_previous: '!static col-start-1 row-start-1',
+                      button_next: '!static col-start-3 row-start-1',
+                      chevron: 'h-4 w-4',
+
+                      // 캘린더 그리드
+                      month_grid: 'col-span-3 row-start-2',
+
+                      // 요일 헤더
+                      head_row: 'flex',
+                      head_cell: 'w-10 text-[11px] font-semibold text-clay/50 tracking-wide',
+
+                      // 날짜 grid
+                      row: 'flex mt-1',
+                      cell: 'w-10 h-10 p-0 text-center',
+
+                      // 날짜 버튼
+                      day_button:
+                        'h-10 w-10 rounded-xl text-sm font-medium text-clay/80 transition ' +
+                        'hover:bg-amber/15 hover:text-clay ' +
+                        'focus:outline-none focus:ring-2 focus:ring-amber/30',
+
+                      // 오늘
+                      today: 'text-clay font-semibold ring-1 ring-sand/60',
+
+                      // 선택됨
+                      selected: 'bg-amber text-white shadow-md hover:bg-amber hover:text-white',
+
+                      // 선택된 날짜 (버튼 자체에 적용되도록)
+                      day_selected: 'bg-amber text-white shadow-md hover:bg-amber hover:text-white',
+
+                      // 범위/비활성 등(싱글모드라도 기본값)
+                      outside: 'text-clay/30 opacity-60',
+                      disabled: 'text-clay/25 opacity-50',
                     }}
                   />
                 </div>
