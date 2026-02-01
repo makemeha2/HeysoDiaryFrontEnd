@@ -10,6 +10,7 @@ import { useAuthStore } from '@stores/authStore.js';
 import ConfirmDialog from '@components/ConfirmDialog.jsx';
 import { useQueryClient } from '@tanstack/react-query';
 import defaultUserPic from '@assets/default_user_pic.svg';
+import MyPageSample from './pages/MyPage/MyPageSample';
 
 const navLinkClass = ({ isActive }) =>
   `px-4 py-2 rounded-full transition-colors ${
@@ -65,7 +66,7 @@ const App = () => {
   };
 
   const handleMyPage = () => {
-    console.log('TODO: mypage');
+    navigate('/mypage');
     setUserMenuOpen(false);
   };
 
@@ -186,6 +187,7 @@ const App = () => {
                 <Route path="aichat" element={<AiChatMain />} />
                 <Route path="freebbs" element={<FreeBBS />} />
                 <Route path="login" element={<Login />} />
+                <Route path="mypage" element={<MyPageSample />} />
               </Routes>
             </div>
           </div>
