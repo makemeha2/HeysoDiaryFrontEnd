@@ -13,6 +13,7 @@ import Login from '@pages/Login.jsx';
 import { useAuthStore } from '@stores/authStore.js';
 import ConfirmDialog from '@components/ConfirmDialog.jsx';
 import defaultUserPic from '@assets/default_user_pic.svg';
+import MyPageSample from './pages/MyPage/MyPageSample';
 
 import * as Dialog from '@radix-ui/react-dialog';
 import { Toaster, toast } from 'sonner';
@@ -27,7 +28,7 @@ import { formatDate } from '@lib/dateFormatters.js';
 const isLocal = import.meta.env.VITE_APP_ENV === 'LOCAL';
 
 // 요구사항 1) 로그인 후 10초 뒤 노출
-const DIARY_NUDGE_DELAY_MS = 10_000;
+const DIARY_NUDGE_DELAY_MS = 2_000;
 
 // localStorage keys
 const TOAST_LAST_SHOWN_KEY = 'diaryToast:lastShownDate';
@@ -130,12 +131,6 @@ const App = () => {
     return true;
   }, [hasWrittenToday, isAuthenticated, todayKey]);
 
-  /** -------------------------
-   *  Diary nudge toast effect
-   *  - 로그인 이후 10초
-   *  - login 페이지에서는 생략(선택)
-   *  - 오늘 이미 띄웠거나, 오늘 하루 열지 않기를 눌렀으면 생략
-   *  ------------------------- */
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -212,10 +207,10 @@ const App = () => {
 
   const handleLogoutCancel = useCallback(() => setLogoutConfirmOpen(false), []);
 
-  const handleMyPage = useCallback(() => {
-    console.log('TODO: mypage');
+  const handleMyPage = () => {
+    navigate('/mypage');
     setUserMenuOpen(false);
-  }, []);
+  };
 
   /** =========================
    *  Render
@@ -316,6 +311,7 @@ const App = () => {
                 <Route path="aichat" element={<AiChatMain />} />
                 <Route path="freebbs" element={<FreeBBS />} />
                 <Route path="login" element={<Login />} />
+                <Route path="mypage" element={<MyPageSample />} />
               </Routes>
             </div>
           </div>
