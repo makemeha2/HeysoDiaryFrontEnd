@@ -16,30 +16,20 @@ import defaultUserPic from '@assets/default_user_pic.svg';
 import MyPageSample from './pages/MyPage/MyPageSample';
 
 import * as Dialog from '@radix-ui/react-dialog';
-import { Toaster, toast } from 'sonner';
+import { Toaster } from 'sonner';
 
 import DiaryEditDialog from '@pages/Diary/components/DiaryEditDialog.jsx';
 import DiaryNudgeToast from '@components/DiaryNudgeToast.jsx';
 import { formatDate } from '@lib/dateFormatters.js';
 
+import { useDiaryNudgeToast } from '@hooks/useDiaryNudgeToast.jsx';
+
 /** =========================
  *  Env / Constants
  *  ========================= */
-const isLocal = import.meta.env.VITE_APP_ENV === 'LOCAL';
 
-// 요구사항 1) 로그인 후 10초 뒤 노출
-const DIARY_NUDGE_DELAY_MS = 2_000;
-
-// localStorage keys
-const TOAST_LAST_SHOWN_KEY = 'diaryToast:lastShownDate';
-const TOAST_DISMISSED_KEY = 'diaryToast:dismissedDate';
-
-// toast message samples
-const MESSAGE_SAMPLES = [
-  '일기 프로젝트는 잘 되가고 있나요?',
-  '오늘은 스트레스 주는 사람이 없었나요?',
-  '짧게라도 오늘 한 줄 남겨볼까요?',
-];
+// 로그인 후 10초 뒤 노출
+const DIARY_NUDGE_DELAY_MS = 7_000;
 
 const navLinkClass = ({ isActive }) =>
   `px-4 py-2 rounded-full transition-colors ${
@@ -79,7 +69,7 @@ const App = () => {
 
   const todayKey = useMemo(() => formatDate(new Date()), []);
 
-  // 요구사항 2) "오늘 일기 작성 여부"는 테스트를 위해 false 고정
+  // TODO: 실제 “오늘 일기 작성 여부”로 교체
   const hasWrittenToday = false;
 
   /** -------------------------
@@ -102,67 +92,16 @@ const App = () => {
   }, [validateAuth]);
 
   /** -------------------------
-   *  Local helpers (toast state)
+   *  Diary Nudge Toast (hook)
    *  ------------------------- */
-  const markToastShownToday = useCallback(() => {
-    localStorage.setItem(TOAST_LAST_SHOWN_KEY, todayKey);
-  }, [todayKey]);
-
-  const dismissToastToday = useCallback(() => {
-    localStorage.setItem(TOAST_DISMISSED_KEY, todayKey);
-  }, [todayKey]);
-
-  const shouldShowDiaryNudgeToast = useCallback(() => {
-    // 요구사항 3) "오늘 팝업/오늘 하루 열지 않기"는 클라이언트(localStorage)에서 판단
-    // 로컬 개발에서 매번 토스트 확인하고 싶으면 isLocal에서 읽기를 스킵하는 옵션도 가능
-    let dismissed = null;
-    let lastShown = null;
-
-    if (!isLocal) {
-      dismissed = localStorage.getItem(TOAST_DISMISSED_KEY);
-      lastShown = localStorage.getItem(TOAST_LAST_SHOWN_KEY);
-    }
-
-    if (!isAuthenticated) return false;
-    if (hasWrittenToday) return false;
-    if (dismissed === todayKey) return false;
-    if (lastShown === todayKey) return false;
-
-    return true;
-  }, [hasWrittenToday, isAuthenticated, todayKey]);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const timer = setTimeout(() => {
-      if (location.pathname === '/login') return;
-      if (!shouldShowDiaryNudgeToast()) return;
-
-      markToastShownToday();
-
-      const message = MESSAGE_SAMPLES[Math.floor(Math.random() * MESSAGE_SAMPLES.length)];
-
-      toast.custom((t) => (
-        <DiaryNudgeToast
-          message={message}
-          onDismissToday={() => dismissToastToday()}
-          onClose={() => toast.dismiss(t)}
-          onGoWrite={() => {
-            toast.dismiss(t);
-            setQuickWriteOpen(true);
-          }}
-        />
-      ));
-    }, DIARY_NUDGE_DELAY_MS);
-
-    return () => clearTimeout(timer);
-  }, [
-    isAuthenticated,
-    location.pathname,
-    shouldShowDiaryNudgeToast,
-    markToastShownToday,
-    dismissToastToday,
-  ]);
+  useDiaryNudgeToast({
+    enabled: isAuthenticated && !hasWrittenToday,
+    todayKey,
+    delayMs: DIARY_NUDGE_DELAY_MS,
+    pathname: location.pathname,
+    ToastComponent: DiaryNudgeToast,
+    onGoWrite: () => setQuickWriteOpen(true),
+  });
 
   /** -------------------------
    *  User menu close handlers
