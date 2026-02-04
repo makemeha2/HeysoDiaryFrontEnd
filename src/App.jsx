@@ -9,6 +9,7 @@ import Notice from '@pages/Notice.jsx';
 import AiChatMain from '@pages/AIChat/AiChatMain.jsx';
 import FreeBBS from '@pages/FreeBBS.jsx';
 import Login from '@pages/Login.jsx';
+import Introduce from '@pages/Intro/Introduce.jsx';
 
 import { useAuthStore } from '@stores/authStore.js';
 import ConfirmDialog from '@components/ConfirmDialog.jsx';
@@ -163,21 +164,25 @@ const App = () => {
             <NavLink to="/" className="text-2xl font-bold text-clay">
               Heyso Diary
             </NavLink>
+            <i className="text-sm font-bold text-black"> (Beta)</i>
           </div>
 
           <nav className="flex gap-2">
             <NavLink to="/" end className={navLinkClass}>
               Diary
             </NavLink>
-            <NavLink to="/notice" className={navLinkClass}>
+            {/* <NavLink to="/notice" className={navLinkClass}>
               Notice
-            </NavLink>
+            </NavLink> */}
             <NavLink to="/aichat" className={navLinkClass}>
               AI Chat
             </NavLink>
-            <NavLink to="/freebbs" className={navLinkClass}>
-              FreeBBS
+            <NavLink to="/intro" className={navLinkClass}>
+              Intro
             </NavLink>
+            {/* <NavLink to="/freebbs" className={navLinkClass}>
+              FreeBBS
+            </NavLink> */}
 
             {isAuthenticated ? (
               <div className="relative" ref={userMenuRef}>
@@ -238,15 +243,15 @@ const App = () => {
       {/* ---------- Main ---------- */}
       <main className="flex-1">
         <div className="grid gap-6 lg:grid-cols-[180px_minmax(0,1fr)_180px]">
-          <aside className="hidden lg:ml-[10px] lg:flex h-full min-h-[200px] items-start justify-center rounded-2xl border border-sand/40 bg-white/60 p-4 text-sm font-semibold text-clay/70">
-            {/* 광고주 모집 */}
-          </aside>
+          {/* <aside className="lg:ml-[10px] lg:flex h-full min-h-[200px] items-start justify-center rounded-2xl border border-sand/40 bg-white/60 p-4 text-sm font-semibold text-clay/70 "> */}
+          <aside className="lg:ml-[10px] lg:flex h-full min-h-[200px] items-start justify-center rounded-2xl"></aside>
 
           <div className="min-w-0">
             <div className="max-w-7xl mx-auto px-4 py-0">
               <Routes>
                 <Route index element={<Diary />} />
                 <Route path="notice" element={<Notice />} />
+                <Route path="intro" element={<Introduce />} />
                 <Route path="aichat" element={<AiChatMain />} />
                 <Route path="freebbs" element={<FreeBBS />} />
                 <Route path="login" element={<Login />} />
@@ -255,9 +260,8 @@ const App = () => {
             </div>
           </div>
 
-          <aside className="hidden lg:mr-[10px] lg:flex h-full min-h-[200px] items-start justify-center rounded-2xl border border-sand/40 bg-white/60 p-4 text-sm font-semibold text-clay/70">
-            {/* 광고주 모집 */}
-          </aside>
+          {/* <aside className="hidden lg:mr-[10px] lg:flex h-full min-h-[200px] items-start justify-center rounded-2xl border border-sand/40 bg-white/60 p-4 text-sm font-semibold text-clay/70"></aside> */}
+          <aside className="hidden lg:mr-[10px] lg:flex h-full min-h-[200px] items-start justify-center rounded-2xl "></aside>
         </div>
       </main>
 
