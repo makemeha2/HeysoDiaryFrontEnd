@@ -61,8 +61,8 @@ jobs:
           build-args: |
             NPM_REGISTRY=${{ secrets.NPM_REGISTRY }}
             NPM_FETCH_RETRIES=5
-            VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }}
-            VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
+            VITE_GOOGLE_CLIENT_ID=804003243997-pp5313n2tiju5bgkracp3ua5b3s8fakk.apps.googleusercontent.com
+            VITE_API_BASE_URL=http://127.0.0.1:19090
             VITE_APP_ENV=PROD
           cache-from: type=gha
           cache-to: type=gha,mode=max
