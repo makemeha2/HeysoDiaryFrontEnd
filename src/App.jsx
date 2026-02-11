@@ -164,7 +164,7 @@ const App = () => {
             <NavLink to="/" className="text-2xl font-bold text-clay">
               Heyso Diary
             </NavLink>
-            <i className="text-sm font-bold text-black"> (Beta)</i>
+            <i className="text-sm font-bold text-black"> (Beta v0.1)</i>
           </div>
 
           <nav className="flex gap-2">
