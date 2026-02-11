@@ -23,6 +23,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --prefer-offline --no-audit
 
 COPY . .
+RUN test -n "$VITE_GOOGLE_CLIENT_ID" || (echo "VITE_GOOGLE_CLIENT_ID is required" >&2; exit 1)
 RUN npm run build
 
 FROM nginx:alpine
