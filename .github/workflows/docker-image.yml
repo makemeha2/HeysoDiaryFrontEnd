@@ -17,8 +17,6 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    env:
-      FRONTEND_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID != '' && vars.VITE_GOOGLE_CLIENT_ID || secrets.VITE_GOOGLE_CLIENT_ID }}
 
     steps:
       - name: Checkout
@@ -48,8 +46,13 @@ jobs:
             type=ref,event=tag
 
       - name: Validate frontend build secrets
+        env:
+          VITE_GOOGLE_CLIENT_ID_VAR: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_CLIENT_ID_SECRET: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: |
-          test -n "${{ env.FRONTEND_GOOGLE_CLIENT_ID }}" || (echo "Missing config: set vars.VITE_GOOGLE_CLIENT_ID or secrets.VITE_GOOGLE_CLIENT_ID" && exit 1)
+          FRONTEND_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID_VAR:-$VITE_GOOGLE_CLIENT_ID_SECRET}"
+          test -n "$FRONTEND_GOOGLE_CLIENT_ID" || (echo "Missing config: set vars.VITE_GOOGLE_CLIENT_ID or secrets.VITE_GOOGLE_CLIENT_ID" && exit 1)
+          echo "FRONTEND_GOOGLE_CLIENT_ID=$FRONTEND_GOOGLE_CLIENT_ID" >> "$GITHUB_ENV"
 
       - name: Build & Push
         uses: docker/build-push-action@v6
