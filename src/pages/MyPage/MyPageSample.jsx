@@ -9,22 +9,70 @@ const sections = [
 ];
 
 const mbtiOptions = [
-  'INTJ',
-  'INTP',
-  'ENTJ',
-  'ENTP',
-  'INFJ',
-  'INFP',
-  'ENFJ',
-  'ENFP',
-  'ISTJ',
-  'ISFJ',
-  'ESTJ',
-  'ESFJ',
-  'ISTP',
-  'ISFP',
-  'ESTP',
-  'ESFP',
+  {
+    type: 'INTJ',
+    description: '깊이 생각하고 멀리 보는 전략가로, 감정보다 방향과 의미를 중요하게 여깁니다.',
+  },
+  {
+    type: 'INTP',
+    description: '아이디어를 분석하고 구조화하는 탐구가로, 혼자 몰입해 사고를 확장하는 편입니다.',
+  },
+  {
+    type: 'ENTJ',
+    description: '목표를 분명히 세우고 추진하는 지휘관으로, 효율과 성장을 중심에 둡니다.',
+  },
+  {
+    type: 'ENTP',
+    description: '새로운 가능성을 빠르게 발견하는 발명가로, 토론과 실험을 즐깁니다.',
+  },
+  {
+    type: 'INFJ',
+    description: '사람의 마음과 흐름을 섬세하게 읽는 조언가로, 진정성 있는 연결을 중시합니다.',
+  },
+  {
+    type: 'INFP',
+    description: '내면의 가치와 감정을 소중히 여기는 중재자로, 의미 있는 삶을 추구합니다.',
+  },
+  {
+    type: 'ENFJ',
+    description: '사람을 이끌고 응원하는 지도자로, 관계의 성장과 조화를 중요하게 여깁니다.',
+  },
+  {
+    type: 'ENFP',
+    description: '열정과 호기심이 풍부한 활동가로, 새로운 사람과 경험에서 에너지를 얻습니다.',
+  },
+  {
+    type: 'ISTJ',
+    description: '원칙과 책임을 중시하는 관리자형으로, 약속과 기준을 꾸준히 지켜냅니다.',
+  },
+  {
+    type: 'ISFJ',
+    description: '세심하게 돌보고 배려하는 수호자로, 안정적인 관계와 실질적 도움을 선호합니다.',
+  },
+  {
+    type: 'ESTJ',
+    description: '현실적인 기준으로 실행을 이끄는 관리자형으로, 체계와 결과를 중요하게 봅니다.',
+  },
+  {
+    type: 'ESFJ',
+    description: '따뜻한 분위기를 만드는 협력가로, 주변 사람의 만족과 조화를 챙깁니다.',
+  },
+  {
+    type: 'ISTP',
+    description: '문제를 빠르게 파악해 해결하는 장인형으로, 유연하고 실용적인 판단을 합니다.',
+  },
+  {
+    type: 'ISFP',
+    description: '조용하지만 감각이 풍부한 예술가형으로, 자신의 리듬과 취향을 소중히 여깁니다.',
+  },
+  {
+    type: 'ESTP',
+    description: '순간의 기회를 잘 포착하는 사업가형으로, 행동과 경험 속에서 배우는 편입니다.',
+  },
+  {
+    type: 'ESFP',
+    description: '밝은 에너지로 분위기를 살리는 연예인형으로, 현재를 즐기며 사람들과 어울립니다.',
+  },
 ];
 
 const mockStats = {
@@ -125,6 +173,54 @@ function SelectField({ id, label, value, options, onChange }) {
         ))}
       </select>
     </div>
+  );
+}
+
+function MbtiCardPicker({ value, onChange, options }) {
+  return (
+    <fieldset className="space-y-3">
+      <legend className="text-sm font-medium text-clay/80">MBTI</legend>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {options.map((option) => {
+          const selected = value === option.type;
+          return (
+            <button
+              key={option.type}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-label={`${option.type} 선택`}
+              onClick={() => onChange(option.type)}
+              className={`group relative h-28 rounded-xl text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber/40 ${
+                selected ? 'ring-2 ring-amber ring-offset-2 ring-offset-linen/60' : ''
+              }`}
+            >
+              <span className="pointer-events-none absolute inset-0 block [perspective:1200px]">
+                <span className="relative block h-full w-full rounded-xl transition-transform duration-500 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
+                  <span
+                    className={`absolute inset-0 flex items-center justify-center rounded-xl border bg-white/90 text-lg font-semibold tracking-wide text-clay shadow-soft [backface-visibility:hidden] ${
+                      selected ? 'border-amber/70' : 'border-sand/40'
+                    }`}
+                  >
+                    {option.type}
+                  </span>
+                  <span
+                    className={`absolute inset-0 rounded-xl border bg-amber/10 p-3 text-xs leading-relaxed text-clay [backface-visibility:hidden] [transform:rotateY(180deg)] ${
+                      selected ? 'border-amber/70' : 'border-amber/30'
+                    }`}
+                  >
+                    <span className="mb-1 block text-sm font-semibold text-amber">
+                      {option.type}
+                    </span>
+                    <span>{option.description}</span>
+                  </span>
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }
 
@@ -337,16 +433,11 @@ export default function MyPageSample() {
 
                   <SectionCard
                     title="MBTI 설정"
-                    description="기본 프로필에 노출될 MBTI를 선택하세요."
+                    description="당신의 성향에 따라 AI 친구가 다르게 반응합니다."
                   >
-                    <SelectField
-                      id="mbti"
-                      label="MBTI"
+                    <MbtiCardPicker
                       value={profile.mbti}
-                      options={mbtiOptions.map((option) => ({
-                        label: option,
-                        value: option,
-                      }))}
+                      options={mbtiOptions}
                       onChange={(value) => setProfile((prev) => ({ ...prev, mbti: value }))}
                     />
                   </SectionCard>
