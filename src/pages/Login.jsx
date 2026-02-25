@@ -24,7 +24,8 @@ const Login = () => {
 
   const handleGoogleSuccess = async (credentialResponse) => {
     const idToken = credentialResponse.credential; // 구글에서 준 ID Token (JWT)
-    const baseURL = import.meta.env.VITE_API_BASE_URL;
+    const baseURL =
+      import.meta.env.VITE_APP_ENV === 'PROD' ? '' : import.meta.env.VITE_API_BASE_URL;
 
     try {
       // 1) 이 토큰을 백엔드로 전달
