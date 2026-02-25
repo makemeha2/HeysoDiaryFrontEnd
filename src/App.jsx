@@ -10,11 +10,12 @@ import AiChatMain from '@pages/AIChat/AiChatMain.jsx';
 import FreeBBS from '@pages/FreeBBS.jsx';
 import Login from '@pages/Login.jsx';
 import Introduce from '@pages/Intro/Introduce.jsx';
+import MyPage from '@pages/MyPage/MyPage.jsx';
+import MyPageSample from './pages/MyPage/MyPageSample';
 
 import { useAuthStore } from '@stores/authStore.js';
 import ConfirmDialog from '@components/ConfirmDialog.jsx';
 import defaultUserPic from '@assets/default_user_pic.svg';
-import MyPageSample from './pages/MyPage/MyPageSample';
 
 import * as Dialog from '@radix-ui/react-dialog';
 import { Toaster } from 'sonner';
@@ -180,6 +181,9 @@ const App = () => {
             <NavLink to="/intro" className={navLinkClass}>
               Intro
             </NavLink>
+            <NavLink to="/mypageSample" className={navLinkClass}>
+              MyPage 템플릿
+            </NavLink>
             {/* <NavLink to="/freebbs" className={navLinkClass}>
               FreeBBS
             </NavLink> */}
@@ -255,7 +259,8 @@ const App = () => {
                 <Route path="aichat" element={<AiChatMain />} />
                 <Route path="freebbs" element={<FreeBBS />} />
                 <Route path="login" element={<Login />} />
-                <Route path="mypage" element={<MyPageSample />} />
+                <Route path="mypage" element={<MyPage />} />
+                <Route path="mypageSample" element={<MyPageSample />} />
               </Routes>
             </div>
           </div>
