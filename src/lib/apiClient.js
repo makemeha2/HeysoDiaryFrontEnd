@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const baseUrl = '';
+const baseUrl =
+  import.meta.env.VITE_APP_ENV === 'PROD' ? '' : (import.meta.env.VITE_API_BASE_URL ?? '');
 
 export function getAuthData() {
   try {
@@ -55,6 +56,7 @@ export async function authFetch(url, options = {}) {
     params,
     data: body ?? data,
     signal,
+    ...rest,
     validateStatus: () => true, // allow manual ok check
   });
 

@@ -1,10 +1,11 @@
-const MbtiCardPicker = ({ value, onChange, options }) => {
+const MbtiCardPicker = ({ value, options, onChange }) => {
   return (
     <fieldset className="space-y-3">
-      <legend className="text-sm font-medium text-clay/80">MBTI</legend>
+      {/* <legend className="text-sm font-medium text-clay/80">MBTI</legend> */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {options.map((option) => {
-          const selected = value === option.mbtiId;
+          const selected = value == option.mbtiId;
+
           return (
             <button
               key={option.mbtiId}

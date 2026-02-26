@@ -1,13 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { authFetch } from '@lib/apiClient.js';
+import { formatThumbnailPreviewDataUrl } from '@lib/imageFormatters.js';
 
 import SectionCard from '@pages/MyPage/components/SectionCard';
 import TextField from '@pages/MyPage/components/TextField';
 import MbtiCardPicker from '@pages/MyPage/components/MbtiCardPicker';
 
-const MyPage = () => {
-  const queryClient = useQueryClient();
+import { useAlertDialog } from '@components/useAlertDialog.jsx';
 
+const MyPage = () => {
+  const MAX_THUMBNAIL_BYTES = 500 * 1024; // 500KB
+
+  const queryClient = useQueryClient();
+  const { alert, Alert } = useAlertDialog();
+
+  // Section 영역
   const sections = [
     { id: 'profile', label: '프로필' },
     { id: 'diary', label: '일기 설정' },
@@ -16,6 +24,20 @@ const MyPage = () => {
     { id: 'account', label: '계정 관리' },
   ];
 
+  const [activeSection, setActiveSection] = useState('profile');
+
+  // 프로필 객체
+  const [profile, setProfile] = useState({
+    userId: null,
+    nickname: '',
+    mbti: '',
+    hasThumbnail: false,
+    thumbnailUrl: '',
+    thumbnailFile: null,
+    thumbnailPreview: '',
+  });
+
+  // MBTI 가져오기
   const mbtiOptionsQuery = useQuery({
     queryKey: ['mbtiOptions'],
     staleTime: 0,
@@ -37,39 +59,133 @@ const MyPage = () => {
     return mbtiOptionsQuery.data
       .map((option) => {
         if (!option.codeId) return null;
-        return { mbtiCd: option.codeId, mbtiNm: option.codeName, description: option.extraInfo1 };
+        return { mbtiId: option.codeId, mbtiNm: option.codeName, description: option.extraInfo1 };
       })
       .filter(Boolean);
   }, [mbtiOptionsQuery.data]);
 
-  const mockStats = {
-    totalEntries: 148,
-    streakDays: 21,
-    topTags: ['감사', '성장', '루틴', '여행', '관계'],
-    personalityInsight:
-      '최근 기록에서 감정 표현은 차분하지만, 목표에 대한 집요함이 강하게 드러납니다. 새로운 도전을 즐기며, 성찰형 피드백이 잘 맞는 편입니다.',
-  };
+  const profileQuery = useQuery({
+    queryKey: ['myProfile'],
+    staleTime: 0,
+    queryFn: async ({ signal }) => {
+      const res = await authFetch('/api/mypage/profile', {
+        method: 'GET',
+        signal,
+      });
 
-  const [activeSection, setActiveSection] = useState('profile');
-  const [profile, setProfile] = useState({});
+      if (!res.ok) throw new Error('Failed to load profile');
+      return res.data ?? {};
+    },
+  });
+
+  const thumbnailQuery = useQuery({
+    queryKey: ['myThumbnail', profileQuery.data?.userId ?? 'me'],
+    enabled: Boolean(profileQuery.data?.hasThumbnail),
+    staleTime: 0,
+    queryFn: async ({ signal }) => {
+      const res = await authFetch('/api/mypage/thumbnail', {
+        method: 'GET',
+        signal,
+        responseType: 'arraybuffer',
+      });
+
+      if (!res.ok) throw new Error('Failed to load thumbnail');
+
+      const contentType = res.headers?.['content-type'] || 'image/jpeg';
+      return formatThumbnailPreviewDataUrl(res.data, contentType);
+    },
+  });
+
+  useEffect(() => {
+    if (!profileQuery.data) return;
+
+    setProfile((prev) => ({
+      ...prev,
+      userId: profileQuery.data.userId ?? null,
+      nickname: profileQuery.data.nickname ?? '',
+      mbti: profileQuery.data.mbti ?? '',
+      hasThumbnail: Boolean(profileQuery.data.hasThumbnail),
+      thumbnailUrl: profileQuery.data.thumbnailUrl ?? '',
+      thumbnailPreview: prev.thumbnailPreview && prev.thumbnailFile ? prev.thumbnailPreview : '',
+    }));
+  }, [profileQuery.data]);
+
+  useEffect(() => {
+    if (!thumbnailQuery.data) return;
+
+    setProfile((prev) => {
+      if (prev.thumbnailFile) return prev;
+      return { ...prev, thumbnailPreview: thumbnailQuery.data };
+    });
+  }, [thumbnailQuery.data]);
+
   const currentSectionLabel = useMemo(
     () => sections.find((section) => section.id === activeSection)?.label,
     [activeSection],
   );
 
+  const saveProfileMutation = useMutation({
+    mutationFn: async (data) => {
+      const formData = new FormData();
+      formData.append('nickname', data.nickname ?? '');
+      formData.append('mbti', data.mbti ?? '');
+
+      if (data.thumbnailFile instanceof File) {
+        formData.append('thumbnail', data.thumbnailFile);
+      }
+
+      const res = await authFetch('/api/mypage/profile', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to save profile: ${res.status}`);
+      }
+
+      return res.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['myProfile'] });
+      await queryClient.invalidateQueries({ queryKey: ['myThumbnail'] });
+      await alert({
+        title: '알림',
+        description: '수정되었습니다.',
+        actionLabel: '확인',
+      });
+      await profileQuery.refetch();
+    },
+    onError: async (error) => {
+      await alert({
+        title: '오류',
+        description: '오류가 발생했습니다. 관리자에게 문의하세요.',
+        actionLabel: '확인',
+      });
+      console.error('Failed to save profile', error);
+    },
+  });
+
   const handleSaveAll = () => {
-    console.log('[전체 저장]', {
-      profile,
-      diary,
-      security,
-      stats: mockStats,
-      account,
-    });
+    if (saveProfileMutation.isPending) return;
+    saveProfileMutation.mutate(profile);
   };
 
-  const handleThumbnailChange = (event) => {
+  const handleThumbnailChange = async (event) => {
     const [file] = event.target.files || [];
     if (!file) return;
+
+    // ✅ 용량 체크 (선택 시점)
+    if (file.size > MAX_THUMBNAIL_BYTES) {
+      await alert({
+        title: '이미지 용량 초과',
+        description: `프로필 이미지는 500KB 이하만 업로드할 수 있어요. (현재 ${(file.size / 1024).toFixed(1)}KB)`,
+        actionLabel: '확인',
+      });
+
+      // input 값 초기화(같은 파일 다시 선택 가능하게)
+      event.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -122,9 +238,10 @@ const MyPage = () => {
                 <button
                   type="button"
                   onClick={handleSaveAll}
+                  disabled={saveProfileMutation.isPending}
                   className="rounded-full bg-amber px-5 py-2 text-sm font-semibold text-white shadow-soft transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber/40"
                 >
-                  전체 저장
+                  {saveProfileMutation.isPending ? '저장 중...' : '전체 저장'}
                 </button>
               </div>
             </div>
@@ -138,17 +255,13 @@ const MyPage = () => {
                   >
                     <TextField
                       id="nickname"
-                      label="닉네임"
                       value={profile.nickname}
                       onChange={(value) => setProfile((prev) => ({ ...prev, nickname: value }))}
                       placeholder="예: Heyso"
                     />
                   </SectionCard>
 
-                  <SectionCard
-                    title="Thumbnail (프로필 이미지)"
-                    description="업로드한 이미지는 미리보기로만 저장됩니다."
-                  >
+                  <SectionCard title="프로필 이미지" description="크기는 300KB로 제한됩니다.">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                       <div className="h-24 w-24 overflow-hidden rounded-2xl border border-sand/40 bg-white/70">
                         {profile.thumbnailPreview ? (
@@ -164,9 +277,9 @@ const MyPage = () => {
                         )}
                       </div>
                       <div className="space-y-2">
-                        <label htmlFor="thumbnail" className="text-sm font-medium text-clay/80">
+                        {/* <label htmlFor="thumbnail" className="text-sm font-medium text-clay/80">
                           이미지 업로드
-                        </label>
+                        </label> */}
                         <input
                           id="thumbnail"
                           type="file"
@@ -199,6 +312,7 @@ const MyPage = () => {
           </main>
         </div>
       </div>
+      <Alert />
     </div>
   );
 };
