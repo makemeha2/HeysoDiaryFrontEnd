@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 
 import ProfileSection from '@pages/MyPage/sections/ProfileSection.jsx';
+import DiarySettingSection from '@pages/MyPage/sections/DiarySettingSection.jsx';
 import { useProfileSection } from '@pages/MyPage/hooks/useProfileSection.jsx';
+
 
 import { useAlertDialog } from '@components/useAlertDialog.jsx';
 
@@ -83,6 +85,9 @@ const MyPage = () => {
                   mbtiOptions={mbtiOptions}
                   onThumbnailChange={handleThumbnailChange}
                 />
+              )}
+              {activeSection === 'diary' && (
+                <DiarySettingSection />
               )}
             </div>
           </main>
