@@ -1,13 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React, { useMemo, useState } from 'react';
 
-import SectionCard from '@pages/MyPage/components/SectionCard';
-import TextField from '@pages/MyPage/components/TextField';
-import MbtiCardPicker from '@pages/MyPage/components/MbtiCardPicker';
+import ProfileSection from '@pages/MyPage/sections/ProfileSection.jsx';
+import AiConfigSection from '@pages/MyPage/sections/AiConfigSection.jsx';
+import { useProfileSection } from '@pages/MyPage/hooks/useProfileSection.jsx';
+import { useAiConfigSection } from '@pages/MyPage/hooks/useAiConfigSection.jsx';
+
+import { useAlertDialog } from '@components/useAlertDialog.jsx';
 
 const MyPage = () => {
-  const queryClient = useQueryClient();
+  const { alert, Alert } = useAlertDialog();
 
+  // Section 영역
   const sections = [
     { id: 'profile', label: '프로필' },
     { id: 'diary', label: '일기 설정' },
@@ -16,70 +19,28 @@ const MyPage = () => {
     { id: 'account', label: '계정 관리' },
   ];
 
-  const mbtiOptionsQuery = useQuery({
-    queryKey: ['mbtiOptions'],
-    staleTime: 0,
-    queryFn: async ({ signal }) => {
-      const res = await authFetch(`/api/comCd/groups/mbti/codes`, {
-        method: 'GET',
-        signal,
-      });
-      if (!res.ok) throw new Error('Failed to load mbti options');
-      console.log('res', res);
-
-      return Array.isArray(res.data) ? res.data : [];
-    },
-  });
-
-  const mbtiOptions = useMemo(() => {
-    if (!Array.isArray(mbtiOptionsQuery.data)) return [];
-
-    return mbtiOptionsQuery.data
-      .map((option) => {
-        if (!option.codeId) return null;
-        return { mbtiCd: option.codeId, mbtiNm: option.codeName, description: option.extraInfo1 };
-      })
-      .filter(Boolean);
-  }, [mbtiOptionsQuery.data]);
-
-  const mockStats = {
-    totalEntries: 148,
-    streakDays: 21,
-    topTags: ['감사', '성장', '루틴', '여행', '관계'],
-    personalityInsight:
-      '최근 기록에서 감정 표현은 차분하지만, 목표에 대한 집요함이 강하게 드러납니다. 새로운 도전을 즐기며, 성찰형 피드백이 잘 맞는 편입니다.',
-  };
-
   const [activeSection, setActiveSection] = useState('profile');
-  const [profile, setProfile] = useState({});
+
+  const { profile, setProfile, mbtiOptions, handleThumbnailChange, saveProfile, isSavingProfile } =
+    useProfileSection({ alert, activeSection });
+  const { aiConfig, setAiConfig, saveAiConfig, isSavingAiConfig, isLoadingAiConfig } =
+    useAiConfigSection({ alert, activeSection });
+
   const currentSectionLabel = useMemo(
     () => sections.find((section) => section.id === activeSection)?.label,
     [activeSection],
   );
 
-  const handleSaveAll = () => {
-    console.log('[전체 저장]', {
-      profile,
-      diary,
-      security,
-      stats: mockStats,
-      account,
-    });
-  };
+  const isSavingCurrentSection = activeSection === 'diary' ? isSavingAiConfig : isSavingProfile;
 
-  const handleThumbnailChange = (event) => {
-    const [file] = event.target.files || [];
-    if (!file) return;
+  const handleSaveCurrentSection = () => {
+    if (activeSection === 'profile') {
+      saveProfile();
+    } else if (activeSection === 'diary') {
+      saveAiConfig();
+    }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setProfile((prev) => ({
-        ...prev,
-        thumbnailFile: file,
-        thumbnailPreview: reader.result,
-      }));
-    };
-    reader.readAsDataURL(file);
+    return;
   };
 
   return (
@@ -121,84 +82,36 @@ const MyPage = () => {
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  onClick={handleSaveAll}
+                  onClick={handleSaveCurrentSection}
+                  disabled={isSavingCurrentSection}
                   className="rounded-full bg-amber px-5 py-2 text-sm font-semibold text-white shadow-soft transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber/40"
                 >
-                  전체 저장
+                  {isSavingCurrentSection ? '저장 중...' : '전체 저장'}
                 </button>
               </div>
             </div>
 
             <div className="space-y-6">
               {activeSection === 'profile' && (
-                <>
-                  <SectionCard
-                    title="나의 닉네임 설정"
-                    description="일기에서 사용할 닉네임을 설정하세요. AI가 이 이름으로 당신과 소통합니다."
-                  >
-                    <TextField
-                      id="nickname"
-                      label="닉네임"
-                      value={profile.nickname}
-                      onChange={(value) => setProfile((prev) => ({ ...prev, nickname: value }))}
-                      placeholder="예: Heyso"
-                    />
-                  </SectionCard>
-
-                  <SectionCard
-                    title="Thumbnail (프로필 이미지)"
-                    description="업로드한 이미지는 미리보기로만 저장됩니다."
-                  >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                      <div className="h-24 w-24 overflow-hidden rounded-2xl border border-sand/40 bg-white/70">
-                        {profile.thumbnailPreview ? (
-                          <img
-                            src={profile.thumbnailPreview}
-                            alt="프로필 미리보기"
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xs text-clay/50">
-                            미리보기 없음
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <label htmlFor="thumbnail" className="text-sm font-medium text-clay/80">
-                          이미지 업로드
-                        </label>
-                        <input
-                          id="thumbnail"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleThumbnailChange}
-                          className="block w-full text-sm text-clay/70 file:mr-4 file:rounded-full file:border-0 file:bg-amber/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-amber hover:file:bg-amber/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber/40"
-                        />
-                        {profile.thumbnailFile ? (
-                          <p className="text-xs text-clay/60">
-                            선택됨: {profile.thumbnailFile.name}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </SectionCard>
-
-                  <SectionCard
-                    title="MBTI 설정"
-                    description="당신의 성향에 따라 AI 친구가 다르게 반응합니다."
-                  >
-                    <MbtiCardPicker
-                      value={profile.mbti}
-                      options={mbtiOptions}
-                      onChange={(value) => setProfile((prev) => ({ ...prev, mbti: value }))}
-                    />
-                  </SectionCard>
-                </>
+                <ProfileSection
+                  profile={profile}
+                  setProfile={setProfile}
+                  mbtiOptions={mbtiOptions}
+                  onThumbnailChange={handleThumbnailChange}
+                />
+              )}
+              {activeSection === 'diary' && (
+                <AiConfigSection
+                  config={aiConfig}
+                  setConfig={setAiConfig}
+                  isLoadingAiConfig={isLoadingAiConfig}
+                />
               )}
             </div>
           </main>
         </div>
       </div>
+      <Alert />
     </div>
   );
 };
