@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import SectionCard from '@pages/MyPage/components/SectionCard';
 import RadioGroup from '@pages/MyPage/components/RadioGroup';
@@ -43,14 +43,14 @@ const fixedLangOptions = [
 ];
 
 const initialConfig = {
-  speech_tone_cd: 'POLITE',
-  feedback_style_cd: 'BALANCED',
-  intensity_cd: 'NORMAL',
-  question_cd: 'ASK',
-  length_cd: 'MEDIUM',
-  lang_mode_cd: 'FOLLOW_DIARY',
-  fixed_lang: 'ko',
-  updated_at: null,
+  speechToneCd: 'POLITE',
+  feedbackStyleCd: 'BALANCED',
+  intensityCd: 'NORMAL',
+  questionCd: 'ASK',
+  lengthCd: 'MEDIUM',
+  langModeCd: 'FOLLOW_DIARY',
+  fixedLang: 'ko',
+  updatedAt: null,
 };
 
 const labelOf = (options, value) => options.find((option) => option.value === value)?.label || '-';
@@ -60,14 +60,14 @@ const SettingSummary = ({ config }) => {
     <div className="rounded-2xl border border-amber/30 bg-amber/10 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-amber">현재 선택 요약</p>
       <div className="mt-3 grid gap-2 text-sm text-clay/80 sm:grid-cols-2">
-        <p>말투: {labelOf(speechToneOptions, config.speech_tone_cd)}</p>
-        <p>피드백 스타일: {labelOf(feedbackStyleOptions, config.feedback_style_cd)}</p>
-        <p>강도: {labelOf(intensityOptions, config.intensity_cd)}</p>
-        <p>질문: {labelOf(questionOptions, config.question_cd)}</p>
-        <p>길이: {labelOf(lengthOptions, config.length_cd)}</p>
-        <p>언어 모드: {labelOf(langModeOptions, config.lang_mode_cd)}</p>
-        {config.lang_mode_cd === 'FIXED' ? (
-          <p>고정 언어: {labelOf(fixedLangOptions, config.fixed_lang)}</p>
+        <p>말투: {labelOf(speechToneOptions, config.speechToneCd)}</p>
+        <p>피드백 스타일: {labelOf(feedbackStyleOptions, config.feedbackStyleCd)}</p>
+        <p>강도: {labelOf(intensityOptions, config.intensityCd)}</p>
+        <p>질문: {labelOf(questionOptions, config.questionCd)}</p>
+        <p>길이: {labelOf(lengthOptions, config.lengthCd)}</p>
+        <p>언어 모드: {labelOf(langModeOptions, config.langModeCd)}</p>
+        {config.langModeCd === 'FIXED' ? (
+          <p>고정 언어: {labelOf(fixedLangOptions, config.fixedLang)}</p>
         ) : null}
       </div>
     </div>
@@ -124,13 +124,13 @@ const InlineLangModeSelector = ({ value, fixedLang, onModeChange, onFixedLangCha
   );
 };
 
-const AiConfigSection = () => {
-  const [config, setConfig] = useState(initialConfig);
+const AiConfigSection = ({ config = initialConfig, setConfig, isLoadingAiConfig = false }) => {
+  if (!setConfig) return null;
 
   const updatedAtText = useMemo(() => {
-    if (!config.updated_at) return '아직 저장되지 않았습니다.';
-    return config.updated_at;
-  }, [config.updated_at]);
+    if (!config.updatedAt) return '아직 저장되지 않았습니다.';
+    return new Date(config.updatedAt).toLocaleString('ko-KR');
+  }, [config.updatedAt]);
 
   const updateConfig = (key, value) => {
     setConfig((prev) => ({ ...prev, [key]: value }));
@@ -143,67 +143,70 @@ const AiConfigSection = () => {
         description="tb_user_ai_feedback_setting 기준으로 AI 피드백 성향을 설정합니다."
       >
         <RadioGroup
-          name="speech_tone_cd"
-          label="말투 (speech_tone_cd)"
-          value={config.speech_tone_cd}
-          onChange={(value) => updateConfig('speech_tone_cd', value)}
+          name="speechToneCd"
+          label="말투 (speechToneCd)"
+          value={config.speechToneCd}
+          onChange={(value) => updateConfig('speechToneCd', value)}
           options={speechToneOptions}
         />
 
         <RadioGroup
-          name="feedback_style_cd"
-          label="피드백 스타일 (feedback_style_cd)"
-          value={config.feedback_style_cd}
-          onChange={(value) => updateConfig('feedback_style_cd', value)}
+          name="feedbackStyleCd"
+          label="피드백 스타일 (feedbackStyleCd)"
+          value={config.feedbackStyleCd}
+          onChange={(value) => updateConfig('feedbackStyleCd', value)}
           options={feedbackStyleOptions}
         />
 
         <RadioGroup
-          name="intensity_cd"
-          label="강도 (intensity_cd)"
-          value={config.intensity_cd}
-          onChange={(value) => updateConfig('intensity_cd', value)}
+          name="intensityCd"
+          label="강도 (intensityCd)"
+          value={config.intensityCd}
+          onChange={(value) => updateConfig('intensityCd', value)}
           options={intensityOptions}
         />
 
         <RadioGroup
-          name="question_cd"
-          label="질문 포함 여부 (question_cd)"
-          value={config.question_cd}
-          onChange={(value) => updateConfig('question_cd', value)}
+          name="questionCd"
+          label="질문 포함 여부 (questionCd)"
+          value={config.questionCd}
+          onChange={(value) => updateConfig('questionCd', value)}
           options={questionOptions}
         />
 
         <RadioGroup
-          name="length_cd"
-          label="응답 길이 (length_cd)"
-          value={config.length_cd}
-          onChange={(value) => updateConfig('length_cd', value)}
+          name="lengthCd"
+          label="응답 길이 (lengthCd)"
+          value={config.lengthCd}
+          onChange={(value) => updateConfig('lengthCd', value)}
           options={lengthOptions}
         />
       </SectionCard>
 
       <SectionCard
         title="AI 댓글 언어"
-        description="lang_mode_cd가 FIXED일 때만 fixed_lang을 저장합니다."
+        description="langModeCd가 FIXED일 때만 fixedLang을 저장합니다."
       >
         <InlineLangModeSelector
-          value={config.lang_mode_cd}
-          fixedLang={config.fixed_lang}
-          onModeChange={(value) => updateConfig('lang_mode_cd', value)}
-          onFixedLangChange={(value) => updateConfig('fixed_lang', value)}
+          value={config.langModeCd}
+          fixedLang={config.fixedLang}
+          onModeChange={(value) => updateConfig('langModeCd', value)}
+          onFixedLangChange={(value) => updateConfig('fixedLang', value)}
         />
 
-        {config.lang_mode_cd !== 'FIXED' ? (
+        {config.langModeCd !== 'FIXED' ? (
           <p className="text-xs text-clay/60">
-            현재는 일기 언어 따라가기 모드입니다. 저장 시 fixed_lang 값은 무시됩니다.
+            현재는 일기 언어 따라가기 모드입니다. 저장 시 fixedLang 값은 무시됩니다.
           </p>
         ) : null}
       </SectionCard>
 
       <SectionCard title="설정 상태" description="created_at은 화면에 노출하지 않습니다.">
+        {isLoadingAiConfig ? (
+          <p className="text-sm text-clay/60">설정을 불러오는 중입니다...</p>
+        ) : null}
         <SettingSummary config={config} />
-        <p className="text-xs text-clay/60">최근 수정 시각 (updated_at): {updatedAtText}</p>
+        <p className="text-xs text-clay/60">최근 수정 시각 (updatedAt): {updatedAtText}</p>
       </SectionCard>
     </>
   );

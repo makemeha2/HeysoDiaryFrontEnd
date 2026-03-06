@@ -83,6 +83,28 @@ const mockStats = {
     '최근 기록에서 감정 표현은 차분하지만, 목표에 대한 집요함이 강하게 드러납니다. 새로운 도전을 즐기며, 성찰형 피드백이 잘 맞는 편입니다.',
 };
 
+function SelectField({ id, label, value, options, onChange }) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor={id} className="text-sm font-medium text-clay/80">
+        {label}
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-xl border border-sand/40 bg-white/90 px-4 py-2 text-sm text-clay/90 shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber/40"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function SectionCard({ title, description, children }) {
   return (
     <section className="rounded-2xl border border-sand/40 bg-white/70 p-6 shadow-soft backdrop-blur">
@@ -153,8 +175,6 @@ function RadioGroup({ name, label, options, value, onChange, direction = 'row' }
     </fieldset>
   );
 }
-
-
 
 function MbtiCardPicker({ value, onChange, options }) {
   return (

@@ -14,18 +14,21 @@ const INITIAL_PROFILE = {
   thumbnailPreview: '', // 화면 미리보기(로컬 or 서버)
 };
 
-export const useProfileSection = ({ alert } = {}) => {
+export const useProfileSection = ({ alert, activeSection } = {}) => {
   const MAX_THUMBNAIL_BYTES = 500 * 1024; // 500KB
   const queryClient = useQueryClient();
 
   // ✅ 프로필 편집 상태(폼 상태)
   const [profile, setProfile] = useState(INITIAL_PROFILE);
 
+  const enabled = activeSection === 'profile';
+
   // -----------------------------
   // 1) MBTI 옵션 조회
   // -----------------------------
   const mbtiOptionsQuery = useQuery({
     queryKey: ['mbtiOptions'],
+    enabled,
     staleTime: 0,
     queryFn: async ({ signal }) => {
       const res = await authFetch('/api/comCd/groups/mbti/codes', { method: 'GET', signal });
@@ -56,6 +59,7 @@ export const useProfileSection = ({ alert } = {}) => {
   // -----------------------------
   const profileQuery = useQuery({
     queryKey: ['myProfile'],
+    enabled,
     staleTime: 0,
     queryFn: async ({ signal }) => {
       const res = await authFetch('/api/mypage/profile', { method: 'GET', signal });
@@ -70,7 +74,7 @@ export const useProfileSection = ({ alert } = {}) => {
   // -----------------------------
   const thumbnailQuery = useQuery({
     queryKey: ['myThumbnail'],
-    enabled: Boolean(profileQuery.data?.hasThumbnail) && !profile.thumbnailFile,
+    enabled: enabled && Boolean(profileQuery.data?.hasThumbnail) && !profile.thumbnailFile,
     staleTime: 0,
     queryFn: async ({ signal }) => {
       const res = await authFetch('/api/mypage/thumbnail', {
@@ -88,31 +92,34 @@ export const useProfileSection = ({ alert } = {}) => {
 
   // ✅ 서버에서 가져온 프로필 데이터를 폼 상태에 반영
   useEffect(() => {
+    if (!enabled) return;
+
     const data = profileQuery.data;
     if (!data) return;
 
-    setProfile((prev) => ({
-      ...prev,
+    setProfile(() => ({
+      ...INITIAL_PROFILE,
       userId: data.userId ?? null,
       nickname: data.nickname ?? '',
       mbti: data.mbti ?? '',
       hasThumbnail: Boolean(data.hasThumbnail),
       thumbnailUrl: data.thumbnailUrl ?? '',
-
-      // 사용자가 새 파일을 고른 상태면(로컬 미리보기 유지) 서버 값으로 덮어쓰지 않음
-      thumbnailPreview: prev.thumbnailFile ? prev.thumbnailPreview : '',
+      // 섹션 재진입 시 미저장 로컬 변경은 버리고 서버값 기준으로 다시 시작
+      thumbnailFile: null,
+      thumbnailPreview: '',
     }));
-  }, [profileQuery.data]);
+  }, [enabled, profileQuery.data, profileQuery.dataUpdatedAt]);
 
   // ✅ 서버 썸네일(데이터URL)을 미리보기로 반영(단, 로컬 파일 선택 중이면 제외)
   useEffect(() => {
+    if (!enabled) return;
     if (!thumbnailQuery.data) return;
 
     setProfile((prev) => {
       if (prev.thumbnailFile) return prev; // 로컬 우선
       return { ...prev, thumbnailPreview: thumbnailQuery.data };
     });
-  }, [thumbnailQuery.data]);
+  }, [enabled, thumbnailQuery.data, thumbnailQuery.dataUpdatedAt]);
 
   // -----------------------------
   // 4) 저장(업로드 포함)
@@ -200,8 +207,6 @@ export const useProfileSection = ({ alert } = {}) => {
     },
     [alert, MAX_THUMBNAIL_BYTES],
   );
-
-  
 
   return {
     // 폼 상태

@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import ProfileSection from '@pages/MyPage/sections/ProfileSection.jsx';
 import AiConfigSection from '@pages/MyPage/sections/AiConfigSection.jsx';
 import { useProfileSection } from '@pages/MyPage/hooks/useProfileSection.jsx';
+import { useAiConfigSection } from '@pages/MyPage/hooks/useAiConfigSection.jsx';
 
 import { useAlertDialog } from '@components/useAlertDialog.jsx';
 
@@ -21,12 +22,26 @@ const MyPage = () => {
   const [activeSection, setActiveSection] = useState('profile');
 
   const { profile, setProfile, mbtiOptions, handleThumbnailChange, saveProfile, isSavingProfile } =
-    useProfileSection({ alert });
+    useProfileSection({ alert, activeSection });
+  const { aiConfig, setAiConfig, saveAiConfig, isSavingAiConfig, isLoadingAiConfig } =
+    useAiConfigSection({ alert, activeSection });
 
   const currentSectionLabel = useMemo(
     () => sections.find((section) => section.id === activeSection)?.label,
     [activeSection],
   );
+
+  const isSavingCurrentSection = activeSection === 'diary' ? isSavingAiConfig : isSavingProfile;
+
+  const handleSaveCurrentSection = () => {
+    if (activeSection === 'profile') {
+      saveProfile();
+    } else if (activeSection === 'diary') {
+      saveAiConfig();
+    }
+
+    return;
+  };
 
   return (
     <div className="min-h-screen bg-linen/60 px-4 py-10 text-clay">
@@ -67,11 +82,11 @@ const MyPage = () => {
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  onClick={saveProfile}
-                  disabled={isSavingProfile}
+                  onClick={handleSaveCurrentSection}
+                  disabled={isSavingCurrentSection}
                   className="rounded-full bg-amber px-5 py-2 text-sm font-semibold text-white shadow-soft transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber/40"
                 >
-                  {isSavingProfile ? '저장 중...' : '전체 저장'}
+                  {isSavingCurrentSection ? '저장 중...' : '전체 저장'}
                 </button>
               </div>
             </div>
@@ -85,7 +100,13 @@ const MyPage = () => {
                   onThumbnailChange={handleThumbnailChange}
                 />
               )}
-              {activeSection === 'diary' && <AiConfigSection />}
+              {activeSection === 'diary' && (
+                <AiConfigSection
+                  config={aiConfig}
+                  setConfig={setAiConfig}
+                  isLoadingAiConfig={isLoadingAiConfig}
+                />
+              )}
             </div>
           </main>
         </div>
