@@ -2,6 +2,10 @@ import React, { useMemo, useState } from 'react';
 
 import ProfileSection from '@pages/MyPage/sections/ProfileSection.jsx';
 import AiConfigSection from '@pages/MyPage/sections/AiConfigSection.jsx';
+import DataConfigSection from '@pages/MyPage/sections/DataConfigSection.jsx';
+import StatsSection from '@pages/MyPage/sections/StatsSection.jsx';
+import AccountSection from '@pages/MyPage/sections/AccountSection.jsx';
+
 import { useProfileSection } from '@pages/MyPage/hooks/useProfileSection.jsx';
 import { useAiConfigSection } from '@pages/MyPage/hooks/useAiConfigSection.jsx';
 
@@ -107,6 +111,9 @@ const MyPage = () => {
                   isLoadingAiConfig={isLoadingAiConfig}
                 />
               )}
+              {activeSection === 'security' && <DataConfigSection />}
+              {activeSection === 'stats' && <StatsSection />}
+              {activeSection === 'account' && <AccountSection />}
             </div>
           </main>
         </div>
