@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { DayPicker } from 'react-day-picker';
-import MarkdownIt from 'markdown-it';
-import markdownItIns from 'markdown-it-ins';
-import MdEditor from 'react-markdown-editor-lite';
 import { Calendar, SquareX } from 'lucide-react';
 import { useAlertDialog } from '@components/useAlertDialog.jsx';
 import AutocompleteCommitInput from '@components/TagInput.jsx';
@@ -11,12 +8,48 @@ import dayjs from 'dayjs';
 import { formatDate, formatDateWithWeekday } from '@lib/dateFormatters.js';
 import useDiary from '../useDiary.jsx';
 import 'react-day-picker/dist/style.css';
-import 'react-markdown-editor-lite/lib/index.css';
 import { normalizeTags } from '../diaryUtil.js';
 import { ko } from 'date-fns/locale';
 
-const mdParser = new MarkdownIt();
-mdParser.use(markdownItIns);
+const FONT_SIZE_STORAGE_KEY = 'diaryEditor.fontSize';
+const LINE_HEIGHT_STORAGE_KEY = 'diaryEditor.lineHeight';
+
+const FONT_SIZE_OPTIONS = [
+  { label: '작게', value: '14px' },
+  { label: '보통', value: '16px' },
+  { label: '크게', value: '18px' },
+];
+
+const LINE_HEIGHT_OPTIONS = [
+  { label: '촘촘', value: '1.5' },
+  { label: '보통', value: '1.7' },
+  { label: '넉넉', value: '1.9' },
+];
+
+const DEFAULT_FONT_SIZE = '16px';
+const DEFAULT_LINE_HEIGHT = '1.7';
+
+const getStoredEditorSetting = (key, options, fallback) => {
+  if (typeof window === 'undefined') return fallback;
+
+  try {
+    const stored = window.localStorage.getItem(key);
+    const isValid = options.some((option) => option.value === stored);
+    return isValid ? stored : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const persistEditorSetting = (key, value) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore localStorage write failures
+  }
+};
 
 const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   const { alert, Alert } = useAlertDialog();
@@ -27,6 +60,12 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   const [tagList, setTagList] = useState([]);
   const [tagDraft, setTagDraft] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [editorFontSize, setEditorFontSize] = useState(() =>
+    getStoredEditorSetting(FONT_SIZE_STORAGE_KEY, FONT_SIZE_OPTIONS, DEFAULT_FONT_SIZE),
+  );
+  const [editorLineHeight, setEditorLineHeight] = useState(() =>
+    getStoredEditorSetting(LINE_HEIGHT_STORAGE_KEY, LINE_HEIGHT_OPTIONS, DEFAULT_LINE_HEIGHT),
+  );
 
   const isEditMode = !!diaryId;
 
@@ -126,6 +165,14 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
     const parsedDate = dayjs(diaryDetail.diaryDate);
     setDiaryDate(parsedDate.isValid() ? parsedDate.toDate() : new Date());
   }, [isOpen, diaryId, diaryDetail, normalizedTags]);
+
+  useEffect(() => {
+    persistEditorSetting(FONT_SIZE_STORAGE_KEY, editorFontSize);
+  }, [editorFontSize]);
+
+  useEffect(() => {
+    persistEditorSetting(LINE_HEIGHT_STORAGE_KEY, editorLineHeight);
+  }, [editorLineHeight]);
 
   return (
     <>
@@ -252,18 +299,75 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
               <div className="text-right text-xs text-clay/50">{titleInput.length}/200</div>
             </div>
 
-            <div className="space-y-2">
-              <MdEditor
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sand/60 bg-sand/20 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="text-xs text-clay/60" htmlFor="diary-font-size">
+                    글자 크기
+                  </label>
+                  <select
+                    id="diary-font-size"
+                    value={editorFontSize}
+                    onChange={(e) => setEditorFontSize(e.target.value)}
+                    className="rounded-lg border border-sand/60 bg-white px-2.5 py-1.5 text-xs text-clay/80 focus:outline-none focus:ring-2 focus:ring-amber/30"
+                  >
+                    {FONT_SIZE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <label className="ml-2 text-xs text-clay/60" htmlFor="diary-line-height">
+                    줄간격
+                  </label>
+                  <select
+                    id="diary-line-height"
+                    value={editorLineHeight}
+                    onChange={(e) => setEditorLineHeight(e.target.value)}
+                    className="rounded-lg border border-sand/60 bg-white px-2.5 py-1.5 text-xs text-clay/80 focus:outline-none focus:ring-2 focus:ring-amber/30"
+                  >
+                    {LINE_HEIGHT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <span className="ml-2 text-xs text-clay/60 font-bold">
+                    {contentMdInput.length}자
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => console.log('글 다듬기 버튼 클릭')}
+                    className="rounded-lg border border-sand/60 bg-white px-2.5 py-1.5 text-xs text-clay/80 hover:bg-sand/20 focus:outline-none focus:ring-2 focus:ring-amber/30"
+                  >
+                    글 다듬기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => console.log('되돌리기 버튼 클릭')}
+                    disabled
+                    className="rounded-lg border border-sand/60 bg-white px-2.5 py-1.5 text-xs text-clay/80 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    되돌리기
+                  </button>
+                </div>
+              </div>
+
+              <textarea
+                id="diary-content"
                 value={contentMdInput}
-                style={{ height: '550px' }}
-                view={{
-                  menu: true,
-                  md: true,
-                  html: false,
+                onChange={(e) => setContentMdInput(e.target.value)}
+                placeholder="오늘 하루를 차분하게 기록해보세요."
+                style={{
+                  fontSize: editorFontSize,
+                  lineHeight: editorLineHeight,
                 }}
-                renderHTML={(text) => mdParser.render(text)}
-                onChange={({ text }) => setContentMdInput(text)}
-                placeholder="Write your thoughts in Markdown..."
+                className="h-[550px] w-full resize-none overflow-y-auto whitespace-pre-wrap rounded-2xl border border-sand/60 bg-white/90 px-5 py-4 text-clay placeholder:text-clay/40 focus:outline-none focus:ring-2 focus:ring-amber/40"
               />
             </div>
 
