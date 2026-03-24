@@ -6,12 +6,7 @@ import DiaryViewDialog from './components/DiaryViewDialog.jsx';
 import DiaryCalender from './components/DiaryCalender.jsx';
 import { formatDate, formatDateTime } from '@lib/dateFormatters.js';
 import { useAuthStore } from '@stores/authStore.js';
-import MarkdownIt from 'markdown-it';
-import markdownItIns from 'markdown-it-ins';
 import useDiary, { DEFAULT_PAGE, DEFAULT_SIZE } from './useDiary.jsx';
-
-const mdParser = new MarkdownIt();
-mdParser.use(markdownItIns);
 
 const Diary = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -280,23 +275,8 @@ const Diary = () => {
                     </div>
 
                     {diary.contentMd && (
-                      <p className="mt-3 whitespace-pre-wrap leading-relaxed max-h-[80px] text-clay/90 overflow-hidden">
-                        <div
-                          className={[
-                            'prose max-w-none',
-                            'prose-headings:text-clay',
-                            'prose-p:text-clay/90',
-                            'prose-strong:text-clay',
-                            'prose-li:text-clay/90',
-                            'prose-blockquote:text-clay/80',
-                            'prose-a:text-amber-900',
-                            'leading-7',
-                          ].join(' ')}
-                          dangerouslySetInnerHTML={{
-                            __html: mdParser.render(diary.contentMd || ''),
-                          }}
-                        />
-                        {/* {diary.contentMd} */}
+                      <p className="mt-3 max-h-[80px] overflow-hidden whitespace-pre-wrap break-words leading-relaxed text-clay/90">
+                        {diary.contentMd}
                       </p>
                     )}
                   </li>

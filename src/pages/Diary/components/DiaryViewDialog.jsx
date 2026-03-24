@@ -1,19 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { SquareX } from 'lucide-react';
-import MarkdownIt from 'markdown-it';
-import markdownItIns from 'markdown-it-ins';
 import ConfirmDialog from '@components/ConfirmDialog.jsx';
 import { formatDateTime, formatDateWithWeekday } from '@lib/dateFormatters.js';
 import useDiary from '../useDiary.jsx';
 import DiaryAiCommentSection from './DiaryAiCommentSection.jsx';
 import { useAlertDialog } from '@components/useAlertDialog.jsx';
 import { normalizeTags } from '../diaryUtil.js';
-
-const mdParser = new MarkdownIt({
-  breaks: true,
-});
-mdParser.use(markdownItIns);
 
 const DiaryViewDialog = ({
   diaryId,
@@ -116,21 +109,9 @@ const DiaryViewDialog = ({
                 <div className="min-w-0 flex-1">
                   <div className="h-full max-h-[520px] pr-2">
                     <div className="min-h-[500px] max-h-[520px] overflow-y-auto rounded-2xl border border-sand/30 bg-white px-6 py-6 shadow-soft">
-                      <div
-                        className={[
-                          'prose max-w-none',
-                          'prose-headings:text-clay',
-                          'prose-p:text-clay/90',
-                          'prose-strong:text-clay',
-                          'prose-li:text-clay/90',
-                          'prose-blockquote:text-clay/80',
-                          'prose-a:text-amber-900',
-                          'leading-7',
-                        ].join(' ')}
-                        dangerouslySetInnerHTML={{
-                          __html: mdParser.render(diary.contentMd || ''),
-                        }}
-                      />
+                      <p className="whitespace-pre-wrap break-words text-[16px] leading-7 text-clay/90">
+                        {diary.contentMd || ''}
+                      </p>
                     </div>
 
                     {tagList.length > 0 && (

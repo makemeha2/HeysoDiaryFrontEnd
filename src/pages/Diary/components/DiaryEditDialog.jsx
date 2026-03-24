@@ -1,22 +1,73 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { DayPicker } from 'react-day-picker';
-import MarkdownIt from 'markdown-it';
-import markdownItIns from 'markdown-it-ins';
-import MdEditor from 'react-markdown-editor-lite';
 import { Calendar, SquareX } from 'lucide-react';
 import { useAlertDialog } from '@components/useAlertDialog.jsx';
+import ConfirmDialog from '@components/ConfirmDialog.jsx';
 import AutocompleteCommitInput from '@components/TagInput.jsx';
 import dayjs from 'dayjs';
 import { formatDate, formatDateWithWeekday } from '@lib/dateFormatters.js';
 import useDiary from '../useDiary.jsx';
 import 'react-day-picker/dist/style.css';
-import 'react-markdown-editor-lite/lib/index.css';
 import { normalizeTags } from '../diaryUtil.js';
 import { ko } from 'date-fns/locale';
+import DiaryAiPolishDialog from './DiaryAiPolishDialog.jsx';
+import useDiaryAiPolish from '../hooks/useDiaryAiPolish.js';
 
-const mdParser = new MarkdownIt();
-mdParser.use(markdownItIns);
+const FONT_SIZE_STORAGE_KEY = 'diaryEditor.fontSize';
+const LINE_HEIGHT_STORAGE_KEY = 'diaryEditor.lineHeight';
+
+const FONT_SIZE_OPTIONS = [
+  { label: '작게', value: '14px' },
+  { label: '보통', value: '16px' },
+  { label: '크게', value: '18px' },
+];
+
+const LINE_HEIGHT_OPTIONS = [
+  { label: '촘촘', value: '1.5' },
+  { label: '보통', value: '1.7' },
+  { label: '넉넉', value: '1.9' },
+];
+
+const DEFAULT_FONT_SIZE = '16px';
+const DEFAULT_LINE_HEIGHT = '1.7';
+const POLISH_MIN_LENGTH = 50;
+const POLISH_MAX_LENGTH = 3000;
+
+const getStoredEditorSetting = (key, options, fallback) => {
+  if (typeof window === 'undefined') return fallback;
+
+  try {
+    const stored = window.localStorage.getItem(key);
+    const isValid = options.some((option) => option.value === stored);
+    return isValid ? stored : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const persistEditorSetting = (key, value) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore localStorage write failures
+  }
+};
+
+const toSnapshot = ({ diaryDate, titleInput, contentMdInput, tagList }) => {
+  const tags = Array.isArray(tagList)
+    ? Array.from(new Set(tagList.map((tag) => String(tag).trim()).filter(Boolean))).sort()
+    : [];
+
+  return JSON.stringify({
+    diaryDate: formatDate(diaryDate),
+    titleInput: titleInput ?? '',
+    contentMdInput: contentMdInput ?? '',
+    tagList: tags,
+  });
+};
 
 const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   const { alert, Alert } = useAlertDialog();
@@ -27,16 +78,68 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   const [tagList, setTagList] = useState([]);
   const [tagDraft, setTagDraft] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [editorFontSize, setEditorFontSize] = useState(() =>
+    getStoredEditorSetting(FONT_SIZE_STORAGE_KEY, FONT_SIZE_OPTIONS, DEFAULT_FONT_SIZE),
+  );
+  const [editorLineHeight, setEditorLineHeight] = useState(() =>
+    getStoredEditorSetting(LINE_HEIGHT_STORAGE_KEY, LINE_HEIGHT_OPTIONS, DEFAULT_LINE_HEIGHT),
+  );
+
+  const [isPolishDialogOpen, setIsPolishDialogOpen] = useState(false);
+  const [originalContent, setOriginalContent] = useState('');
+
+  const [initialFormSnapshot, setInitialFormSnapshot] = useState(null);
+  const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
+
+  const { polishedContent, polishError, isPolishing, usageText, requestPolish, resetPolish } =
+    useDiaryAiPolish();
 
   const isEditMode = !!diaryId;
 
-  const resetForm = () => {
-    setDiaryDate(new Date());
-    setTitleInput('');
-    setContentMdInput('');
-    setTagList([]);
+  const currentFormSnapshot = useMemo(
+    () => toSnapshot({ diaryDate, titleInput, contentMdInput, tagList }),
+    [diaryDate, titleInput, contentMdInput, tagList],
+  );
+
+  const isDirty = initialFormSnapshot !== null && currentFormSnapshot !== initialFormSnapshot;
+
+  const setFormStateAndSnapshot = ({
+    nextDiaryDate,
+    nextTitleInput,
+    nextContentMdInput,
+    nextTagList,
+  }) => {
+    setDiaryDate(nextDiaryDate);
+    setTitleInput(nextTitleInput);
+    setContentMdInput(nextContentMdInput);
+    setTagList(nextTagList);
     setTagDraft('');
     setIsCalendarOpen(false);
+
+    setInitialFormSnapshot(
+      toSnapshot({
+        diaryDate: nextDiaryDate,
+        titleInput: nextTitleInput,
+        contentMdInput: nextContentMdInput,
+        tagList: nextTagList,
+      }),
+    );
+  };
+
+  const resetPolishState = () => {
+    setIsPolishDialogOpen(false);
+    setOriginalContent('');
+    resetPolish();
+  };
+
+  const resetForm = () => {
+    setFormStateAndSnapshot({
+      nextDiaryDate: new Date(),
+      nextTitleInput: '',
+      nextContentMdInput: '',
+      nextTagList: [],
+    });
+    resetPolishState();
   };
 
   const handleSaveSuccess = async (data, _variables, { refreshAfterSave }) => {
@@ -104,6 +207,55 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
     setTagList((prev) => prev.filter((t) => t !== tag));
   };
 
+  const handleTryCloseEditor = () => {
+    if (saveDiaryMutation.isPending) return;
+
+    if (isDirty) {
+      setIsDiscardConfirmOpen(true);
+      return;
+    }
+
+    onClose?.();
+  };
+
+  const handleOpenPolishDialog = () => {
+    setOriginalContent(contentMdInput ?? '');
+    resetPolish();
+    setIsPolishDialogOpen(true);
+  };
+
+  const closePolishDialog = () => {
+    resetPolishState();
+  };
+
+  const handlePolishDialogOpenChange = (open) => {
+    if (!open) {
+      closePolishDialog();
+    }
+  };
+
+  const polishSourceLength = originalContent.length;
+  const isPolishSourceTooShort = polishSourceLength < POLISH_MIN_LENGTH;
+  const isPolishSourceTooLong = polishSourceLength > POLISH_MAX_LENGTH;
+  const canRequestPolish = !isPolishing && !isPolishSourceTooShort && !isPolishSourceTooLong;
+  const requestButtonLabel = `AI에게 요청 · ${usageText}`;
+
+  const handleRequestPolish = async () => {
+    if (!canRequestPolish) return;
+
+    await requestPolish({
+      diaryId: diaryId ?? null,
+      content: originalContent,
+    });
+  };
+
+  const handleApplyPolishedContent = () => {
+    if (!polishedContent.trim() || isPolishing) return;
+
+    setContentMdInput(polishedContent);
+    closePolishDialog();
+  };
+
   // 태그 normalize
   const normalizedTags = useMemo(() => normalizeTags(diaryDetail?.tags), [diaryDetail]);
 
@@ -119,13 +271,26 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
 
     if (!diaryDetail) return;
 
-    setTitleInput(diaryDetail.title || '');
-    setContentMdInput(diaryDetail.contentMd ?? '');
-    setTagList(normalizedTags);
-
     const parsedDate = dayjs(diaryDetail.diaryDate);
-    setDiaryDate(parsedDate.isValid() ? parsedDate.toDate() : new Date());
+    const nextDiaryDate = parsedDate.isValid() ? parsedDate.toDate() : new Date();
+
+    setFormStateAndSnapshot({
+      nextDiaryDate,
+      nextTitleInput: diaryDetail.title || '',
+      nextContentMdInput: diaryDetail.contentMd ?? '',
+      nextTagList: normalizedTags,
+    });
+
+    resetPolishState();
   }, [isOpen, diaryId, diaryDetail, normalizedTags]);
+
+  useEffect(() => {
+    persistEditorSetting(FONT_SIZE_STORAGE_KEY, editorFontSize);
+  }, [editorFontSize]);
+
+  useEffect(() => {
+    persistEditorSetting(LINE_HEIGHT_STORAGE_KEY, editorLineHeight);
+  }, [editorLineHeight]);
 
   return (
     <>
@@ -172,15 +337,10 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
                       },
                     }}
                     classNames={{
-                      // 전체 wrapper
                       root: 'p-3',
-
-                      // month 레이아웃
                       months: 'flex flex-col items-center',
                       month:
                         'grid grid-cols-[auto_1fr_auto] grid-rows-[auto_1fr] items-center gap-y-3',
-
-                      // 상단 캡션 영역(월/네비)
                       month_caption:
                         'col-start-2 row-start-1 flex items-center justify-center px-1',
                       caption: 'flex items-center justify-center gap-2',
@@ -188,42 +348,24 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
                       dropdowns: 'flex items-center gap-2',
                       dropdown:
                         'rounded-lg border border-sand/60 bg-white px-2 py-1 text-sm text-clay shadow-sm focus:outline-none focus:ring-2 focus:ring-amber/30',
-
-                      // 네비 버튼(이전/다음)
                       nav: 'absolute inset-x-0 flex items-center justify-between',
                       button:
                         'inline-flex h-8 w-8 items-center justify-center rounded-xl border border-sand/60 bg-white text-clay/70 shadow-sm transition hover:bg-sand/20 hover:text-clay focus:outline-none focus:ring-2 focus:ring-amber/30',
                       button_previous: '!static col-start-1 row-start-1',
                       button_next: '!static col-start-3 row-start-1',
                       chevron: 'h-4 w-4',
-
-                      // 캘린더 그리드
                       month_grid: 'col-span-3 row-start-2',
-
-                      // 요일 헤더
                       head_row: 'flex',
                       head_cell: 'w-10 text-[11px] font-semibold text-clay/50 tracking-wide',
-
-                      // 날짜 grid
                       row: 'flex mt-1',
                       cell: 'w-10 h-10 p-0 text-center',
-
-                      // 날짜 버튼
                       day_button:
                         'h-10 w-10 rounded-xl text-sm font-medium text-clay/80 transition ' +
                         'hover:bg-amber/15 hover:text-clay ' +
                         'focus:outline-none focus:ring-2 focus:ring-amber/30',
-
-                      // 오늘
                       today: 'text-clay font-semibold ring-1 ring-sand/60',
-
-                      // 선택됨
                       selected: 'bg-amber text-white shadow-md hover:bg-amber hover:text-white',
-
-                      // 선택된 날짜 (버튼 자체에 적용되도록)
                       day_selected: 'bg-amber text-white shadow-md hover:bg-amber hover:text-white',
-
-                      // 범위/비활성 등(싱글모드라도 기본값)
                       outside: 'text-clay/30 opacity-60',
                       disabled: 'text-clay/25 opacity-50',
                     }}
@@ -232,11 +374,14 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
               )}
             </Dialog.Title>
 
-            <Dialog.Close asChild>
-              <button className="text-clay/60 hover:text-clay/80" aria-label="Close">
-                <SquareX />
-              </button>
-            </Dialog.Close>
+            <button
+              type="button"
+              className="text-clay/60 hover:text-clay/80"
+              aria-label="Close"
+              onClick={handleTryCloseEditor}
+            >
+              <SquareX />
+            </button>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-4 space-y-5">
@@ -252,25 +397,73 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
               <div className="text-right text-xs text-clay/50">{titleInput.length}/200</div>
             </div>
 
-            <div className="space-y-2">
-              <MdEditor
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sand/60 bg-sand/20 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="text-xs text-clay/60" htmlFor="diary-font-size">
+                    글자 크기
+                  </label>
+                  <select
+                    id="diary-font-size"
+                    value={editorFontSize}
+                    onChange={(e) => setEditorFontSize(e.target.value)}
+                    className="rounded-lg border border-sand/60 bg-white px-2.5 py-1.5 text-xs text-clay/80 focus:outline-none focus:ring-2 focus:ring-amber/30"
+                  >
+                    {FONT_SIZE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <label className="ml-2 text-xs text-clay/60" htmlFor="diary-line-height">
+                    줄간격
+                  </label>
+                  <select
+                    id="diary-line-height"
+                    value={editorLineHeight}
+                    onChange={(e) => setEditorLineHeight(e.target.value)}
+                    className="rounded-lg border border-sand/60 bg-white px-2.5 py-1.5 text-xs text-clay/80 focus:outline-none focus:ring-2 focus:ring-amber/30"
+                  >
+                    {LINE_HEIGHT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <span className="ml-2 text-xs text-clay/60 font-bold">
+                    {contentMdInput.length}자
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleOpenPolishDialog}
+                    className="rounded-lg border border-sand/60 bg-white px-2.5 py-1.5 text-xs text-clay/80 hover:bg-sand/20 focus:outline-none focus:ring-2 focus:ring-amber/30"
+                  >
+                    글 다듬기
+                  </button>
+                </div>
+              </div>
+
+              <textarea
+                id="diary-content"
                 value={contentMdInput}
-                style={{ height: '550px' }}
-                view={{
-                  menu: true,
-                  md: true,
-                  html: false,
+                onChange={(e) => setContentMdInput(e.target.value)}
+                placeholder="오늘 하루를 차분하게 기록해보세요."
+                style={{
+                  fontSize: editorFontSize,
+                  lineHeight: editorLineHeight,
                 }}
-                renderHTML={(text) => mdParser.render(text)}
-                onChange={({ text }) => setContentMdInput(text)}
-                placeholder="Write your thoughts in Markdown..."
+                className="h-[550px] w-full resize-none overflow-y-auto whitespace-pre-wrap rounded-2xl border border-sand/60 bg-white/90 px-5 py-4 text-clay placeholder:text-clay/40 focus:outline-none focus:ring-2 focus:ring-amber/40"
               />
             </div>
 
             <div className="space-y-2">
               <AutocompleteCommitInput
                 items={Array.isArray(myTags) ? myTags : []}
-                // exclude={tagList}
                 onCommit={(value) => addTag(value)}
                 placeholder="태그를 입력해보세요. Enter 또는 콤마로 추가됩니다."
                 disabled={myTagsQuery?.isLoading}
@@ -311,6 +504,38 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
           </form>
         </Dialog.Content>
       </Dialog.Portal>
+
+      <DiaryAiPolishDialog
+        open={isPolishDialogOpen}
+        onOpenChange={handlePolishDialogOpenChange}
+        originalContent={originalContent}
+        polishedContent={polishedContent}
+        polishError={polishError}
+        isPolishing={isPolishing}
+        canRequestPolish={canRequestPolish}
+        requestButtonLabel={requestButtonLabel}
+        isPolishSourceTooShort={isPolishSourceTooShort}
+        isPolishSourceTooLong={isPolishSourceTooLong}
+        onRequestPolish={handleRequestPolish}
+        onApply={handleApplyPolishedContent}
+        onCancel={closePolishDialog}
+      />
+
+      <ConfirmDialog
+        open={isDiscardConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) setIsDiscardConfirmOpen(false);
+        }}
+        title="변경 사항을 저장하지 않고 닫을까요?"
+        description="저장하지 않은 내용은 사라집니다."
+        confirmLabel="닫기"
+        cancelLabel="계속 작성"
+        onConfirm={() => {
+          setIsDiscardConfirmOpen(false);
+          onClose?.();
+        }}
+        onCancel={() => setIsDiscardConfirmOpen(false)}
+      />
     </>
   );
 };
