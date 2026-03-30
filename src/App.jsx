@@ -25,6 +25,7 @@ import DiaryNudgeToast from '@components/DiaryNudgeToast.jsx';
 import { formatDate } from '@lib/dateFormatters.js';
 
 import { useDiaryNudgeToast } from '@hooks/useDiaryNudgeToast.jsx';
+import AdminApp from './admin/routes/AdminApp.tsx';
 
 /** =========================
  *  Env / Constants
@@ -41,7 +42,7 @@ const navLinkClass = ({ isActive }) =>
 /** =========================
  *  App
  *  ========================= */
-const App = () => {
+const MainSiteApp = () => {
   /** -------------------------
    *  Router / Store
    *  ------------------------- */
@@ -304,6 +305,14 @@ const App = () => {
       </Dialog.Root>
     </div>
   );
+};
+
+const App = () => {
+  const location = useLocation();
+  if (location.pathname.startsWith('/admin')) {
+    return <AdminApp />;
+  }
+  return <MainSiteApp />;
 };
 
 export default App;
