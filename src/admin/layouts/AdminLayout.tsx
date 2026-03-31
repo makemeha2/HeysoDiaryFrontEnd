@@ -15,31 +15,31 @@ const AdminLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3">
+    <div className="min-h-screen bg-linen text-clay">
+      <header className="border-b border-sand/70 bg-white/90">
+        <div className="flex w-full items-center justify-between px-3 py-3 md:px-5">
           <Link to="/admin/com-codes" className="text-lg font-semibold text-clay no-underline">
             Heyso Admin
           </Link>
           <button
             type="button"
             onClick={handleLogout}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+            className="rounded-md border border-sand px-3 py-1.5 text-sm text-clay hover:bg-amber/10"
           >
             로그아웃
           </button>
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-7xl gap-4 p-4 md:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="rounded-xl border border-slate-200 bg-white p-3">
+      <div className="grid w-full gap-3 p-3 md:grid-cols-[200px_minmax(0,1fr)] md:p-4">
+        <aside className="rounded-xl border border-sand/70 bg-white p-3">
           <nav className="flex flex-col gap-2">
             <NavLink to="/admin/com-codes" className={navClass}>
               공통코드 관리
             </NavLink>
           </nav>
         </aside>
-        <main className="rounded-xl border border-slate-200 bg-white p-4 md:p-6">
+        <main className="rounded-xl border border-sand/70 bg-white p-3 md:p-4">
           <Outlet />
         </main>
       </div>

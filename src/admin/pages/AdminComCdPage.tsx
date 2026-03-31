@@ -1,599 +1,376 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import StatusFilterSelect from '../components/StatusFilterSelect';
+import StatusFilterSelect from '@admin/components/StatusFilterSelect';
+import AdminDataTable from '@admin/components/common/AdminDataTable';
+import AdminAlertDialog from '@admin/components/common/dialog/AdminAlertDialog';
+import { buildCodeColumns } from '@admin/features/commonCode/codeColumns';
+import { buildCodeGroupColumns } from '@admin/features/commonCode/codeGroupColumns';
+import CodeFormDialog from '@admin/features/commonCode/components/CodeFormDialog';
+import CodeGroupFormDialog from '@admin/features/commonCode/components/CodeGroupFormDialog';
 import {
   createAdminCode,
   createAdminGroup,
-  deleteAdminCode,
-  deleteAdminGroup,
-  fetchAdminCodeDetail,
   fetchAdminCodeList,
-  fetchAdminGroupDetail,
   fetchAdminGroupList,
   updateAdminCode,
   updateAdminGroup,
-} from '../lib/comCdApi';
-import { clearAdminAccessToken } from '../lib/auth';
-import type { CommonCode, CommonCodeGroup, StatusFilter } from '../types/comCd';
+} from '@admin/lib/comCdApi';
+import { clearAdminAccessToken } from '@admin/lib/auth';
+import type { CommonCode, CommonCodeGroup, StatusFilter } from '@admin/types/comCd';
 
-const emptyGroupForm = { groupId: '', groupName: '', isActive: true };
-const emptyCodeCreateForm = {
-  codeId: '',
-  codeName: '',
-  isActive: true,
-  extraInfo1: '',
-  extraInfo2: '',
-  sortSeq: 0,
+type GroupSubmitPayload = {
+  groupId: string;
+  groupName: string;
+  isActive: boolean;
 };
-const emptyCodeEditForm = { codeName: '', isActive: true, extraInfo1: '', extraInfo2: '', sortSeq: 0 };
+
+type CodeSubmitPayload = {
+  groupId: string;
+  codeId: string;
+  codeName: string;
+  sortSeq: number;
+  extraInfo1: string;
+  extraInfo2: string;
+  isActive: boolean;
+};
 
 const AdminComCdPage = () => {
   const navigate = useNavigate();
 
   const [groupStatus, setGroupStatus] = useState<StatusFilter>('ACTIVE');
   const [codeStatus, setCodeStatus] = useState<StatusFilter>('ACTIVE');
+  const [showEditedAt, setShowEditedAt] = useState(false);
+
   const [groups, setGroups] = useState<CommonCodeGroup[]>([]);
   const [codes, setCodes] = useState<CommonCode[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [selectedCodeId, setSelectedCodeId] = useState('');
 
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
-  const [selectedCodeId, setSelectedCodeId] = useState<string>('');
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+  const [isCodeDialogOpen, setIsCodeDialogOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<CommonCodeGroup | null>(null);
+  const [editingCode, setEditingCode] = useState<CommonCode | null>(null);
 
-  const [groupCreateForm, setGroupCreateForm] = useState(emptyGroupForm);
-  const [groupEditForm, setGroupEditForm] = useState({ groupName: '', isActive: true });
-  const [codeCreateForm, setCodeCreateForm] = useState(emptyCodeCreateForm);
-  const [codeEditForm, setCodeEditForm] = useState(emptyCodeEditForm);
-
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [forbiddenMessage, setForbiddenMessage] = useState<string | null>(null);
-  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   const selectedGroup = useMemo(
     () => groups.find((group) => group.groupId === selectedGroupId) ?? null,
     [groups, selectedGroupId],
   );
-  const selectedCode = useMemo(
-    () => codes.find((code) => code.codeId === selectedCodeId) ?? null,
-    [codes, selectedCodeId],
+
+  const handleApiError = useCallback(
+    (status: number, fallback: string) => {
+      if (status === 401) {
+        clearAdminAccessToken();
+        navigate('/admin/login?reason=sessionExpired', {
+          replace: true,
+          state: { from: '/admin/com-codes' },
+        });
+        return;
+      }
+      if (status === 403) {
+        setErrorMessage('관리자 권한이 없습니다.');
+        return;
+      }
+      setErrorMessage(fallback);
+    },
+    [navigate],
   );
 
-  const handleAuthFailure = (status: number, fallback: string) => {
-    if (status === 401) {
-      clearAdminAccessToken();
-      navigate('/admin/login?reason=sessionExpired', { replace: true, state: { from: '/admin/com-codes' } });
-      return true;
-    }
-    if (status === 403) {
-      setForbiddenMessage('이 요청에 대한 관리자 권한(scope=admin)이 없습니다.');
-      return true;
-    }
-    setErrorMessage(fallback);
-    return true;
-  };
+  const loadGroups = useCallback(
+    async (status: StatusFilter, keepSelectionId?: string) => {
+      const result = await fetchAdminGroupList(status);
+      if (!result.ok) {
+        handleApiError(result.status, '그룹 목록을 불러오지 못했습니다.');
+        return null;
+      }
 
-  const loadGroups = async (nextStatus: StatusFilter, keepSelection = true) => {
-    const result = await fetchAdminGroupList(nextStatus);
-    if (!result.ok) return handleAuthFailure(result.status, '그룹 목록 조회에 실패했습니다.');
+      const next = result.data ?? [];
+      setGroups(next);
 
-    setGroups(result.data ?? []);
-    setSelectedCodeId('');
-    if (!keepSelection) {
-      setSelectedGroupId('');
-      return false;
-    }
+      const preservedId = keepSelectionId ?? '';
+      const hasPreserved = next.some((group) => group.groupId === preservedId);
+      const firstActive = next.find((group) => group.isActive)?.groupId;
+      const nextSelectedGroupId = hasPreserved ? preservedId : firstActive ?? next[0]?.groupId ?? '';
 
-    const hasSelected = (result.data ?? []).some((group) => group.groupId === selectedGroupId);
-    setSelectedGroupId(hasSelected ? selectedGroupId : (result.data?.[0]?.groupId ?? ''));
-    return false;
-  };
+      setSelectedGroupId(nextSelectedGroupId);
+      return nextSelectedGroupId;
+    },
+    [handleApiError],
+  );
 
-  const loadGroupDetail = async (groupId: string) => {
-    const result = await fetchAdminGroupDetail(groupId);
-    if (!result.ok) return handleAuthFailure(result.status, '그룹 상세 조회에 실패했습니다.');
-    setGroupEditForm({
-      groupName: result.data.groupName,
-      isActive: result.data.isActive,
-    });
-    return false;
-  };
+  const loadCodes = useCallback(
+    async (groupId: string, status: StatusFilter, keepSelectionId?: string) => {
+      if (!groupId) {
+        setCodes([]);
+        setSelectedCodeId('');
+        return;
+      }
 
-  const loadCodes = async (groupId: string, nextStatus: StatusFilter, keepSelection = true) => {
-    const result = await fetchAdminCodeList(groupId, nextStatus);
-    if (!result.ok) return handleAuthFailure(result.status, '코드 목록 조회에 실패했습니다.');
+      const result = await fetchAdminCodeList(groupId, status);
+      if (!result.ok) {
+        handleApiError(result.status, '코드 목록을 불러오지 못했습니다.');
+        return;
+      }
 
-    setCodes(result.data ?? []);
-    if (!keepSelection) {
-      setSelectedCodeId('');
-      return false;
-    }
-    const hasSelected = (result.data ?? []).some((code) => code.codeId === selectedCodeId);
-    setSelectedCodeId(hasSelected ? selectedCodeId : (result.data?.[0]?.codeId ?? ''));
-    return false;
-  };
+      const next = result.data ?? [];
+      setCodes(next);
 
-  const loadCodeDetail = async (groupId: string, codeId: string) => {
-    const result = await fetchAdminCodeDetail(groupId, codeId);
-    if (!result.ok) return handleAuthFailure(result.status, '코드 상세 조회에 실패했습니다.');
-    setCodeEditForm({
-      codeName: result.data.codeName,
-      isActive: result.data.isActive,
-      extraInfo1: result.data.extraInfo1 ?? '',
-      extraInfo2: result.data.extraInfo2 ?? '',
-      sortSeq: result.data.sortSeq ?? 0,
-    });
-    return false;
-  };
+      const preservedId = keepSelectionId ?? '';
+      const hasPreserved = next.some((code) => code.codeId === preservedId);
+      setSelectedCodeId(hasPreserved ? preservedId : next[0]?.codeId ?? '');
+    },
+    [handleApiError],
+  );
 
   useEffect(() => {
     setErrorMessage(null);
-    setForbiddenMessage(null);
-    setNoticeMessage(null);
-    loadGroups(groupStatus, true);
+    loadGroups(groupStatus, selectedGroupId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupStatus]);
 
   useEffect(() => {
-    if (!selectedGroupId) {
-      setCodes([]);
-      setSelectedCodeId('');
-      return;
-    }
-    loadGroupDetail(selectedGroupId);
-    loadCodes(selectedGroupId, codeStatus, true);
+    setErrorMessage(null);
+    loadCodes(selectedGroupId, codeStatus, selectedCodeId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGroupId, codeStatus]);
 
-  useEffect(() => {
-    if (!selectedGroupId || !selectedCodeId) {
-      setCodeEditForm(emptyCodeEditForm);
-      return;
-    }
-    loadCodeDetail(selectedGroupId, selectedCodeId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedGroupId, selectedCodeId]);
-
-  const refreshSelectedGroupAndCodes = async () => {
-    const ended = await loadGroups(groupStatus, true);
-    if (!ended && selectedGroupId) {
-      await loadCodes(selectedGroupId, codeStatus, true);
-    }
+  const refreshGroups = async () => {
+    await loadGroups(groupStatus, selectedGroupId);
   };
 
-  const handleGroupCreate = async () => {
-    if (!groupCreateForm.groupId.trim() || !groupCreateForm.groupName.trim()) {
-      setErrorMessage('그룹 ID와 그룹명은 필수입니다.');
-      return;
-    }
-
-    const result = await createAdminGroup({
-      groupId: groupCreateForm.groupId.trim(),
-      groupName: groupCreateForm.groupName.trim(),
-      isActive: groupCreateForm.isActive,
-    });
-    if (!result.ok) return handleAuthFailure(result.status, result.errorMessage ?? '그룹 생성에 실패했습니다.');
-
-    setGroupCreateForm(emptyGroupForm);
-    setNoticeMessage('그룹이 생성되었습니다.');
-    await refreshSelectedGroupAndCodes();
-  };
-
-  const handleGroupUpdate = async () => {
-    if (!selectedGroupId) return;
-    const result = await updateAdminGroup(selectedGroupId, {
-      groupName: groupEditForm.groupName.trim(),
-      isActive: groupEditForm.isActive,
-    });
-    if (!result.ok) return handleAuthFailure(result.status, result.errorMessage ?? '그룹 수정에 실패했습니다.');
-
-    setNoticeMessage('그룹이 수정되었습니다.');
-    await refreshSelectedGroupAndCodes();
-  };
-
-  const handleGroupDelete = async () => {
-    if (!selectedGroupId) return;
-    const result = await deleteAdminGroup(selectedGroupId);
-    if (!result.ok) return handleAuthFailure(result.status, result.errorMessage ?? '그룹 삭제에 실패했습니다.');
-
-    setNoticeMessage('그룹이 비활성화되었습니다.');
-    await loadGroups(groupStatus, true);
-  };
-
-  const handleGroupReactivate = async () => {
-    if (!selectedGroup) return;
-    const result = await updateAdminGroup(selectedGroup.groupId, {
-      groupName: selectedGroup.groupName,
-      isActive: true,
-    });
-    if (!result.ok) return handleAuthFailure(result.status, result.errorMessage ?? '그룹 재활성화에 실패했습니다.');
-
-    setNoticeMessage('그룹이 재활성화되었습니다.');
-    await refreshSelectedGroupAndCodes();
-  };
-
-  const handleCodeCreate = async () => {
+  const refreshCodes = async () => {
     if (!selectedGroupId) {
       setErrorMessage('먼저 그룹을 선택하세요.');
       return;
     }
-    if (!codeCreateForm.codeId.trim() || !codeCreateForm.codeName.trim()) {
-      setErrorMessage('코드 ID와 코드명은 필수입니다.');
+
+    await loadCodes(selectedGroupId, codeStatus, selectedCodeId);
+  };
+
+  const handleOpenCreateGroupDialog = () => {
+    setEditingGroup(null);
+    setIsGroupDialogOpen(true);
+  };
+
+  const handleOpenEditGroupDialog = useCallback((group: CommonCodeGroup) => {
+    setSelectedGroupId(group.groupId);
+    setEditingGroup(group);
+    setIsGroupDialogOpen(true);
+  }, []);
+
+  const handleGroupSubmit = async (payload: GroupSubmitPayload, mode: 'create' | 'edit') => {
+    setErrorMessage(null);
+
+    const result =
+      mode === 'create'
+        ? await createAdminGroup(payload)
+        : await updateAdminGroup(payload.groupId, {
+            groupName: payload.groupName,
+            isActive: payload.isActive,
+          });
+
+    if (!result.ok) {
+      handleApiError(result.status, result.errorMessage ?? '그룹 저장에 실패했습니다.');
       return;
     }
 
-    const result = await createAdminCode(selectedGroupId, {
-      codeId: codeCreateForm.codeId.trim(),
-      codeName: codeCreateForm.codeName.trim(),
-      isActive: codeCreateForm.isActive,
-      extraInfo1: codeCreateForm.extraInfo1.trim() || undefined,
-      extraInfo2: codeCreateForm.extraInfo2.trim() || undefined,
-      sortSeq: Number(codeCreateForm.sortSeq),
-    });
-    if (!result.ok) return handleAuthFailure(result.status, result.errorMessage ?? '코드 생성에 실패했습니다.');
+    setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
+    setIsGroupDialogOpen(false);
 
-    setCodeCreateForm(emptyCodeCreateForm);
-    setNoticeMessage('코드가 생성되었습니다.');
-    await loadCodes(selectedGroupId, codeStatus, true);
+    const nextGroupId = await loadGroups(groupStatus, payload.groupId);
+    if (nextGroupId) {
+      await loadCodes(nextGroupId, codeStatus, selectedCodeId);
+    }
   };
 
-  const handleCodeUpdate = async () => {
-    if (!selectedGroupId || !selectedCodeId) return;
-    const result = await updateAdminCode(selectedGroupId, selectedCodeId, {
-      codeName: codeEditForm.codeName.trim(),
-      isActive: codeEditForm.isActive,
-      extraInfo1: codeEditForm.extraInfo1.trim() || undefined,
-      extraInfo2: codeEditForm.extraInfo2.trim() || undefined,
-      sortSeq: Number(codeEditForm.sortSeq),
-    });
-    if (!result.ok) return handleAuthFailure(result.status, result.errorMessage ?? '코드 수정에 실패했습니다.');
+  const handleOpenCreateCodeDialog = () => {
+    if (!selectedGroupId) {
+      setErrorMessage('먼저 그룹을 선택하세요.');
+      return;
+    }
 
-    setNoticeMessage('코드가 수정되었습니다.');
-    await loadCodes(selectedGroupId, codeStatus, true);
-    await loadCodeDetail(selectedGroupId, selectedCodeId);
+    setEditingCode(null);
+    setIsCodeDialogOpen(true);
   };
 
-  const handleCodeDelete = async () => {
-    if (!selectedGroupId || !selectedCodeId) return;
-    const result = await deleteAdminCode(selectedGroupId, selectedCodeId);
-    if (!result.ok) return handleAuthFailure(result.status, result.errorMessage ?? '코드 삭제에 실패했습니다.');
+  const handleOpenEditCodeDialog = useCallback((code: CommonCode) => {
+    setSelectedGroupId(code.groupId);
+    setSelectedCodeId(code.codeId);
+    setEditingCode(code);
+    setIsCodeDialogOpen(true);
+  }, []);
 
-    setNoticeMessage('코드가 비활성화되었습니다.');
-    await loadCodes(selectedGroupId, codeStatus, true);
+  const handleCodeSubmit = async (payload: CodeSubmitPayload, mode: 'create' | 'edit') => {
+    setErrorMessage(null);
+
+    if (!payload.groupId) {
+      setErrorMessage('먼저 그룹을 선택하세요.');
+      return;
+    }
+
+    const result =
+      mode === 'create'
+        ? await createAdminCode(payload.groupId, {
+            codeId: payload.codeId,
+            codeName: payload.codeName,
+            sortSeq: Number(payload.sortSeq),
+            extraInfo1: payload.extraInfo1.trim() || undefined,
+            extraInfo2: payload.extraInfo2.trim() || undefined,
+            isActive: payload.isActive,
+          })
+        : await updateAdminCode(payload.groupId, payload.codeId, {
+            codeName: payload.codeName,
+            sortSeq: Number(payload.sortSeq),
+            extraInfo1: payload.extraInfo1.trim() || undefined,
+            extraInfo2: payload.extraInfo2.trim() || undefined,
+            isActive: payload.isActive,
+          });
+
+    if (!result.ok) {
+      handleApiError(result.status, result.errorMessage ?? '코드 저장에 실패했습니다.');
+      return;
+    }
+
+    setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
+    setIsCodeDialogOpen(false);
+    await loadCodes(payload.groupId, codeStatus, payload.codeId);
   };
 
-  const handleCodeReactivate = async () => {
-    if (!selectedGroupId || !selectedCode) return;
-    const result = await updateAdminCode(selectedGroupId, selectedCode.codeId, {
-      codeName: selectedCode.codeName,
-      isActive: true,
-      extraInfo1: selectedCode.extraInfo1,
-      extraInfo2: selectedCode.extraInfo2,
-      sortSeq: selectedCode.sortSeq,
-    });
-    if (!result.ok) return handleAuthFailure(result.status, result.errorMessage ?? '코드 재활성화에 실패했습니다.');
+  const groupColumns = useMemo(
+    () => buildCodeGroupColumns({ showEditedAt, onEdit: handleOpenEditGroupDialog }),
+    [showEditedAt, handleOpenEditGroupDialog],
+  );
 
-    setNoticeMessage('코드가 재활성화되었습니다.');
-    await loadCodes(selectedGroupId, codeStatus, true);
-  };
+  const codeColumns = useMemo(
+    () => buildCodeColumns({ showEditedAt, onEdit: handleOpenEditCodeDialog }),
+    [showEditedAt, handleOpenEditCodeDialog],
+  );
 
   return (
-    <div className="space-y-5">
-      <header>
-        <h1 className="text-xl font-semibold text-slate-900">공통코드 관리자</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          그룹/코드 CRUD, soft delete, update 재활성화를 처리합니다.
-        </p>
+    <div className="flex w-full flex-col gap-4 text-sm">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-clay sm:text-xl">공통코드 관리</h1>
+          <p className="text-xs text-clay/80 sm:text-sm">그룹과 코드를 등록/수정 모달로 관리합니다.</p>
+        </div>
+
+        <label className="flex items-center gap-2 rounded-md border border-sand/70 bg-white px-2 py-1 text-xs text-clay sm:text-sm">
+          <input
+            type="checkbox"
+            checked={showEditedAt}
+            onChange={(event) => setShowEditedAt(event.target.checked)}
+          />
+          편집일시
+        </label>
       </header>
 
-      {noticeMessage && (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          {noticeMessage}
-        </div>
-      )}
-      {forbiddenMessage && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          {forbiddenMessage}
-        </div>
-      )}
       {errorMessage && (
-        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <div className="rounded-md border border-blush/50 bg-blush/20 px-3 py-2 text-xs text-clay sm:text-sm">
           {errorMessage}
         </div>
       )}
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        <article className="rounded-lg border border-slate-200 p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold">그룹 목록</h2>
-            <StatusFilterSelect value={groupStatus} onChange={setGroupStatus} />
-          </div>
-          <div className="max-h-72 overflow-auto rounded-md border border-slate-200">
-            {groups.length === 0 && <p className="p-3 text-sm text-slate-500">데이터가 없습니다.</p>}
-            {groups.map((group) => (
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[3fr_7fr]">
+        <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-sand/60 bg-linen/60 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold text-clay">공통코드그룹</h2>
+            <div className="flex items-center gap-2">
+              <StatusFilterSelect value={groupStatus} onChange={setGroupStatus} />
               <button
-                key={group.groupId}
                 type="button"
-                onClick={() => setSelectedGroupId(group.groupId)}
-                className={`flex w-full items-center justify-between border-b border-slate-100 px-3 py-2 text-left text-sm ${
-                  selectedGroupId === group.groupId ? 'bg-clay/10' : 'hover:bg-slate-50'
-                }`}
+                onClick={refreshGroups}
+                className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
               >
-                <span>
-                  <strong>{group.groupId}</strong>
-                  {' '}
-                  {group.groupName}
-                </span>
-                <span className={group.isActive ? 'text-emerald-700' : 'text-slate-500'}>
-                  {group.isActive ? '활성' : '비활성'}
-                </span>
+                새로고침
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={handleOpenCreateGroupDialog}
+                className="rounded bg-clay px-2 py-1 text-xs text-white sm:text-sm"
+              >
+                등록
+              </button>
+            </div>
           </div>
-        </article>
 
-        <article className="rounded-lg border border-slate-200 p-4">
-          <h2 className="text-base font-semibold">그룹 생성</h2>
-          <div className="mt-3 grid gap-2">
-            <input
-              placeholder="groupId"
-              value={groupCreateForm.groupId}
-              onChange={(event) =>
-                setGroupCreateForm((prev) => ({ ...prev, groupId: event.target.value }))
-              }
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            />
-            <input
-              placeholder="groupName"
-              value={groupCreateForm.groupName}
-              onChange={(event) =>
-                setGroupCreateForm((prev) => ({ ...prev, groupName: event.target.value }))
-              }
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            />
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={groupCreateForm.isActive}
-                onChange={(event) =>
-                  setGroupCreateForm((prev) => ({ ...prev, isActive: event.target.checked }))
-                }
-              />
-              활성
-            </label>
-            <button
-              type="button"
-              onClick={handleGroupCreate}
-              className="rounded-md bg-clay px-3 py-2 text-sm font-semibold text-white"
-            >
-              그룹 생성
-            </button>
-          </div>
-        </article>
-      </section>
+          <AdminDataTable
+            data={groups}
+            columns={groupColumns}
+            rowKey={(row) => row.groupId}
+            onRowClick={(row) => setSelectedGroupId(row.groupId)}
+            selectedKey={selectedGroupId}
+            emptyMessage="그룹 데이터가 없습니다."
+            maxHeightClassName="max-h-[360px]"
+          />
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        <article className="rounded-lg border border-slate-200 p-4">
-          <h2 className="text-base font-semibold">그룹 수정/삭제/재활성화</h2>
-          {!selectedGroup && <p className="mt-3 text-sm text-slate-500">그룹을 선택하세요.</p>}
           {selectedGroup && (
-            <div className="mt-3 grid gap-2">
-              <p className="text-sm text-slate-700">
-                선택:
-                {' '}
-                <strong>{selectedGroup.groupId}</strong>
-              </p>
-              <input
-                value={groupEditForm.groupName}
-                onChange={(event) =>
-                  setGroupEditForm((prev) => ({ ...prev, groupName: event.target.value }))
-                }
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-              />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={groupEditForm.isActive}
-                  onChange={(event) =>
-                    setGroupEditForm((prev) => ({ ...prev, isActive: event.target.checked }))
-                  }
-                />
-                활성
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={handleGroupUpdate}
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-                >
-                  그룹 수정(update)
-                </button>
-                <button
-                  type="button"
-                  onClick={handleGroupDelete}
-                  className="rounded-md border border-rose-300 px-3 py-2 text-sm text-rose-700"
-                >
-                  그룹 삭제(soft delete)
-                </button>
-                <button
-                  type="button"
-                  onClick={handleGroupReactivate}
-                  className="rounded-md border border-emerald-300 px-3 py-2 text-sm text-emerald-700"
-                >
-                  그룹 재활성화(update)
-                </button>
-              </div>
-            </div>
+            <p className="text-xs text-clay/80 sm:text-sm">
+              선택 그룹: <strong>{selectedGroup.groupId}</strong>
+            </p>
           )}
-        </article>
+        </section>
 
-        <article className="rounded-lg border border-slate-200 p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold">코드 목록</h2>
-            <StatusFilterSelect value={codeStatus} onChange={setCodeStatus} />
+        <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-sand/60 bg-linen/60 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold text-clay">공통코드</h2>
+            <div className="flex items-center gap-2">
+              <StatusFilterSelect value={codeStatus} onChange={setCodeStatus} />
+              <button
+                type="button"
+                onClick={refreshCodes}
+                className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
+              >
+                새로고침
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenCreateCodeDialog}
+                className="rounded bg-clay px-2 py-1 text-xs text-white sm:text-sm"
+              >
+                등록
+              </button>
+            </div>
           </div>
-          {!selectedGroupId && <p className="text-sm text-slate-500">그룹 선택 후 조회됩니다.</p>}
-          {selectedGroupId && (
-            <div className="max-h-72 overflow-auto rounded-md border border-slate-200">
-              {codes.length === 0 && <p className="p-3 text-sm text-slate-500">데이터가 없습니다.</p>}
-              {codes.map((code) => (
-                <button
-                  key={code.codeId}
-                  type="button"
-                  onClick={() => setSelectedCodeId(code.codeId)}
-                  className={`flex w-full items-center justify-between border-b border-slate-100 px-3 py-2 text-left text-sm ${
-                    selectedCodeId === code.codeId ? 'bg-clay/10' : 'hover:bg-slate-50'
-                  }`}
-                >
-                  <span>
-                    <strong>{code.codeId}</strong>
-                    {' '}
-                    {code.codeName}
-                  </span>
-                  <span className={code.isActive ? 'text-emerald-700' : 'text-slate-500'}>
-                    {code.isActive ? '활성' : '비활성'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </article>
-      </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        <article className="rounded-lg border border-slate-200 p-4">
-          <h2 className="text-base font-semibold">코드 생성</h2>
-          <div className="mt-3 grid gap-2">
-            <input
-              placeholder="codeId"
-              value={codeCreateForm.codeId}
-              onChange={(event) =>
-                setCodeCreateForm((prev) => ({ ...prev, codeId: event.target.value }))
-              }
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            />
-            <input
-              placeholder="codeName"
-              value={codeCreateForm.codeName}
-              onChange={(event) =>
-                setCodeCreateForm((prev) => ({ ...prev, codeName: event.target.value }))
-              }
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            />
-            <input
-              type="number"
-              placeholder="sortSeq"
-              value={codeCreateForm.sortSeq}
-              onChange={(event) =>
-                setCodeCreateForm((prev) => ({ ...prev, sortSeq: Number(event.target.value) }))
-              }
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            />
-            <input
-              placeholder="extraInfo1"
-              value={codeCreateForm.extraInfo1}
-              onChange={(event) =>
-                setCodeCreateForm((prev) => ({ ...prev, extraInfo1: event.target.value }))
-              }
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            />
-            <input
-              placeholder="extraInfo2"
-              value={codeCreateForm.extraInfo2}
-              onChange={(event) =>
-                setCodeCreateForm((prev) => ({ ...prev, extraInfo2: event.target.value }))
-              }
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            />
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={codeCreateForm.isActive}
-                onChange={(event) =>
-                  setCodeCreateForm((prev) => ({ ...prev, isActive: event.target.checked }))
-                }
-              />
-              활성
-            </label>
-            <button
-              type="button"
-              onClick={handleCodeCreate}
-              className="rounded-md bg-clay px-3 py-2 text-sm font-semibold text-white"
-            >
-              코드 생성
-            </button>
-          </div>
-        </article>
+          <AdminDataTable
+            data={codes}
+            columns={codeColumns}
+            rowKey={(row) => row.codeId}
+            onRowClick={(row) => setSelectedCodeId(row.codeId)}
+            selectedKey={selectedCodeId}
+            emptyMessage="코드 데이터가 없습니다."
+            maxHeightClassName="max-h-[360px]"
+          />
+        </section>
+      </div>
 
-        <article className="rounded-lg border border-slate-200 p-4">
-          <h2 className="text-base font-semibold">코드 수정/삭제/재활성화</h2>
-          {!selectedCode && <p className="mt-3 text-sm text-slate-500">코드를 선택하세요.</p>}
-          {selectedCode && (
-            <div className="mt-3 grid gap-2">
-              <p className="text-sm text-slate-700">
-                선택:
-                {' '}
-                <strong>{selectedCode.codeId}</strong>
-              </p>
-              <input
-                value={codeEditForm.codeName}
-                onChange={(event) => setCodeEditForm((prev) => ({ ...prev, codeName: event.target.value }))}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-              />
-              <input
-                type="number"
-                value={codeEditForm.sortSeq}
-                onChange={(event) => setCodeEditForm((prev) => ({ ...prev, sortSeq: Number(event.target.value) }))}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-              />
-              <input
-                value={codeEditForm.extraInfo1}
-                onChange={(event) =>
-                  setCodeEditForm((prev) => ({ ...prev, extraInfo1: event.target.value }))
-                }
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-              />
-              <input
-                value={codeEditForm.extraInfo2}
-                onChange={(event) =>
-                  setCodeEditForm((prev) => ({ ...prev, extraInfo2: event.target.value }))
-                }
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-              />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={codeEditForm.isActive}
-                  onChange={(event) =>
-                    setCodeEditForm((prev) => ({ ...prev, isActive: event.target.checked }))
-                  }
-                />
-                활성
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={handleCodeUpdate}
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-                >
-                  코드 수정(update)
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCodeDelete}
-                  className="rounded-md border border-rose-300 px-3 py-2 text-sm text-rose-700"
-                >
-                  코드 삭제(soft delete)
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCodeReactivate}
-                  className="rounded-md border border-emerald-300 px-3 py-2 text-sm text-emerald-700"
-                >
-                  코드 재활성화(update)
-                </button>
-              </div>
-            </div>
-          )}
-        </article>
-      </section>
+      <CodeGroupFormDialog
+        open={isGroupDialogOpen}
+        onOpenChange={setIsGroupDialogOpen}
+        group={editingGroup}
+        onSubmit={handleGroupSubmit}
+      />
+
+      <CodeFormDialog
+        open={isCodeDialogOpen}
+        onOpenChange={setIsCodeDialogOpen}
+        selectedGroupId={selectedGroupId}
+        code={editingCode}
+        onSubmit={handleCodeSubmit}
+      />
+
+      <AdminAlertDialog
+        open={!!alertMessage}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAlertMessage(null);
+          }
+        }}
+        title="알림"
+        description={alertMessage ?? ''}
+      />
     </div>
   );
 };
