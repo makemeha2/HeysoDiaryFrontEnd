@@ -15,7 +15,7 @@ const AdminLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-linen text-clay">
+    <div className="flex h-screen flex-col bg-linen text-clay">
       <header className="border-b border-sand/70 bg-white/90">
         <div className="flex w-full items-center justify-between px-3 py-3 md:px-5">
           <Link to="/admin/com-codes" className="text-lg font-semibold text-clay no-underline">
@@ -31,7 +31,7 @@ const AdminLayout = () => {
         </div>
       </header>
 
-      <div className="grid w-full gap-3 p-3 md:grid-cols-[200px_minmax(0,1fr)] md:p-4">
+      <div className="grid min-h-0 flex-1 w-full gap-3 overflow-y-auto p-3 md:grid-cols-[200px_minmax(0,1fr)] md:p-4">
         <aside className="rounded-xl border border-sand/70 bg-white p-3">
           <nav className="flex flex-col gap-2">
             <NavLink to="/admin/com-codes" className={navClass}>
