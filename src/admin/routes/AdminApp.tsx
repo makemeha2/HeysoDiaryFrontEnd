@@ -4,6 +4,9 @@ import AdminLayout from '../layouts/AdminLayout';
 import AdminRequireAuth from '../components/AdminRequireAuth';
 import AdminLoginPage from '../pages/AdminLoginPage';
 import AdminComCdPage from '../pages/AdminComCdPage';
+import AdminAiTemplatePage from '../pages/AdminAiTemplatePage';
+import AdminAiBindingPage from '../pages/AdminAiBindingPage';
+import AdminRuntimeProfilePage from '../pages/AdminRuntimeProfilePage';
 
 const ROBOTS_META_NAME = 'robots';
 const ADMIN_ROBOTS_CONTENT = 'noindex,nofollow';
@@ -38,6 +41,9 @@ const AdminApp = () => {
       <Route element={<AdminRequireAuth />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="com-codes" element={<AdminComCdPage />} />
+          <Route path="ai-template/templates" element={<AdminAiTemplatePage />} />
+          <Route path="ai-template/bindings" element={<AdminAiBindingPage />} />
+          <Route path="ai-template/runtime-profiles" element={<AdminRuntimeProfilePage />} />
           <Route index element={<Navigate to="/admin/com-codes" replace />} />
         </Route>
       </Route>

@@ -37,6 +37,23 @@ const AdminLayout = () => {
             <NavLink to="/admin/com-codes" className={navClass}>
               공통코드 관리
             </NavLink>
+
+            <div className="mt-2 flex flex-col gap-1">
+              <span className="px-1 text-xs font-medium text-clay/50 uppercase tracking-wide">
+                AI 프롬프트 설정
+              </span>
+              <div className="ml-2 flex flex-col gap-1">
+                <NavLink to="/admin/ai-template/templates" className={navClass}>
+                  프롬프트 템플릿
+                </NavLink>
+                <NavLink to="/admin/ai-template/bindings" className={navClass}>
+                  바인딩
+                </NavLink>
+                <NavLink to="/admin/ai-template/runtime-profiles" className={navClass}>
+                  런타임 프로파일
+                </NavLink>
+              </div>
+            </div>
           </nav>
         </aside>
         <main className="rounded-xl border border-sand/70 bg-white p-3 md:p-4">
