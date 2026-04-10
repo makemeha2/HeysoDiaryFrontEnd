@@ -46,11 +46,11 @@ const AdminLayout = () => {
                 <NavLink to="/admin/ai-template/templates" className={navClass}>
                   프롬프트 템플릿
                 </NavLink>
-                <NavLink to="/admin/ai-template/bindings" className={navClass}>
-                  바인딩
-                </NavLink>
                 <NavLink to="/admin/ai-template/runtime-profiles" className={navClass}>
                   런타임 프로파일
+                </NavLink>
+                <NavLink to="/admin/ai-template/bindings" className={navClass}>
+                  바인딩
                 </NavLink>
               </div>
             </div>

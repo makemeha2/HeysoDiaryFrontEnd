@@ -17,9 +17,12 @@ import type {
 } from '../types/aiTemplate';
 
 // Runtime Profile
-export async function getAiRuntimeProfileList(status?: string) {
+export async function getAiRuntimeProfileList(status?: string, domainType?: string) {
+  const params: Record<string, string> = {};
+  if (status) params.status = status;
+  if (domainType) params.domainType = domainType;
   return adminFetch<AiRuntimeProfile[]>('/api/admin/ai-template/runtime-profiles', {
-    params: status ? { status } : undefined,
+    params: Object.keys(params).length > 0 ? params : undefined,
   });
 }
 
@@ -44,10 +47,11 @@ export async function deleteAiRuntimeProfile(id: number) {
 }
 
 // Template
-export async function getAiPromptTemplateList(status?: string, templateType?: string) {
+export async function getAiPromptTemplateList(status?: string, templateType?: string, domainType?: string) {
   const params: Record<string, string> = {};
   if (status) params.status = status;
   if (templateType) params.templateType = templateType;
+  if (domainType) params.domainType = domainType;
   return adminFetch<AiPromptTemplateListItem[]>('/api/admin/ai-template/templates', {
     params: Object.keys(params).length > 0 ? params : undefined,
   });

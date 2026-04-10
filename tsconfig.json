@@ -14,17 +14,15 @@
 
     "allowJs": true,
     "checkJs": false,
-
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@pages/*": ["src/pages/*"],
-      "@components/*": ["src/pages/ShareComponents/*"],
-      "@stores/*": ["src/stores/*"],
-      "@lib/*": ["src/lib/*"],
-      "@assets/*": ["src/assets/*"],
-      "@hooks/*": ["src/hooks/*"],
-      "@admin/*": ["src/admin/*"]
+      "@/*": ["./src/*"],
+      "@pages/*": ["./src/pages/*"],
+      "@components/*": ["./src/pages/ShareComponents/*"],
+      "@stores/*": ["./src/stores/*"],
+      "@lib/*": ["./src/lib/*"],
+      "@assets/*": ["./src/assets/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@admin/*": ["./src/admin/*"]
     }
   },
   "include": ["src", "vite.config.js"]

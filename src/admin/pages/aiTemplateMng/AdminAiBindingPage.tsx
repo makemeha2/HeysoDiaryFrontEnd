@@ -11,14 +11,19 @@ import {
   createAiPromptBinding,
   updateAiPromptBinding,
   deleteAiPromptBinding,
+  getAiPromptTemplateList,
+  getAiRuntimeProfileList,
 } from '@admin/lib/aiTemplateApi';
+import { fetchAdminCodeList } from '@admin/lib/comCdApi';
 import { clearAdminAccessToken } from '@admin/lib/auth';
 import type {
   AiPromptBindingListItem,
   AiPromptBindingDetail,
   AiPromptBindingCreateRequest,
+  AiPromptTemplateListItem,
+  AiRuntimeProfile,
 } from '@admin/types/aiTemplate';
-import type { StatusFilter } from '@admin/types/comCd';
+import type { CommonCode, StatusFilter } from '@admin/types/comCd';
 
 type BindingForm = {
   bindingName: string;
@@ -43,6 +48,7 @@ const initialForm: BindingForm = {
 const AdminAiBindingPage = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState<StatusFilter>('ACTIVE');
+  const [domainFilter, setDomainFilter] = useState<string>('');
   const [bindings, setBindings] = useState<AiPromptBindingListItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<AiPromptBindingDetail | null>(null);
@@ -54,6 +60,10 @@ const AdminAiBindingPage = () => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [allTemplates, setAllTemplates] = useState<AiPromptTemplateListItem[]>([]);
+  const [allProfiles, setAllProfiles] = useState<AiRuntimeProfile[]>([]);
+  const [domainCodes, setDomainCodes] = useState<CommonCode[]>([]);
 
   const handleApiError = useCallback(
     (apiStatus: number, fallback: string) => {
@@ -71,14 +81,55 @@ const AdminAiBindingPage = () => {
     [navigate],
   );
 
+  // ComboBox 데이터 초기 로딩
+  useEffect(() => {
+    getAiPromptTemplateList('ALL').then((r) => {
+      if (r.ok) setAllTemplates(r.data ?? []);
+    });
+    getAiRuntimeProfileList('ALL').then((r) => {
+      if (r.ok) setAllProfiles(r.data ?? []);
+    });
+    fetchAdminCodeList('aitp_domain', 'ACTIVE').then((r) => {
+      if (r.ok) setDomainCodes(r.data ?? []);
+    });
+  }, []);
+
+  const selectedSystemTemplateId = Number(form.systemTemplateId);
+  const selectedUserTemplateId = Number(form.userTemplateId);
+  const selectedProfileId = Number(form.runtimeProfileId);
+
+  const systemTemplateOptions = useMemo(() => {
+    return allTemplates.filter(
+      (t) =>
+        t.templateRole === 'SYSTEM' &&
+        (t.isActive === 1 || (Number.isFinite(selectedSystemTemplateId) && t.templateId === selectedSystemTemplateId)),
+    );
+  }, [allTemplates, selectedSystemTemplateId]);
+
+  const userTemplateOptions = useMemo(() => {
+    return allTemplates.filter(
+      (t) =>
+        t.templateRole === 'USER' &&
+        (t.isActive === 1 || (Number.isFinite(selectedUserTemplateId) && t.templateId === selectedUserTemplateId)),
+    );
+  }, [allTemplates, selectedUserTemplateId]);
+
+  const runtimeProfileOptions = useMemo(() => {
+    return allProfiles.filter(
+      (p) =>
+        p.isActive === 1 || (Number.isFinite(selectedProfileId) && p.runtimeProfileId === selectedProfileId),
+    );
+  }, [allProfiles, selectedProfileId]);
+
   const loadBindings = useCallback(
-    async (s: StatusFilter) => {
+    async (s: StatusFilter, d: string) => {
       const result = await getAiPromptBindingList(s);
       if (!result.ok) {
         handleApiError(result.status, '바인딩 목록을 불러오지 못했습니다.');
         return;
       }
-      setBindings(result.data ?? []);
+      const next = result.data ?? [];
+      setBindings(d ? next.filter((b) => b.domainType === d) : next);
     },
     [handleApiError],
   );
@@ -99,8 +150,8 @@ const AdminAiBindingPage = () => {
     setErrorMessage(null);
     setSelectedId(null);
     setDetail(null);
-    loadBindings(status);
-  }, [status, loadBindings]);
+    loadBindings(status, domainFilter);
+  }, [status, domainFilter, loadBindings]);
 
   useEffect(() => {
     if (selectedId != null) {
@@ -148,7 +199,7 @@ const AdminAiBindingPage = () => {
       !form.userTemplateId.trim() ||
       !form.runtimeProfileId.trim()
     ) {
-      setErrorMessage('바인딩명, 도메인, Feature Key, System/User 템플릿 ID, 런타임 프로파일 ID는 필수입니다.');
+      setErrorMessage('바인딩명, 도메인, Feature Key, System/User 템플릿, 런타임 프로파일은 필수입니다.');
       return;
     }
     setErrorMessage(null);
@@ -182,7 +233,7 @@ const AdminAiBindingPage = () => {
 
     setAlertMessage(editingBinding == null ? '등록되었습니다.' : '수정되었습니다.');
     setIsFormOpen(false);
-    await loadBindings(status);
+    await loadBindings(status, domainFilter);
     if (selectedId != null) await loadDetail(selectedId);
   };
 
@@ -198,7 +249,7 @@ const AdminAiBindingPage = () => {
       setSelectedId(null);
       setDetail(null);
     }
-    await loadBindings(status);
+    await loadBindings(status, domainFilter);
   };
 
   const listColumns = useMemo<ColumnDef<AiPromptBindingListItem>[]>(
@@ -238,16 +289,32 @@ const AdminAiBindingPage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[5fr_5fr]">
-        {/* 목록 */}
-        <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-sand/60 bg-linen/60 p-3">
+      <div className="flex flex-col gap-4">
+        {/* 목록 - 50vh */}
+        <section
+          className="flex min-w-0 flex-col gap-3 overflow-auto rounded-xl border border-sand/60 bg-linen/60 p-3"
+          style={{ height: '50vh' }}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold text-clay">바인딩 목록</h2>
             <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-1 text-xs text-clay">
+                도메인
+                <select
+                  value={domainFilter}
+                  onChange={(e) => setDomainFilter(e.target.value)}
+                  className="rounded border border-sand px-2 py-1 text-xs"
+                >
+                  <option value="">전체</option>
+                  {domainCodes.map((c) => (
+                    <option key={c.codeId} value={c.codeId}>{c.codeName}</option>
+                  ))}
+                </select>
+              </label>
               <StatusFilterSelect value={status} onChange={setStatus} />
               <button
                 type="button"
-                onClick={() => loadBindings(status)}
+                onClick={() => loadBindings(status, domainFilter)}
                 className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
               >
                 새로고침
@@ -269,12 +336,14 @@ const AdminAiBindingPage = () => {
             onRowClick={(row) => setSelectedId(row.bindingId)}
             selectedKey={selectedId != null ? String(selectedId) : null}
             emptyMessage="바인딩이 없습니다."
-            maxHeightClassName="max-h-[400px]"
           />
         </section>
 
-        {/* 상세 */}
-        <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-sand/60 bg-linen/60 p-3">
+        {/* 상세 - 50vh */}
+        <section
+          className="flex min-w-0 flex-col gap-3 overflow-auto rounded-xl border border-sand/60 bg-linen/60 p-3"
+          style={{ height: '50vh' }}
+        >
           <h2 className="font-semibold text-clay">상세</h2>
 
           {detail == null ? (
@@ -346,17 +415,17 @@ const AdminAiBindingPage = () => {
         </section>
       </div>
 
-      {/* 등록/수정 다이얼로그 */}
+      {/* 등록/수정 다이얼로그 - 너비 2배 확대 */}
       <Dialog.Root open={isFormOpen} onOpenChange={setIsFormOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-[51] w-[92vw] max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-lg border border-sand/60 bg-white p-4 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[51] w-[92vw] max-w-4xl -translate-x-1/2 -translate-y-1/2 rounded-lg border border-sand/60 bg-white p-4 shadow-xl">
             <Dialog.Title className="text-sm font-semibold text-clay">
               {editingBinding == null ? '바인딩 등록' : '바인딩 수정'}
             </Dialog.Title>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-              <label className="flex flex-col gap-1 md:col-span-2">
+            <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+              <label className="flex flex-col gap-1 md:col-span-3">
                 <span className="text-xs text-clay/80">바인딩명 <span className="text-blush">*</span></span>
                 <input
                   value={form.bindingName}
@@ -366,12 +435,16 @@ const AdminAiBindingPage = () => {
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs text-clay/80">도메인 유형 <span className="text-blush">*</span></span>
-                <input
+                <select
                   value={form.domainType}
                   onChange={(e) => setForm((p) => ({ ...p, domainType: e.target.value }))}
                   className="rounded border border-sand px-3 py-2 text-sm"
-                  placeholder="예: DIARY_AI"
-                />
+                >
+                  <option value="">선택</option>
+                  {domainCodes.map((c) => (
+                    <option key={c.codeId} value={c.codeId}>{c.codeName}</option>
+                  ))}
+                </select>
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs text-clay/80">Feature Key <span className="text-blush">*</span></span>
@@ -383,37 +456,53 @@ const AdminAiBindingPage = () => {
                   placeholder="예: COMMENT"
                 />
               </label>
+              <div />
               <label className="flex flex-col gap-1">
-                <span className="text-xs text-clay/80">System 템플릿 ID <span className="text-blush">*</span></span>
-                <input
-                  type="number"
+                <span className="text-xs text-clay/80">System 템플릿 <span className="text-blush">*</span></span>
+                <select
                   value={form.systemTemplateId}
                   onChange={(e) => setForm((p) => ({ ...p, systemTemplateId: e.target.value }))}
                   className="rounded border border-sand px-3 py-2 text-sm"
-                  placeholder="예: 1"
-                />
+                >
+                  <option value="">선택</option>
+                  {systemTemplateOptions.map((t) => (
+                    <option key={t.templateId} value={String(t.templateId)}>
+                      {t.templateKey} — {t.templateName}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-xs text-clay/80">User 템플릿 ID <span className="text-blush">*</span></span>
-                <input
-                  type="number"
+                <span className="text-xs text-clay/80">User 템플릿 <span className="text-blush">*</span></span>
+                <select
                   value={form.userTemplateId}
                   onChange={(e) => setForm((p) => ({ ...p, userTemplateId: e.target.value }))}
                   className="rounded border border-sand px-3 py-2 text-sm"
-                  placeholder="예: 2"
-                />
+                >
+                  <option value="">선택</option>
+                  {userTemplateOptions.map((t) => (
+                    <option key={t.templateId} value={String(t.templateId)}>
+                      {t.templateKey} — {t.templateName}
+                    </option>
+                  ))}
+                </select>
               </label>
-              <label className="flex flex-col gap-1 md:col-span-2">
-                <span className="text-xs text-clay/80">Runtime Profile ID <span className="text-blush">*</span></span>
-                <input
-                  type="number"
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-clay/80">Runtime Profile <span className="text-blush">*</span></span>
+                <select
                   value={form.runtimeProfileId}
                   onChange={(e) => setForm((p) => ({ ...p, runtimeProfileId: e.target.value }))}
                   className="rounded border border-sand px-3 py-2 text-sm"
-                  placeholder="예: 1"
-                />
+                >
+                  <option value="">선택</option>
+                  {runtimeProfileOptions.map((p) => (
+                    <option key={p.runtimeProfileId} value={String(p.runtimeProfileId)}>
+                      {p.profileKey} — {p.profileName}
+                    </option>
+                  ))}
+                </select>
               </label>
-              <label className="flex flex-col gap-1 md:col-span-2">
+              <label className="flex flex-col gap-1 md:col-span-3">
                 <span className="text-xs text-clay/80">설명</span>
                 <textarea
                   value={form.description}

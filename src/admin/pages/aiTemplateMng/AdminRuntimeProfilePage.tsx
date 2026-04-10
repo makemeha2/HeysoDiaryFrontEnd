@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -11,9 +11,10 @@ import {
   updateAiRuntimeProfile,
   deleteAiRuntimeProfile,
 } from '@admin/lib/aiTemplateApi';
+import { fetchAdminCodeList } from '@admin/lib/comCdApi';
 import { clearAdminAccessToken } from '@admin/lib/auth';
 import type { AiRuntimeProfile, AiRuntimeProfileCreateRequest } from '@admin/types/aiTemplate';
-import type { StatusFilter } from '@admin/types/comCd';
+import type { CommonCode, StatusFilter } from '@admin/types/comCd';
 
 type ProfileForm = {
   profileKey: string;
@@ -21,6 +22,7 @@ type ProfileForm = {
   domainType: string;
   provider: string;
   model: string;
+  modelName: string;
   temperature: string;
   topP: string;
   maxTokens: string;
@@ -34,6 +36,7 @@ const initialForm: ProfileForm = {
   domainType: '',
   provider: '',
   model: '',
+  modelName: '',
   temperature: '',
   topP: '',
   maxTokens: '',
@@ -41,9 +44,19 @@ const initialForm: ProfileForm = {
   isActive: true,
 };
 
+const MODEL_REFERENCE = [
+  { provider: 'OpenAI', model: 'GPT-4o', feature: '자연스러운 문장 + 속도 빠름, 멀티모달 강점', usage: '일기 생성, 실시간 대화형 글쓰기' },
+  { provider: '', model: 'GPT-4o-mini', feature: '저비용 + 준수한 문장 품질', usage: '대량 일기 생성, 비용 최적화' },
+  { provider: '', model: 'GPT-4 Turbo', feature: '구조적 글쓰기 + 안정적인 문장', usage: '일기 다듬기/교정 (Editing)' },
+  { provider: 'Anthropic', model: 'Claude 3 Opus', feature: '감정 표현 + 서사형 글쓰기 매우 강함', usage: '감성 일기, 스토리형 글' },
+  { provider: '', model: 'Claude 3.5 Sonnet', feature: '긴 문맥 유지 + 논리 + 자연스러움', usage: '일기 분석 + 개선' },
+  { provider: '', model: 'Claude 4 Sonnet', feature: '긴 글 처리 + 일관성 유지 최고 수준', usage: '장기 일기 분석, 회고' },
+];
+
 const AdminRuntimeProfilePage = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState<StatusFilter>('ACTIVE');
+  const [domainFilter, setDomainFilter] = useState<string>('');
   const [profiles, setProfiles] = useState<AiRuntimeProfile[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<AiRuntimeProfile | null>(null);
@@ -51,6 +64,9 @@ const AdminRuntimeProfilePage = () => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  const [domainCodes, setDomainCodes] = useState<CommonCode[]>([]);
+  const [aiModelCodes, setAiModelCodes] = useState<CommonCode[]>([]);
 
   const handleApiError = useCallback(
     (apiStatus: number, fallback: string) => {
@@ -68,9 +84,31 @@ const AdminRuntimeProfilePage = () => {
     [navigate],
   );
 
+  // 도메인 코드 & AI 모델 코드 초기 로딩 (단일 호출)
+  useEffect(() => {
+    fetchAdminCodeList('aitp_domain', 'ACTIVE').then((r) => {
+      if (r.ok) setDomainCodes(r.data ?? []);
+    });
+    fetchAdminCodeList('ai_models', 'ACTIVE').then((r) => {
+      if (r.ok) setAiModelCodes(r.data ?? []);
+    });
+  }, []);
+
+  // provider 옵션: extraInfo1 기준으로 중복 제거
+  const providerOptions = useMemo(
+    () => [...new Set(aiModelCodes.map((c) => c.extraInfo1).filter((v): v is string => !!v))],
+    [aiModelCodes],
+  );
+
+  // model 옵션: 선택된 provider에 맞는 모델만
+  const modelOptions = useMemo(
+    () => (form.provider ? aiModelCodes.filter((c) => c.extraInfo1 === form.provider) : aiModelCodes),
+    [aiModelCodes, form.provider],
+  );
+
   const loadProfiles = useCallback(
-    async (s: StatusFilter) => {
-      const result = await getAiRuntimeProfileList(s);
+    async (s: StatusFilter, d: string) => {
+      const result = await getAiRuntimeProfileList(s, d || undefined);
       if (!result.ok) {
         handleApiError(result.status, '런타임 프로파일 목록을 불러오지 못했습니다.');
         return;
@@ -82,8 +120,8 @@ const AdminRuntimeProfilePage = () => {
 
   useEffect(() => {
     setErrorMessage(null);
-    loadProfiles(status);
-  }, [status, loadProfiles]);
+    loadProfiles(status, domainFilter);
+  }, [status, domainFilter, loadProfiles]);
 
   const handleOpenCreate = () => {
     setEditingProfile(null);
@@ -99,6 +137,7 @@ const AdminRuntimeProfilePage = () => {
       domainType: profile.domainType,
       provider: profile.provider ?? '',
       model: profile.model,
+      modelName: profile.modelName,
       temperature: profile.temperature != null ? String(profile.temperature) : '',
       topP: profile.topP != null ? String(profile.topP) : '',
       maxTokens: profile.maxTokens != null ? String(profile.maxTokens) : '',
@@ -148,7 +187,7 @@ const AdminRuntimeProfilePage = () => {
 
     setAlertMessage(editingProfile == null ? '등록되었습니다.' : '수정되었습니다.');
     setIsDialogOpen(false);
-    await loadProfiles(status);
+    await loadProfiles(status, domainFilter);
   };
 
   const handleDelete = async (id: number) => {
@@ -159,7 +198,7 @@ const AdminRuntimeProfilePage = () => {
     }
     setAlertMessage('삭제되었습니다.');
     setConfirmDeleteId(null);
-    await loadProfiles(status);
+    await loadProfiles(status, domainFilter);
   };
 
   const columns = useMemo<ColumnDef<AiRuntimeProfile>[]>(
@@ -167,7 +206,8 @@ const AdminRuntimeProfilePage = () => {
       { accessorKey: 'profileKey', header: 'Profile Key' },
       { accessorKey: 'profileName', header: '프로파일명' },
       { accessorKey: 'domainType', header: '도메인' },
-      { accessorKey: 'model', header: '모델' },
+      { accessorKey: 'provider', header: 'Provider' },
+      { accessorKey: 'modelName', header: '모델' },
       {
         accessorKey: 'temperature',
         header: 'Temperature',
@@ -250,11 +290,24 @@ const AdminRuntimeProfilePage = () => {
       <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-sand/60 bg-linen/60 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold text-clay">프로파일 목록</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-1 text-xs text-clay">
+              도메인
+              <select
+                value={domainFilter}
+                onChange={(e) => setDomainFilter(e.target.value)}
+                className="rounded border border-sand px-2 py-1 text-xs"
+              >
+                <option value="">전체</option>
+                {domainCodes.map((c) => (
+                  <option key={c.codeId} value={c.codeId}>{c.codeName}</option>
+                ))}
+              </select>
+            </label>
             <StatusFilterSelect value={status} onChange={setStatus} />
             <button
               type="button"
-              onClick={() => loadProfiles(status)}
+              onClick={() => loadProfiles(status, domainFilter)}
               className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
             >
               새로고침
@@ -274,8 +327,62 @@ const AdminRuntimeProfilePage = () => {
           columns={columns}
           rowKey={(row) => String(row.runtimeProfileId)}
           emptyMessage="런타임 프로파일이 없습니다."
-          maxHeightClassName="max-h-[500px]"
+          maxHeightClassName="max-h-[400px]"
         />
+
+        {/* 모델 참조표 */}
+        <div className="mt-2">
+          <h3 className="mb-2 text-xs font-semibold text-clay/80">AI 모델 참조표 (일기/글쓰기 관점)</h3>
+          <div className="overflow-auto rounded-lg border border-sand/60">
+            <table className="w-full min-w-[560px] text-xs">
+              <thead>
+                <tr className="bg-sand/40 text-left text-clay">
+                  <th className="px-3 py-2 font-semibold">구분</th>
+                  <th className="px-3 py-2 font-semibold">모델</th>
+                  <th className="px-3 py-2 font-semibold">특징 (일기/글쓰기 관점)</th>
+                  <th className="px-3 py-2 font-semibold">추천 용도</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-sand/40">
+                {(() => {
+                  const rows: React.ReactNode[] = [];
+                  let i = 0;
+                  while (i < MODEL_REFERENCE.length) {
+                    const providerName = MODEL_REFERENCE[i].provider;
+                    if (providerName) {
+                      let span = 1;
+                      while (i + span < MODEL_REFERENCE.length && !MODEL_REFERENCE[i + span].provider) {
+                        span++;
+                      }
+                      for (let j = 0; j < span; j++) {
+                        const item = MODEL_REFERENCE[i + j];
+                        rows.push(
+                          <tr key={item.model} className="bg-white hover:bg-linen/60">
+                            {j === 0 && (
+                              <td
+                                rowSpan={span}
+                                className="border-r border-sand/40 px-3 py-2 align-middle font-semibold text-clay"
+                              >
+                                {providerName}
+                              </td>
+                            )}
+                            <td className="px-3 py-2 font-medium text-clay">{item.model}</td>
+                            <td className="px-3 py-2 text-clay/80">{item.feature}</td>
+                            <td className="px-3 py-2 text-clay/80">{item.usage}</td>
+                          </tr>,
+                        );
+                      }
+                      i += span;
+                    } else {
+                      i++;
+                    }
+                  }
+                  return rows;
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       {/* 등록/수정 다이얼로그 */}
@@ -308,30 +415,44 @@ const AdminRuntimeProfilePage = () => {
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs text-clay/80">도메인 유형 <span className="text-blush">*</span></span>
-                <input
+                <select
                   value={form.domainType}
                   onChange={(e) => setForm((p) => ({ ...p, domainType: e.target.value }))}
                   className="rounded border border-sand px-3 py-2 text-sm"
-                  placeholder="예: DIARY"
-                />
+                >
+                  <option value="">선택</option>
+                  {domainCodes.map((c) => (
+                    <option key={c.codeId} value={c.codeId}>{c.codeName}</option>
+                  ))}
+                </select>
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs text-clay/80">Provider</span>
-                <input
+                <select
                   value={form.provider}
-                  onChange={(e) => setForm((p) => ({ ...p, provider: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, provider: e.target.value, model: '' }))
+                  }
                   className="rounded border border-sand px-3 py-2 text-sm"
-                  placeholder="예: openai"
-                />
+                >
+                  <option value="">선택 안함</option>
+                  {providerOptions.map((pv) => (
+                    <option key={pv} value={pv}>{pv}</option>
+                  ))}
+                </select>
               </label>
               <label className="flex flex-col gap-1 md:col-span-2">
                 <span className="text-xs text-clay/80">모델 <span className="text-blush">*</span></span>
-                <input
+                <select
                   value={form.model}
                   onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))}
                   className="rounded border border-sand px-3 py-2 text-sm"
-                  placeholder="예: gpt-4o"
-                />
+                >
+                  <option value="">선택</option>
+                  {modelOptions.map((c) => (
+                    <option key={c.codeId} value={c.codeId}>{c.codeName}</option>
+                  ))}
+                </select>
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs text-clay/80">Temperature</span>

@@ -4,9 +4,9 @@ import AdminLayout from '../layouts/AdminLayout';
 import AdminRequireAuth from '../components/AdminRequireAuth';
 import AdminLoginPage from '../pages/AdminLoginPage';
 import AdminComCdPage from '../pages/AdminComCdPage';
-import AdminAiTemplatePage from '../pages/AdminAiTemplatePage';
-import AdminAiBindingPage from '../pages/AdminAiBindingPage';
-import AdminRuntimeProfilePage from '../pages/AdminRuntimeProfilePage';
+import AdminAiTemplatePage from '../pages/aiTemplateMng/AdminAiTemplatePage';
+import AdminAiBindingPage from '../pages/aiTemplateMng/AdminAiBindingPage';
+import AdminRuntimeProfilePage from '../pages/aiTemplateMng/AdminRuntimeProfilePage';
 
 const ROBOTS_META_NAME = 'robots';
 const ADMIN_ROBOTS_CONTENT = 'noindex,nofollow';

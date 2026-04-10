@@ -6,6 +6,7 @@ export type AiRuntimeProfile = {
   domainType: string;
   provider: string | null;
   model: string;
+  modelName: string;
   temperature: number | null;
   topP: number | null;
   maxTokens: number | null;
@@ -74,7 +75,9 @@ export type AiPromptTemplateCreateRequest = {
   description?: string;
 };
 
-export type AiPromptTemplateUpdateRequest = Omit<AiPromptTemplateCreateRequest, 'templateKey'>;
+export type AiPromptTemplateUpdateRequest = Omit<AiPromptTemplateCreateRequest, 'templateKey'> & {
+  isActive?: number;
+};
 
 export type AiPromptTemplateRelCreateRequest = {
   childTemplateId: number;

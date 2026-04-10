@@ -10,11 +10,11 @@ import {
   getAiPromptTemplateDetail,
   createAiPromptTemplate,
   updateAiPromptTemplate,
-  deleteAiPromptTemplate,
   addTemplateRelation,
   deleteTemplateRelation,
   previewTemplate,
 } from '@admin/lib/aiTemplateApi';
+import { fetchAdminCodeList } from '@admin/lib/comCdApi';
 import { clearAdminAccessToken } from '@admin/lib/auth';
 import type {
   AiPromptTemplateListItem,
@@ -22,7 +22,7 @@ import type {
   AiPromptTemplateCreateRequest,
   AiPromptTemplateRelItem,
 } from '@admin/types/aiTemplate';
-import type { StatusFilter } from '@admin/types/comCd';
+import type { CommonCode, StatusFilter } from '@admin/types/comCd';
 
 type TemplateForm = {
   templateKey: string;
@@ -33,6 +33,7 @@ type TemplateForm = {
   templateType: string;
   content: string;
   description: string;
+  isActive: number;
 };
 
 const initialForm: TemplateForm = {
@@ -44,10 +45,11 @@ const initialForm: TemplateForm = {
   templateType: 'ROOT',
   content: '',
   description: '',
+  isActive: 1,
 };
 
 type RelForm = {
-  childTemplateId: string;
+  childTemplateId: number | '';
   mergeType: string;
   sortSeq: string;
 };
@@ -62,9 +64,13 @@ const AdminAiTemplatePage = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState<StatusFilter>('ACTIVE');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [domainFilter, setDomainFilter] = useState<string>('');
   const [templates, setTemplates] = useState<AiPromptTemplateListItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<AiPromptTemplateDetail | null>(null);
+
+  const [domainCodes, setDomainCodes] = useState<CommonCode[]>([]);
+  const [fragmentOptions, setFragmentOptions] = useState<AiPromptTemplateListItem[]>([]);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<AiPromptTemplateListItem | null>(null);
@@ -78,7 +84,6 @@ const AdminAiTemplatePage = () => {
   const [previewResult, setPreviewResult] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [confirmDeleteRelId, setConfirmDeleteRelId] = useState<number | null>(null);
 
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
@@ -100,9 +105,23 @@ const AdminAiTemplatePage = () => {
     [navigate],
   );
 
+  // 도메인 코드 & Fragment 후보 초기 로딩
+  useEffect(() => {
+    fetchAdminCodeList('aitp_domain', 'ACTIVE').then((r) => {
+      if (r.ok) setDomainCodes(r.data ?? []);
+    });
+    getAiPromptTemplateList('ACTIVE', 'FRAGMENT').then((r) => {
+      if (r.ok) setFragmentOptions(r.data ?? []);
+    });
+  }, []);
+
   const loadTemplates = useCallback(
-    async (s: StatusFilter, t: string) => {
-      const result = await getAiPromptTemplateList(s, t === 'ALL' ? undefined : t);
+    async (s: StatusFilter, t: string, d: string) => {
+      const result = await getAiPromptTemplateList(
+        s,
+        t === 'ALL' ? undefined : t,
+        d || undefined,
+      );
       if (!result.ok) {
         handleApiError(result.status, '템플릿 목록을 불러오지 못했습니다.');
         return;
@@ -128,8 +147,8 @@ const AdminAiTemplatePage = () => {
     setErrorMessage(null);
     setSelectedId(null);
     setDetail(null);
-    loadTemplates(status, typeFilter);
-  }, [status, typeFilter, loadTemplates]);
+    loadTemplates(status, typeFilter, domainFilter);
+  }, [status, typeFilter, domainFilter, loadTemplates]);
 
   useEffect(() => {
     if (selectedId != null) {
@@ -156,6 +175,7 @@ const AdminAiTemplatePage = () => {
       templateType: t.templateType,
       content: '',
       description: '',
+      isActive: t.isActive,
     });
     setIsFormOpen(true);
   }, []);
@@ -199,6 +219,7 @@ const AdminAiTemplatePage = () => {
             templateType: payload.templateType,
             content: payload.content,
             description: payload.description,
+            isActive: form.isActive,
           });
 
     if (!result.ok) {
@@ -208,28 +229,16 @@ const AdminAiTemplatePage = () => {
 
     setAlertMessage(editingTemplate == null ? '등록되었습니다.' : '수정되었습니다.');
     setIsFormOpen(false);
-    await loadTemplates(status, typeFilter);
+    await loadTemplates(status, typeFilter, domainFilter);
     if (selectedId != null) await loadDetail(selectedId);
-  };
-
-  const handleDelete = async (id: number) => {
-    const result = await deleteAiPromptTemplate(id);
-    if (!result.ok) {
-      handleApiError(result.status, result.errorMessage ?? '삭제에 실패했습니다.');
-      return;
-    }
-    setAlertMessage('삭제되었습니다.');
-    setConfirmDeleteId(null);
-    if (selectedId === id) {
-      setSelectedId(null);
-      setDetail(null);
-    }
-    await loadTemplates(status, typeFilter);
+    getAiPromptTemplateList('ACTIVE', 'FRAGMENT').then((r) => {
+      if (r.ok) setFragmentOptions(r.data ?? []);
+    });
   };
 
   const handleAddRelation = async () => {
-    if (!relForm.childTemplateId.trim()) {
-      setErrorMessage('Fragment 템플릿 ID를 입력하세요.');
+    if (relForm.childTemplateId === '') {
+      setErrorMessage('Fragment 템플릿을 선택하세요.');
       return;
     }
     if (selectedId == null) return;
@@ -351,12 +360,28 @@ const AdminAiTemplatePage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[5fr_5fr]">
-        {/* 목록 */}
-        <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-sand/60 bg-linen/60 p-3">
+      <div className="flex flex-col gap-4">
+        {/* 목록 - 40vh */}
+        <section
+          className="flex min-w-0 flex-col gap-3 overflow-auto rounded-xl border border-sand/60 bg-linen/60 p-3"
+          style={{ height: '40vh' }}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold text-clay">템플릿 목록</h2>
             <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-1 text-xs text-clay">
+                도메인
+                <select
+                  value={domainFilter}
+                  onChange={(e) => setDomainFilter(e.target.value)}
+                  className="rounded border border-sand px-2 py-1 text-xs"
+                >
+                  <option value="">전체</option>
+                  {domainCodes.map((c) => (
+                    <option key={c.codeId} value={c.codeId}>{c.codeName}</option>
+                  ))}
+                </select>
+              </label>
               <label className="flex items-center gap-1 text-xs text-clay">
                 타입
                 <select
@@ -372,7 +397,7 @@ const AdminAiTemplatePage = () => {
               <StatusFilterSelect value={status} onChange={setStatus} />
               <button
                 type="button"
-                onClick={() => loadTemplates(status, typeFilter)}
+                onClick={() => loadTemplates(status, typeFilter, domainFilter)}
                 className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
               >
                 새로고침
@@ -394,12 +419,14 @@ const AdminAiTemplatePage = () => {
             onRowClick={(row) => setSelectedId(row.templateId)}
             selectedKey={selectedId != null ? String(selectedId) : null}
             emptyMessage="템플릿이 없습니다."
-            maxHeightClassName="max-h-[400px]"
           />
         </section>
 
-        {/* 상세 */}
-        <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-sand/60 bg-linen/60 p-3">
+        {/* 상세 - 60vh */}
+        <section
+          className="flex min-w-0 flex-col gap-3 overflow-auto rounded-xl border border-sand/60 bg-linen/60 p-3"
+          style={{ height: '60vh' }}
+        >
           <h2 className="font-semibold text-clay">상세</h2>
 
           {detail == null ? (
@@ -443,19 +470,10 @@ const AdminAiTemplatePage = () => {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    handleOpenEdit(detail);
-                  }}
+                  onClick={() => handleOpenEdit(detail)}
                   className="rounded border border-sand px-3 py-1 text-xs text-clay hover:bg-sand/30"
                 >
                   수정
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteId(detail.templateId)}
-                  className="rounded border border-sand px-3 py-1 text-xs text-clay/70 hover:bg-sand/30"
-                >
-                  삭제
                 </button>
                 <button
                   type="button"
@@ -531,12 +549,16 @@ const AdminAiTemplatePage = () => {
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs text-clay/80">도메인 유형 <span className="text-blush">*</span></span>
-                <input
+                <select
                   value={form.domainType}
                   onChange={(e) => setForm((p) => ({ ...p, domainType: e.target.value }))}
                   className="rounded border border-sand px-3 py-2 text-sm"
-                  placeholder="예: DIARY"
-                />
+                >
+                  <option value="">선택</option>
+                  {domainCodes.map((c) => (
+                    <option key={c.codeId} value={c.codeId}>{c.codeName}</option>
+                  ))}
+                </select>
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs text-clay/80">Feature Key</span>
@@ -569,6 +591,19 @@ const AdminAiTemplatePage = () => {
                   <option value="FRAGMENT">FRAGMENT</option>
                 </select>
               </label>
+              {editingTemplate != null && (
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-clay/80">활성 상태</span>
+                  <select
+                    value={String(form.isActive)}
+                    onChange={(e) => setForm((p) => ({ ...p, isActive: Number(e.target.value) }))}
+                    className="rounded border border-sand px-3 py-2 text-sm"
+                  >
+                    <option value="1">활성</option>
+                    <option value="0">비활성</option>
+                  </select>
+                </label>
+              )}
               <label className="flex flex-col gap-1 md:col-span-2">
                 <span className="text-xs text-clay/80">내용 <span className="text-blush">*</span></span>
                 <textarea
@@ -619,14 +654,24 @@ const AdminAiTemplatePage = () => {
 
             <div className="mt-4 flex flex-col gap-3 text-sm">
               <label className="flex flex-col gap-1">
-                <span className="text-xs text-clay/80">Fragment 템플릿 ID <span className="text-blush">*</span></span>
-                <input
-                  type="number"
-                  value={relForm.childTemplateId}
-                  onChange={(e) => setRelForm((p) => ({ ...p, childTemplateId: e.target.value }))}
+                <span className="text-xs text-clay/80">Fragment 템플릿 <span className="text-blush">*</span></span>
+                <select
+                  value={relForm.childTemplateId === '' ? '' : String(relForm.childTemplateId)}
+                  onChange={(e) =>
+                    setRelForm((p) => ({
+                      ...p,
+                      childTemplateId: e.target.value === '' ? '' : Number(e.target.value),
+                    }))
+                  }
                   className="rounded border border-sand px-3 py-2 text-sm"
-                  placeholder="예: 42"
-                />
+                >
+                  <option value="">선택</option>
+                  {fragmentOptions.map((t) => (
+                    <option key={t.templateId} value={String(t.templateId)}>
+                      {t.templateKey} — {t.templateName}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs text-clay/80">조합 방식</span>
@@ -726,37 +771,11 @@ const AdminAiTemplatePage = () => {
         </Dialog.Portal>
       </Dialog.Root>
 
-      {/* 삭제 확인 - 템플릿 */}
-      <Dialog.Root open={confirmDeleteId != null} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-[51] w-[90vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-sand/60 bg-white p-4 shadow-xl">
-            <Dialog.Title className="text-sm font-semibold text-clay">삭제 확인</Dialog.Title>
-            <Dialog.Description className="mt-2 text-sm text-clay/80">
-              이 템플릿을 삭제하시겠습니까? (비활성 처리됩니다)
-            </Dialog.Description>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDeleteId(null)}
-                className="rounded border border-sand px-3 py-1.5 text-xs text-clay sm:text-sm"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={() => confirmDeleteId != null && handleDelete(confirmDeleteId)}
-                className="rounded bg-clay px-3 py-1.5 text-xs text-white sm:text-sm"
-              >
-                삭제
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-
-      {/* 삭제 확인 - Fragment 관계 */}
-      <Dialog.Root open={confirmDeleteRelId != null} onOpenChange={(open) => { if (!open) setConfirmDeleteRelId(null); }}>
+      {/* Fragment 연결 삭제 확인 */}
+      <Dialog.Root
+        open={confirmDeleteRelId != null}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteRelId(null); }}
+      >
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-[51] w-[90vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-sand/60 bg-white p-4 shadow-xl">
