@@ -9,7 +9,6 @@ import {
   getAiRuntimeProfileList,
   createAiRuntimeProfile,
   updateAiRuntimeProfile,
-  deleteAiRuntimeProfile,
 } from '@admin/lib/aiTemplateApi';
 import { fetchAdminCodeList } from '@admin/lib/comCdApi';
 import { clearAdminAccessToken } from '@admin/lib/auth';
@@ -27,7 +26,7 @@ type ProfileForm = {
   topP: string;
   maxTokens: string;
   description: string;
-  isActive: boolean;
+  isActive: number;
 };
 
 const initialForm: ProfileForm = {
@@ -41,7 +40,7 @@ const initialForm: ProfileForm = {
   topP: '',
   maxTokens: '',
   description: '',
-  isActive: true,
+  isActive: 1,
 };
 
 const MODEL_REFERENCE = [
@@ -63,7 +62,6 @@ const AdminRuntimeProfilePage = () => {
   const [form, setForm] = useState<ProfileForm>(initialForm);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const [domainCodes, setDomainCodes] = useState<CommonCode[]>([]);
   const [aiModelCodes, setAiModelCodes] = useState<CommonCode[]>([]);
@@ -142,7 +140,7 @@ const AdminRuntimeProfilePage = () => {
       topP: profile.topP != null ? String(profile.topP) : '',
       maxTokens: profile.maxTokens != null ? String(profile.maxTokens) : '',
       description: profile.description ?? '',
-      isActive: profile.isActive === 1,
+      isActive: profile.isActive,
     });
     setIsDialogOpen(true);
   }, []);
@@ -178,6 +176,7 @@ const AdminRuntimeProfilePage = () => {
             topP: payload.topP,
             maxTokens: payload.maxTokens,
             description: payload.description,
+            isActive: form.isActive,
           });
 
     if (!result.ok) {
@@ -190,16 +189,6 @@ const AdminRuntimeProfilePage = () => {
     await loadProfiles(status, domainFilter);
   };
 
-  const handleDelete = async (id: number) => {
-    const result = await deleteAiRuntimeProfile(id);
-    if (!result.ok) {
-      handleApiError(result.status, result.errorMessage ?? '삭제에 실패했습니다.');
-      return;
-    }
-    setAlertMessage('삭제되었습니다.');
-    setConfirmDeleteId(null);
-    await loadProfiles(status, domainFilter);
-  };
 
   const columns = useMemo<ColumnDef<AiRuntimeProfile>[]>(
     () => [
@@ -242,28 +231,16 @@ const AdminRuntimeProfilePage = () => {
         id: 'actions',
         header: '',
         cell: ({ row }) => (
-          <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenEdit(row.original);
-              }}
-              className="rounded border border-sand px-2 py-0.5 text-xs text-clay hover:bg-sand/30"
-            >
-              수정
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setConfirmDeleteId(row.original.runtimeProfileId);
-              }}
-              className="rounded border border-sand px-2 py-0.5 text-xs text-clay/70 hover:bg-sand/30"
-            >
-              삭제
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenEdit(row.original);
+            }}
+            className="rounded border border-sand px-2 py-0.5 text-xs text-clay hover:bg-sand/30"
+          >
+            수정
+          </button>
         ),
       },
     ],
@@ -492,6 +469,19 @@ const AdminRuntimeProfilePage = () => {
                   placeholder="예: 2000"
                 />
               </label>
+              {!isCreateMode && (
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-clay/80">활성 상태</span>
+                  <select
+                    value={String(form.isActive)}
+                    onChange={(e) => setForm((p) => ({ ...p, isActive: Number(e.target.value) }))}
+                    className="rounded border border-sand px-3 py-2 text-sm"
+                  >
+                    <option value="1">활성</option>
+                    <option value="0">비활성</option>
+                  </select>
+                </label>
+              )}
               <label className="flex flex-col gap-1 md:col-span-2">
                 <span className="text-xs text-clay/80">설명</span>
                 <textarea
@@ -517,35 +507,6 @@ const AdminRuntimeProfilePage = () => {
                 className="rounded bg-clay px-3 py-1.5 text-xs text-white sm:text-sm"
               >
                 저장
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-
-      {/* 삭제 확인 다이얼로그 */}
-      <Dialog.Root open={confirmDeleteId != null} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-[51] w-[90vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-sand/60 bg-white p-4 shadow-xl">
-            <Dialog.Title className="text-sm font-semibold text-clay">삭제 확인</Dialog.Title>
-            <Dialog.Description className="mt-2 text-sm text-clay/80">
-              이 런타임 프로파일을 삭제하시겠습니까? (비활성 처리됩니다)
-            </Dialog.Description>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDeleteId(null)}
-                className="rounded border border-sand px-3 py-1.5 text-xs text-clay sm:text-sm"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={() => confirmDeleteId != null && handleDelete(confirmDeleteId)}
-                className="rounded bg-clay px-3 py-1.5 text-xs text-white sm:text-sm"
-              >
-                삭제
               </button>
             </div>
           </Dialog.Content>

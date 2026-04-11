@@ -33,6 +33,7 @@ type BindingForm = {
   userTemplateId: string;
   runtimeProfileId: string;
   description: string;
+  isActive: number;
 };
 
 const initialForm: BindingForm = {
@@ -43,6 +44,7 @@ const initialForm: BindingForm = {
   userTemplateId: '',
   runtimeProfileId: '',
   description: '',
+  isActive: 1,
 };
 
 const AdminAiBindingPage = () => {
@@ -57,7 +59,6 @@ const AdminAiBindingPage = () => {
   const [editingBinding, setEditingBinding] = useState<AiPromptBindingListItem | null>(null);
   const [form, setForm] = useState<BindingForm>(initialForm);
 
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -177,6 +178,7 @@ const AdminAiBindingPage = () => {
       userTemplateId: String(b.userTemplateId),
       runtimeProfileId: String(b.runtimeProfileId),
       description: '',
+      isActive: b.isActive,
     });
     setIsFormOpen(true);
   }, []);
@@ -224,6 +226,7 @@ const AdminAiBindingPage = () => {
             userTemplateId: payload.userTemplateId,
             runtimeProfileId: payload.runtimeProfileId,
             description: payload.description,
+            isActive: form.isActive,
           });
 
     if (!result.ok) {
@@ -237,20 +240,6 @@ const AdminAiBindingPage = () => {
     if (selectedId != null) await loadDetail(selectedId);
   };
 
-  const handleDelete = async (id: number) => {
-    const result = await deleteAiPromptBinding(id);
-    if (!result.ok) {
-      handleApiError(result.status, result.errorMessage ?? '삭제에 실패했습니다.');
-      return;
-    }
-    setAlertMessage('삭제되었습니다.');
-    setConfirmDeleteId(null);
-    if (selectedId === id) {
-      setSelectedId(null);
-      setDetail(null);
-    }
-    await loadBindings(status, domainFilter);
-  };
 
   const listColumns = useMemo<ColumnDef<AiPromptBindingListItem>[]>(
     () => [
@@ -270,8 +259,24 @@ const AdminAiBindingPage = () => {
           </span>
         ),
       },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenEdit(row.original);
+            }}
+            className="rounded border border-sand px-2 py-0.5 text-xs text-clay hover:bg-sand/30"
+          >
+            수정
+          </button>
+        ),
+      },
     ],
-    [],
+    [handleOpenEdit],
   );
 
   return (
@@ -393,23 +398,6 @@ const AdminAiBindingPage = () => {
               {detail.description && (
                 <p className="text-xs text-clay/70">{detail.description}</p>
               )}
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(detail)}
-                  className="rounded border border-sand px-3 py-1 text-xs text-clay hover:bg-sand/30"
-                >
-                  수정
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteId(detail.bindingId)}
-                  className="rounded border border-sand px-3 py-1 text-xs text-clay/70 hover:bg-sand/30"
-                >
-                  삭제
-                </button>
-              </div>
             </>
           )}
         </section>
@@ -502,6 +490,19 @@ const AdminAiBindingPage = () => {
                   ))}
                 </select>
               </label>
+              {editingBinding != null && (
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-clay/80">활성 상태</span>
+                  <select
+                    value={String(form.isActive)}
+                    onChange={(e) => setForm((p) => ({ ...p, isActive: Number(e.target.value) }))}
+                    className="rounded border border-sand px-3 py-2 text-sm"
+                  >
+                    <option value="1">활성</option>
+                    <option value="0">비활성</option>
+                  </select>
+                </label>
+              )}
               <label className="flex flex-col gap-1 md:col-span-3">
                 <span className="text-xs text-clay/80">설명</span>
                 <textarea
@@ -527,35 +528,6 @@ const AdminAiBindingPage = () => {
                 className="rounded bg-clay px-3 py-1.5 text-xs text-white sm:text-sm"
               >
                 저장
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-
-      {/* 삭제 확인 */}
-      <Dialog.Root open={confirmDeleteId != null} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-[51] w-[90vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border border-sand/60 bg-white p-4 shadow-xl">
-            <Dialog.Title className="text-sm font-semibold text-clay">삭제 확인</Dialog.Title>
-            <Dialog.Description className="mt-2 text-sm text-clay/80">
-              이 바인딩을 삭제하시겠습니까? (비활성 처리됩니다)
-            </Dialog.Description>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDeleteId(null)}
-                className="rounded border border-sand px-3 py-1.5 text-xs text-clay sm:text-sm"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={() => confirmDeleteId != null && handleDelete(confirmDeleteId)}
-                className="rounded bg-clay px-3 py-1.5 text-xs text-white sm:text-sm"
-              >
-                삭제
               </button>
             </div>
           </Dialog.Content>

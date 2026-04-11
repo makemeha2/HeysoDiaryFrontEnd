@@ -29,7 +29,9 @@ export type AiRuntimeProfileCreateRequest = {
   description?: string;
 };
 
-export type AiRuntimeProfileUpdateRequest = Omit<AiRuntimeProfileCreateRequest, 'profileKey'>;
+export type AiRuntimeProfileUpdateRequest = Omit<AiRuntimeProfileCreateRequest, 'profileKey'> & {
+  isActive?: number;
+};
 
 // Prompt Template
 export type AiPromptTemplateListItem = {
@@ -116,7 +118,9 @@ export type AiPromptBindingCreateRequest = {
   description?: string;
 };
 
-export type AiPromptBindingUpdateRequest = Omit<AiPromptBindingCreateRequest, 'featureKey'>;
+export type AiPromptBindingUpdateRequest = Omit<AiPromptBindingCreateRequest, 'featureKey'> & {
+  isActive?: number;
+};
 
 // Preview
 export type AiTemplatePreviewRequest = {

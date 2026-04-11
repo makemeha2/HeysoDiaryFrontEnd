@@ -40,12 +40,6 @@ export async function updateAiRuntimeProfile(id: number, req: AiRuntimeProfileUp
   });
 }
 
-export async function deleteAiRuntimeProfile(id: number) {
-  return adminFetch(`/api/admin/ai-template/runtime-profiles/${id}/delete`, {
-    method: 'POST',
-  });
-}
-
 // Template
 export async function getAiPromptTemplateList(status?: string, templateType?: string, domainType?: string) {
   const params: Record<string, string> = {};
@@ -72,12 +66,6 @@ export async function updateAiPromptTemplate(id: number, req: AiPromptTemplateUp
   return adminFetch(`/api/admin/ai-template/templates/${id}/update`, {
     method: 'POST',
     data: req,
-  });
-}
-
-export async function deleteAiPromptTemplate(id: number) {
-  return adminFetch(`/api/admin/ai-template/templates/${id}/delete`, {
-    method: 'POST',
   });
 }
 
@@ -126,8 +114,3 @@ export async function updateAiPromptBinding(id: number, req: AiPromptBindingUpda
   });
 }
 
-export async function deleteAiPromptBinding(id: number) {
-  return adminFetch(`/api/admin/ai-template/bindings/${id}/delete`, {
-    method: 'POST',
-  });
-}

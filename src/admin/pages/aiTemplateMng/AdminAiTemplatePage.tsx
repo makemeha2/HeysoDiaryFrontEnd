@@ -314,8 +314,24 @@ const AdminAiTemplatePage = () => {
           </span>
         ),
       },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenEdit(row.original);
+            }}
+            className="rounded border border-sand px-2 py-0.5 text-xs text-clay hover:bg-sand/30"
+          >
+            수정
+          </button>
+        ),
+      },
     ],
-    [],
+    [handleOpenEdit],
   );
 
   const relColumns = useMemo<ColumnDef<AiPromptTemplateRelItem>[]>(
@@ -468,13 +484,6 @@ const AdminAiTemplatePage = () => {
               )}
 
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(detail)}
-                  className="rounded border border-sand px-3 py-1 text-xs text-clay hover:bg-sand/30"
-                >
-                  수정
-                </button>
                 <button
                   type="button"
                   onClick={() => {
