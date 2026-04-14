@@ -19,7 +19,7 @@ export type AdminApiResult<T = unknown> = {
 export async function adminFetch<T = unknown>(
   url: string,
   options: {
-    method?: 'GET' | 'POST';
+    method?: 'GET' | 'POST' | 'PATCH';
     data?: unknown;
     params?: Record<string, string | number | boolean>;
   } = {},

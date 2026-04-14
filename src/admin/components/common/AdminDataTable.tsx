@@ -13,6 +13,7 @@ type AdminDataTableProps<TData> = {
   selectedKey?: string | null;
   emptyMessage?: string;
   maxHeightClassName?: string;
+  tableClassName?: string;
 };
 
 const AdminDataTable = <TData,>({
@@ -23,6 +24,7 @@ const AdminDataTable = <TData,>({
   selectedKey,
   emptyMessage = '데이터가 없습니다.',
   maxHeightClassName,
+  tableClassName,
 }: AdminDataTableProps<TData>) => {
   const table = useReactTable({
     data,
@@ -34,7 +36,9 @@ const AdminDataTable = <TData,>({
     <div
       className={`w-full overflow-auto rounded-md border border-sand/60 bg-white ${maxHeightClassName ?? ''}`.trim()}
     >
-      <table className="w-full min-w-[400px] border-collapse text-xs sm:text-sm">
+      <table
+        className={`w-full min-w-[400px] border-collapse text-xs sm:text-sm ${tableClassName ?? ''}`.trim()}
+      >
         <thead className="bg-linen">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id} className="border-b border-sand/70">

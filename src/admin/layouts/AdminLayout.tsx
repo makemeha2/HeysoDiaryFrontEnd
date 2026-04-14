@@ -37,6 +37,9 @@ const AdminLayout = () => {
             <NavLink to="/admin/com-codes" className={navClass}>
               공통코드 관리
             </NavLink>
+            <NavLink to="/admin/monitoring-events" className={navClass}>
+              모니터링 이벤트
+            </NavLink>
 
             <div className="mt-2 flex flex-col gap-1">
               <span className="px-1 text-xs font-medium text-clay/50 uppercase tracking-wide">
