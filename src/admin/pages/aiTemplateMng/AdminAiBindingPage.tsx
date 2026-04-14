@@ -2,20 +2,13 @@ import { useMemo } from 'react';
 import StatusFilterSelect from '@admin/components/StatusFilterSelect';
 import AdminDataTable from '@admin/components/common/AdminDataTable';
 import AdminAlertDialog from '@admin/components/common/dialog/AdminAlertDialog';
-import { useAdminPageBase } from '@admin/hooks/useAdminPageBase';
+import { AdminPageProvider, useAdminPageContext } from '@admin/context/AdminPageContext';
 import { useBindingPageState } from './hooks/useBindingPageState';
 import { buildBindingListColumns } from './columns/bindingColumns';
 import BindingFormDialog from './components/BindingFormDialog';
 
-const AdminAiBindingPage = () => {
-  const {
-    alertMessage,
-    setAlertMessage,
-    errorMessage,
-    setErrorMessage,
-    handleApiError,
-    loadComCodes,
-  } = useAdminPageBase();
+const AdminAiBindingPageContent = () => {
+  const { alertMessage, errorMessage, clearAlert } = useAdminPageContext();
 
   const {
     status,
@@ -39,7 +32,7 @@ const AdminAiBindingPage = () => {
     handleOpenCreate,
     handleOpenEdit,
     handleSave,
-  } = useBindingPageState({ handleApiError, setAlertMessage, setErrorMessage, loadComCodes });
+  } = useBindingPageState();
 
   const listColumns = useMemo(
     () => buildBindingListColumns({ onEdit: handleOpenEdit }),
@@ -183,12 +176,18 @@ const AdminAiBindingPage = () => {
 
       <AdminAlertDialog
         open={!!alertMessage}
-        onOpenChange={(open) => { if (!open) setAlertMessage(null); }}
+        onOpenChange={(open) => { if (!open) clearAlert(); }}
         title="알림"
         description={alertMessage ?? ''}
       />
     </div>
   );
 };
+
+const AdminAiBindingPage = () => (
+  <AdminPageProvider>
+    <AdminAiBindingPageContent />
+  </AdminPageProvider>
+);
 
 export default AdminAiBindingPage;

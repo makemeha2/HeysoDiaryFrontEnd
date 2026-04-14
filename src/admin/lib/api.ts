@@ -26,23 +26,32 @@ export async function adminFetch<T = unknown>(
 ): Promise<AdminApiResult<T>> {
   const token = getAdminAccessToken();
 
-  const response = await axios({
-    url: resolveUrl(url),
-    method: options.method ?? 'GET',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    data: options.data,
-    params: options.params,
-    validateStatus: () => true,
-  });
+  try {
+    const response = await axios({
+      url: resolveUrl(url),
+      method: options.method ?? 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      data: options.data,
+      params: options.params,
+      validateStatus: () => true,
+    });
 
-  if (response.status === 401) {
-    clearAdminAccessToken();
+    if (response.status === 401) {
+      clearAdminAccessToken();
+    }
+
+    return {
+      ok: response.status >= 200 && response.status < 300,
+      status: response.status,
+      data: response.data as T,
+      errorMessage: typeof response.data?.message === 'string' ? response.data.message : undefined,
+    };
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      data: null as T,
+      errorMessage: '네트워크 오류가 발생했습니다.',
+    };
   }
-
-  return {
-    ok: response.status >= 200 && response.status < 300,
-    status: response.status,
-    data: response.data as T,
-    errorMessage: typeof response.data?.message === 'string' ? response.data.message : undefined,
-  };
 }

@@ -90,9 +90,12 @@ export async function previewTemplate(id: number, req: AiTemplatePreviewRequest)
 }
 
 // Binding
-export async function getAiPromptBindingList(status?: string) {
+export async function getAiPromptBindingList(status?: string, domainType?: string) {
+  const params: Record<string, string> = {};
+  if (status) params.status = status;
+  if (domainType) params.domainType = domainType;
   return adminFetch<AiPromptBindingListItem[]>('/api/admin/ai-template/bindings', {
-    params: status ? { status } : undefined,
+    params: Object.keys(params).length > 0 ? params : undefined,
   });
 }
 

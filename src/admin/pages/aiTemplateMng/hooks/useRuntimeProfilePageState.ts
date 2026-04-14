@@ -8,20 +8,11 @@ import type { AiRuntimeProfile, AiRuntimeProfileCreateRequest } from '@admin/typ
 import type { CommonCode, StatusFilter } from '@admin/types/comCd';
 import type { ProfileForm } from '../types/forms';
 import { initialProfileForm } from '../constants/formDefaults';
+import { useAdminPageContext } from '@admin/context/AdminPageContext';
 
-type UseRuntimeProfilePageStateOptions = {
-  handleApiError: (status: number, fallback: string) => void;
-  setAlertMessage: (msg: string | null) => void;
-  setErrorMessage: (msg: string | null) => void;
-  loadComCodes: (groupId: string, status?: StatusFilter) => Promise<CommonCode[]>;
-};
+export const useRuntimeProfilePageState = () => {
+  const { handleApiError, notifySuccess, notifyError, loadComCodes } = useAdminPageContext();
 
-export const useRuntimeProfilePageState = ({
-  handleApiError,
-  setAlertMessage,
-  setErrorMessage,
-  loadComCodes,
-}: UseRuntimeProfilePageStateOptions) => {
   const [status, setStatus] = useState<StatusFilter>('ACTIVE');
   const [domainFilter, setDomainFilter] = useState<string>('');
   const [profiles, setProfiles] = useState<AiRuntimeProfile[]>([]);
@@ -60,9 +51,9 @@ export const useRuntimeProfilePageState = ({
   );
 
   useEffect(() => {
-    setErrorMessage(null);
+    notifyError(null);
     loadProfiles(status, domainFilter);
-  }, [status, domainFilter, loadProfiles, setErrorMessage]);
+  }, [status, domainFilter, loadProfiles, notifyError]);
 
   const handleOpenCreate = () => {
     setEditingProfile(null);
@@ -78,6 +69,7 @@ export const useRuntimeProfilePageState = ({
       domainType: profile.domainType,
       provider: profile.provider ?? '',
       model: profile.model,
+      // modelName: UI 표시용 필드 (저장하지 않음)
       modelName: profile.modelName,
       temperature: profile.temperature != null ? String(profile.temperature) : '',
       topP: profile.topP != null ? String(profile.topP) : '',
@@ -90,10 +82,10 @@ export const useRuntimeProfilePageState = ({
 
   const handleSave = async () => {
     if (!form.profileName.trim() || !form.model.trim() || !form.domainType.trim()) {
-      setErrorMessage('프로파일명, 도메인 유형, 모델은 필수입니다.');
+      notifyError('프로파일명, 도메인 유형, 모델은 필수입니다.');
       return;
     }
-    setErrorMessage(null);
+    notifyError(null);
 
     const payload: AiRuntimeProfileCreateRequest = {
       profileKey: form.profileKey.trim(),
@@ -105,6 +97,7 @@ export const useRuntimeProfilePageState = ({
       topP: form.topP !== '' ? Number(form.topP) : null,
       maxTokens: form.maxTokens !== '' ? Number(form.maxTokens) : null,
       description: form.description.trim() || undefined,
+      // modelName: UI 표시용 필드 (저장하지 않음)
     };
 
     const result =
@@ -127,7 +120,7 @@ export const useRuntimeProfilePageState = ({
       return;
     }
 
-    setAlertMessage(editingProfile == null ? '등록되었습니다.' : '수정되었습니다.');
+    notifySuccess(editingProfile == null ? '등록되었습니다.' : '수정되었습니다.');
     setIsDialogOpen(false);
     await loadProfiles(status, domainFilter);
   };

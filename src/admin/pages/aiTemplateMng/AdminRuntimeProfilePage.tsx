@@ -2,21 +2,14 @@ import { useMemo } from 'react';
 import StatusFilterSelect from '@admin/components/StatusFilterSelect';
 import AdminDataTable from '@admin/components/common/AdminDataTable';
 import AdminAlertDialog from '@admin/components/common/dialog/AdminAlertDialog';
-import { useAdminPageBase } from '@admin/hooks/useAdminPageBase';
+import { AdminPageProvider, useAdminPageContext } from '@admin/context/AdminPageContext';
 import { useRuntimeProfilePageState } from './hooks/useRuntimeProfilePageState';
 import { buildRuntimeProfileColumns } from './columns/runtimeProfileColumns';
 import RuntimeProfileFormDialog from './components/RuntimeProfileFormDialog';
 import ModelReferenceTable from './components/ModelReferenceTable';
 
-const AdminRuntimeProfilePage = () => {
-  const {
-    alertMessage,
-    setAlertMessage,
-    errorMessage,
-    setErrorMessage,
-    handleApiError,
-    loadComCodes,
-  } = useAdminPageBase();
+const AdminRuntimeProfilePageContent = () => {
+  const { alertMessage, errorMessage, clearAlert } = useAdminPageContext();
 
   const {
     status,
@@ -36,7 +29,7 @@ const AdminRuntimeProfilePage = () => {
     handleOpenCreate,
     handleOpenEdit,
     handleSave,
-  } = useRuntimeProfilePageState({ handleApiError, setAlertMessage, setErrorMessage, loadComCodes });
+  } = useRuntimeProfilePageState();
 
   const columns = useMemo(
     () => buildRuntimeProfileColumns({ onEdit: handleOpenEdit }),
@@ -118,12 +111,18 @@ const AdminRuntimeProfilePage = () => {
 
       <AdminAlertDialog
         open={!!alertMessage}
-        onOpenChange={(open) => { if (!open) setAlertMessage(null); }}
+        onOpenChange={(open) => { if (!open) clearAlert(); }}
         title="알림"
         description={alertMessage ?? ''}
       />
     </div>
   );
 };
+
+const AdminRuntimeProfilePage = () => (
+  <AdminPageProvider>
+    <AdminRuntimeProfilePageContent />
+  </AdminPageProvider>
+);
 
 export default AdminRuntimeProfilePage;

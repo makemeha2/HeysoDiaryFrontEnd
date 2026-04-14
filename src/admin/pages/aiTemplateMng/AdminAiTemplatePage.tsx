@@ -3,70 +3,25 @@ import * as Dialog from '@radix-ui/react-dialog';
 import StatusFilterSelect from '@admin/components/StatusFilterSelect';
 import AdminDataTable from '@admin/components/common/AdminDataTable';
 import AdminAlertDialog from '@admin/components/common/dialog/AdminAlertDialog';
-import { useAdminPageBase } from '@admin/hooks/useAdminPageBase';
+import { AdminPageProvider, useAdminPageContext } from '@admin/context/AdminPageContext';
 import { useTemplatePageState } from './hooks/useTemplatePageState';
 import { buildTemplateListColumns, buildRelationColumns } from './columns/templateColumns';
 import TemplateFormDialog from './components/TemplateFormDialog';
 import FragmentRelationDialog from './components/FragmentRelationDialog';
 import TemplatePreviewDialog from './components/TemplatePreviewDialog';
 
-const AdminAiTemplatePage = () => {
-  const {
-    alertMessage,
-    setAlertMessage,
-    errorMessage,
-    setErrorMessage,
-    handleApiError,
-    loadComCodes,
-  } = useAdminPageBase();
-
-  const {
-    status,
-    setStatus,
-    typeFilter,
-    setTypeFilter,
-    domainFilter,
-    setDomainFilter,
-    templates,
-    loadTemplates,
-    selectedId,
-    setSelectedId,
-    detail,
-    domainCodes,
-    fragmentOptions,
-    isFormOpen,
-    setIsFormOpen,
-    editingTemplate,
-    form,
-    setForm,
-    isRelOpen,
-    setIsRelOpen,
-    relForm,
-    setRelForm,
-    isPreviewOpen,
-    setIsPreviewOpen,
-    previewVars,
-    setPreviewVars,
-    previewResult,
-    previewError,
-    confirmDeleteRelId,
-    setConfirmDeleteRelId,
-    handleOpenCreate,
-    handleOpenEdit,
-    handleSave,
-    handleAddRelation,
-    handleDeleteRelation,
-    handlePreview,
-  } = useTemplatePageState({ handleApiError, setAlertMessage, setErrorMessage, loadComCodes });
+const AdminAiTemplatePageContent = () => {
+  const { alertMessage, errorMessage, clearAlert } = useAdminPageContext();
+  const { filters, list, formDialog, relationDialog, previewDialog } = useTemplatePageState();
 
   const listColumns = useMemo(
-    () => buildTemplateListColumns({ onEdit: handleOpenEdit }),
-    [handleOpenEdit],
+    () => buildTemplateListColumns({ onEdit: formDialog.handleOpenEdit }),
+    [formDialog.handleOpenEdit],
   );
 
   const relColumns = useMemo(
-    () => buildRelationColumns({ onDeleteRelId: setConfirmDeleteRelId }),
-    [setConfirmDeleteRelId],
+    () => buildRelationColumns({ onDeleteRelId: relationDialog.setConfirmDeleteRelId }),
+    [relationDialog.setConfirmDeleteRelId],
   );
 
   return (
@@ -95,12 +50,12 @@ const AdminAiTemplatePage = () => {
               <label className="flex items-center gap-1 text-xs text-clay">
                 도메인
                 <select
-                  value={domainFilter}
-                  onChange={(e) => setDomainFilter(e.target.value)}
+                  value={filters.domainFilter}
+                  onChange={(e) => filters.setDomainFilter(e.target.value)}
                   className="rounded border border-sand px-2 py-1 text-xs"
                 >
                   <option value="">전체</option>
-                  {domainCodes.map((c) => (
+                  {list.domainCodes.map((c) => (
                     <option key={c.codeId} value={c.codeId}>{c.codeName}</option>
                   ))}
                 </select>
@@ -108,8 +63,8 @@ const AdminAiTemplatePage = () => {
               <label className="flex items-center gap-1 text-xs text-clay">
                 타입
                 <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
+                  value={filters.typeFilter}
+                  onChange={(e) => filters.setTypeFilter(e.target.value)}
                   className="rounded border border-sand px-2 py-1 text-xs"
                 >
                   <option value="ALL">전체</option>
@@ -117,17 +72,17 @@ const AdminAiTemplatePage = () => {
                   <option value="FRAGMENT">FRAGMENT</option>
                 </select>
               </label>
-              <StatusFilterSelect value={status} onChange={setStatus} />
+              <StatusFilterSelect value={filters.status} onChange={filters.setStatus} />
               <button
                 type="button"
-                onClick={() => loadTemplates(status, typeFilter, domainFilter)}
+                onClick={() => list.loadTemplates(filters.status, filters.typeFilter, filters.domainFilter)}
                 className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
               >
                 새로고침
               </button>
               <button
                 type="button"
-                onClick={handleOpenCreate}
+                onClick={formDialog.handleOpenCreate}
                 className="rounded bg-clay px-2 py-1 text-xs text-white sm:text-sm"
               >
                 새 템플릿
@@ -136,11 +91,11 @@ const AdminAiTemplatePage = () => {
           </div>
 
           <AdminDataTable
-            data={templates}
+            data={list.templates}
             columns={listColumns}
             rowKey={(row) => String(row.templateId)}
-            onRowClick={(row) => setSelectedId(row.templateId)}
-            selectedKey={selectedId != null ? String(selectedId) : null}
+            onRowClick={(row) => list.setSelectedId(row.templateId)}
+            selectedKey={list.selectedId != null ? String(list.selectedId) : null}
             emptyMessage="템플릿이 없습니다."
           />
         </section>
@@ -151,46 +106,46 @@ const AdminAiTemplatePage = () => {
         >
           <h2 className="font-semibold text-clay">상세</h2>
 
-          {detail == null ? (
+          {list.detail == null ? (
             <p className="text-xs text-clay/60">목록에서 템플릿을 선택하세요.</p>
           ) : (
             <>
               <div className="flex flex-wrap gap-2">
-                <span className="rounded-full bg-sand/40 px-2 py-0.5 text-xs text-clay">{detail.templateRole}</span>
-                <span className="rounded-full bg-sand/40 px-2 py-0.5 text-xs text-clay">{detail.templateType}</span>
+                <span className="rounded-full bg-sand/40 px-2 py-0.5 text-xs text-clay">{list.detail.templateRole}</span>
+                <span className="rounded-full bg-sand/40 px-2 py-0.5 text-xs text-clay">{list.detail.templateType}</span>
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs ${
-                    detail.isActive === 1 ? 'bg-amber/20 text-clay' : 'bg-sand/30 text-clay/50'
+                    list.detail.isActive === 1 ? 'bg-amber/20 text-clay' : 'bg-sand/30 text-clay/50'
                   }`}
                 >
-                  {detail.isActive === 1 ? '활성' : '비활성'}
+                  {list.detail.isActive === 1 ? '활성' : '비활성'}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-clay/80">
-                <span><strong>Key:</strong> {detail.templateKey}</span>
-                <span><strong>도메인:</strong> {detail.domainType}</span>
-                <span><strong>Feature:</strong> {detail.featureKey ?? '-'}</span>
-                <span><strong>Revision:</strong> {detail.revisionNo}</span>
+                <span><strong>Key:</strong> {list.detail.templateKey}</span>
+                <span><strong>도메인:</strong> {list.detail.domainType}</span>
+                <span><strong>Feature:</strong> {list.detail.featureKey ?? '-'}</span>
+                <span><strong>Revision:</strong> {list.detail.revisionNo}</span>
               </div>
 
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-medium text-clay/70">내용</span>
                 <pre className="max-h-48 overflow-auto rounded border border-sand/60 bg-white p-2 text-xs text-clay whitespace-pre-wrap break-all">
-                  {detail.content}
+                  {list.detail.content}
                 </pre>
               </div>
 
-              {detail.description && (
-                <p className="text-xs text-clay/70">{detail.description}</p>
+              {list.detail.description && (
+                <p className="text-xs text-clay/70">{list.detail.description}</p>
               )}
 
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => {
-                    setPreviewVars('{}');
-                    setIsPreviewOpen(true);
+                    previewDialog.setPreviewVars('{}');
+                    previewDialog.setIsPreviewOpen(true);
                   }}
                   className="rounded border border-amber/60 bg-amber/10 px-3 py-1 text-xs text-clay hover:bg-amber/20"
                 >
@@ -198,20 +153,20 @@ const AdminAiTemplatePage = () => {
                 </button>
               </div>
 
-              {detail.templateType === 'ROOT' && (
+              {list.detail.templateType === 'ROOT' && (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-clay">연결된 Fragment</span>
                     <button
                       type="button"
-                      onClick={() => setIsRelOpen(true)}
+                      onClick={() => relationDialog.setIsRelOpen(true)}
                       className="rounded bg-clay px-2 py-0.5 text-xs text-white"
                     >
                       Fragment 추가
                     </button>
                   </div>
                   <AdminDataTable
-                    data={detail.relations}
+                    data={list.detail.relations}
                     columns={relColumns}
                     rowKey={(row) => String(row.relId)}
                     emptyMessage="연결된 Fragment가 없습니다."
@@ -225,38 +180,38 @@ const AdminAiTemplatePage = () => {
       </div>
 
       <TemplateFormDialog
-        open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        form={form}
-        setForm={setForm}
-        editingTemplate={editingTemplate}
-        domainCodes={domainCodes}
-        onSave={handleSave}
+        open={formDialog.isFormOpen}
+        onOpenChange={formDialog.setIsFormOpen}
+        form={formDialog.form}
+        setForm={formDialog.setForm}
+        editingTemplate={formDialog.editingTemplate}
+        domainCodes={list.domainCodes}
+        onSave={formDialog.handleSave}
       />
 
       <FragmentRelationDialog
-        open={isRelOpen}
-        onOpenChange={setIsRelOpen}
-        relForm={relForm}
-        setRelForm={setRelForm}
-        fragmentOptions={fragmentOptions}
-        onAdd={handleAddRelation}
+        open={relationDialog.isRelOpen}
+        onOpenChange={relationDialog.setIsRelOpen}
+        relForm={relationDialog.relForm}
+        setRelForm={relationDialog.setRelForm}
+        fragmentOptions={list.fragmentOptions}
+        onAdd={relationDialog.handleAddRelation}
       />
 
       <TemplatePreviewDialog
-        open={isPreviewOpen}
-        onOpenChange={setIsPreviewOpen}
-        previewVars={previewVars}
-        setPreviewVars={setPreviewVars}
-        previewResult={previewResult}
-        previewError={previewError}
-        onPreview={handlePreview}
+        open={previewDialog.isPreviewOpen}
+        onOpenChange={previewDialog.setIsPreviewOpen}
+        previewVars={previewDialog.previewVars}
+        setPreviewVars={previewDialog.setPreviewVars}
+        previewResult={previewDialog.previewResult}
+        previewError={previewDialog.previewError}
+        onPreview={previewDialog.handlePreview}
       />
 
       {/* Fragment 연결 삭제 확인 */}
       <Dialog.Root
-        open={confirmDeleteRelId != null}
-        onOpenChange={(open) => { if (!open) setConfirmDeleteRelId(null); }}
+        open={relationDialog.confirmDeleteRelId != null}
+        onOpenChange={(open) => { if (!open) relationDialog.setConfirmDeleteRelId(null); }}
       >
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
@@ -268,14 +223,18 @@ const AdminAiTemplatePage = () => {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setConfirmDeleteRelId(null)}
+                onClick={() => relationDialog.setConfirmDeleteRelId(null)}
                 className="rounded border border-sand px-3 py-1.5 text-xs text-clay sm:text-sm"
               >
                 취소
               </button>
               <button
                 type="button"
-                onClick={() => confirmDeleteRelId != null && handleDeleteRelation(confirmDeleteRelId)}
+                onClick={() => {
+                  if (relationDialog.confirmDeleteRelId != null) {
+                    relationDialog.handleDeleteRelation(relationDialog.confirmDeleteRelId);
+                  }
+                }}
                 className="rounded bg-clay px-3 py-1.5 text-xs text-white sm:text-sm"
               >
                 삭제
@@ -287,12 +246,18 @@ const AdminAiTemplatePage = () => {
 
       <AdminAlertDialog
         open={!!alertMessage}
-        onOpenChange={(open) => { if (!open) setAlertMessage(null); }}
+        onOpenChange={(open) => { if (!open) clearAlert(); }}
         title="알림"
         description={alertMessage ?? ''}
       />
     </div>
   );
 };
+
+const AdminAiTemplatePage = () => (
+  <AdminPageProvider>
+    <AdminAiTemplatePageContent />
+  </AdminPageProvider>
+);
 
 export default AdminAiTemplatePage;

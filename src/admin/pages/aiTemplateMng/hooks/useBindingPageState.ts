@@ -17,20 +17,11 @@ import type {
 import type { CommonCode, StatusFilter } from '@admin/types/comCd';
 import type { BindingForm } from '../types/forms';
 import { initialBindingForm } from '../constants/formDefaults';
+import { useAdminPageContext } from '@admin/context/AdminPageContext';
 
-type UseBindingPageStateOptions = {
-  handleApiError: (status: number, fallback: string) => void;
-  setAlertMessage: (msg: string | null) => void;
-  setErrorMessage: (msg: string | null) => void;
-  loadComCodes: (groupId: string, status?: StatusFilter) => Promise<CommonCode[]>;
-};
+export const useBindingPageState = () => {
+  const { handleApiError, notifySuccess, notifyError, loadComCodes } = useAdminPageContext();
 
-export const useBindingPageState = ({
-  handleApiError,
-  setAlertMessage,
-  setErrorMessage,
-  loadComCodes,
-}: UseBindingPageStateOptions) => {
   const [status, setStatus] = useState<StatusFilter>('ACTIVE');
   const [domainFilter, setDomainFilter] = useState<string>('');
   const [bindings, setBindings] = useState<AiPromptBindingListItem[]>([]);
@@ -78,15 +69,15 @@ export const useBindingPageState = ({
     [allProfiles, selectedProfileId],
   );
 
+  // domainFilter는 서버에서 처리: domainType 파라미터로 전달
   const loadBindings = useCallback(
     async (s: StatusFilter, d: string) => {
-      const result = await getAiPromptBindingList(s);
+      const result = await getAiPromptBindingList(s, d || undefined);
       if (!result.ok) {
         handleApiError(result.status, '바인딩 목록을 불러오지 못했습니다.');
         return;
       }
-      const next = result.data ?? [];
-      setBindings(d ? next.filter((b) => b.domainType === d) : next);
+      setBindings(result.data ?? []);
     },
     [handleApiError],
   );
@@ -104,11 +95,11 @@ export const useBindingPageState = ({
   );
 
   useEffect(() => {
-    setErrorMessage(null);
+    notifyError(null);
     setSelectedId(null);
     setDetail(null);
     loadBindings(status, domainFilter);
-  }, [status, domainFilter, loadBindings, setErrorMessage]);
+  }, [status, domainFilter, loadBindings, notifyError]);
 
   useEffect(() => {
     if (selectedId != null) loadDetail(selectedId);
@@ -151,10 +142,10 @@ export const useBindingPageState = ({
       !form.userTemplateId.trim() ||
       !form.runtimeProfileId.trim()
     ) {
-      setErrorMessage('바인딩명, 도메인, Feature Key, System/User 템플릿, 런타임 프로파일은 필수입니다.');
+      notifyError('바인딩명, 도메인, Feature Key, System/User 템플릿, 런타임 프로파일은 필수입니다.');
       return;
     }
-    setErrorMessage(null);
+    notifyError(null);
 
     const payload: AiPromptBindingCreateRequest = {
       bindingName: form.bindingName.trim(),
@@ -184,7 +175,7 @@ export const useBindingPageState = ({
       return;
     }
 
-    setAlertMessage(editingBinding == null ? '등록되었습니다.' : '수정되었습니다.');
+    notifySuccess(editingBinding == null ? '등록되었습니다.' : '수정되었습니다.');
     setIsFormOpen(false);
     await loadBindings(status, domainFilter);
     if (selectedId != null) await loadDetail(selectedId);

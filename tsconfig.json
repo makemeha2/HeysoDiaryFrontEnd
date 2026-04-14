@@ -25,5 +25,5 @@
       "@admin/*": ["./src/admin/*"]
     }
   },
-  "include": ["src", "vite.config.js"]
+  "include": ["src", "vite.config.js", "vite-env.d.ts"]
 }
