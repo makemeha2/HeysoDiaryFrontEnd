@@ -6,6 +6,7 @@ type BuildMonitoringEventColumnsOptions = {
   currentPageIds: number[];
   onToggleAll: (checked: boolean) => void;
   onToggleOne: (eventId: number, checked: boolean) => void;
+  onOpenDetail: (item: MonitoringEventListItem) => void;
 };
 
 const renderText = (value: string | number | null | undefined) => value ?? '-';
@@ -27,6 +28,7 @@ export function buildMonitoringEventColumns({
   currentPageIds,
   onToggleAll,
   onToggleOne,
+  onOpenDetail,
 }: BuildMonitoringEventColumnsOptions): ColumnDef<MonitoringEventListItem>[] {
   const headerState = createHeaderCheckboxState(selectedIds, currentPageIds);
 
@@ -64,11 +66,37 @@ export function buildMonitoringEventColumns({
     },
     { accessorKey: 'eventType', header: 'event_type' },
     { accessorKey: 'severity', header: 'severity' },
-    { accessorKey: 'eventCode', header: 'event_code' },
+    {
+      accessorKey: 'eventCode',
+      header: 'event_code',
+      cell: ({ row }) => (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenDetail(row.original);
+          }}
+          className="text-left font-medium text-clay underline-offset-2 hover:underline"
+        >
+          {renderText(row.original.eventCode)}
+        </button>
+      ),
+    },
     {
       accessorKey: 'title',
       header: 'title',
-      cell: ({ row }) => <span className="line-clamp-2 min-w-[180px]">{renderText(row.original.title)}</span>,
+      cell: ({ row }) => (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenDetail(row.original);
+          }}
+          className="line-clamp-2 min-w-[180px] text-left text-clay underline-offset-2 hover:underline"
+        >
+          {renderText(row.original.title)}
+        </button>
+      ),
     },
     {
       accessorKey: 'requestUri',

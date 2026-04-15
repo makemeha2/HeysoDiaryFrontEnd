@@ -1,3 +1,5 @@
+import { format, subMonths } from 'date-fns';
+
 export type ResolutionYn = 'Y' | 'N';
 export type MonitoringEventSearchResolvedYn = '' | ResolutionYn;
 export type MonitoringEventType = '' | 'ERROR' | 'WARN' | 'INFO' | 'SECURITY' | 'BUSINESS';
@@ -67,13 +69,19 @@ export type MonitoringEventResolutionResponse = {
   failedCount: number;
 };
 
-export const defaultMonitoringEventSearchForm: MonitoringEventSearchForm = {
-  startDate: '',
-  endDate: '',
-  resolvedYn: 'N',
-  eventType: '',
-  severity: '',
-  keyword: '',
+const toInputDate = (value: Date) => format(value, 'yyyy-MM-dd');
+
+export const createDefaultMonitoringEventSearchForm = (): MonitoringEventSearchForm => {
+  const today = new Date();
+
+  return {
+    startDate: toInputDate(subMonths(today, 1)),
+    endDate: toInputDate(today),
+    resolvedYn: 'N',
+    eventType: '',
+    severity: '',
+    keyword: '',
+  };
 };
 
 export const MONITORING_EVENT_PAGE_SIZE = 20;

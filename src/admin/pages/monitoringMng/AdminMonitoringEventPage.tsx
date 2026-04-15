@@ -3,7 +3,7 @@ import AdminDataTable from '@admin/components/common/AdminDataTable';
 import AdminAlertDialog from '@admin/components/common/dialog/AdminAlertDialog';
 import AdminConfirmDialog from '@admin/components/common/dialog/AdminConfirmDialog';
 import { AdminPageProvider, useAdminPageContext } from '@admin/context/AdminPageContext';
-import MonitoringEventDetailPanel from './components/MonitoringEventDetailPanel';
+import MonitoringEventDetailModal from './components/MonitoringEventDetailModal';
 import { buildMonitoringEventColumns } from './columns/monitoringEventColumns';
 import { useMonitoringEventPageState } from './hooks/useMonitoringEventPageState';
 import type { MonitoringEventSearchForm } from './types/monitoringEvent';
@@ -48,6 +48,8 @@ const AdminMonitoringEventPageContent = () => {
     selectedEventId,
     detail,
     isDetailLoading,
+    isDetailDialogOpen,
+    setIsDetailDialogOpen,
     resolutionTarget,
     isMutatingResolution,
     pagination,
@@ -55,7 +57,7 @@ const AdminMonitoringEventPageContent = () => {
     handleSearch,
     handleResetFilters,
     handleRefresh,
-    handleSelectRow,
+    handleOpenDetail,
     toggleSelectAllCurrentPage,
     toggleSelectOne,
     handleOpenResolutionConfirm,
@@ -70,8 +72,9 @@ const AdminMonitoringEventPageContent = () => {
         currentPageIds: pageResponse.items.map((item) => item.eventId),
         onToggleAll: toggleSelectAllCurrentPage,
         onToggleOne: toggleSelectOne,
+        onOpenDetail: handleOpenDetail,
       }),
-    [pageResponse.items, selectedEventIds, toggleSelectAllCurrentPage, toggleSelectOne],
+    [handleOpenDetail, pageResponse.items, selectedEventIds, toggleSelectAllCurrentPage, toggleSelectOne],
   );
 
   const updateFilter = <K extends keyof MonitoringEventSearchForm>(key: K, value: MonitoringEventSearchForm[K]) => {
@@ -94,24 +97,24 @@ const AdminMonitoringEventPageContent = () => {
       )}
 
       <section className="rounded-xl border border-sand/60 bg-linen/60 p-3">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <label className="grid gap-1 text-xs text-clay sm:text-sm">
-            발생 시작일
-            <input
-              type="date"
-              value={filters.startDate}
-              onChange={(event) => updateFilter('startDate', event.target.value)}
-              className="rounded border border-sand px-2 py-1"
-            />
-          </label>
-          <label className="grid gap-1 text-xs text-clay sm:text-sm">
-            발생 종료일
-            <input
-              type="date"
-              value={filters.endDate}
-              onChange={(event) => updateFilter('endDate', event.target.value)}
-              className="rounded border border-sand px-2 py-1"
-            />
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <label className="grid gap-1 text-xs text-clay sm:text-sm xl:col-span-2">
+            기간
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={filters.startDate}
+                onChange={(event) => updateFilter('startDate', event.target.value)}
+                className="min-w-0 flex-1 rounded border border-sand px-2 py-1"
+              />
+              <span className="text-clay/70">~</span>
+              <input
+                type="date"
+                value={filters.endDate}
+                onChange={(event) => updateFilter('endDate', event.target.value)}
+                className="min-w-0 flex-1 rounded border border-sand px-2 py-1"
+              />
+            </div>
           </label>
           <label className="grid gap-1 text-xs text-clay sm:text-sm">
             조치 여부
@@ -155,7 +158,7 @@ const AdminMonitoringEventPageContent = () => {
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-xs text-clay sm:text-sm xl:col-span-1">
+          <label className="grid gap-1 text-xs text-clay sm:text-sm xl:col-span-2">
             통합 검색어
             <input
               type="text"
@@ -195,83 +198,85 @@ const AdminMonitoringEventPageContent = () => {
         </div>
       </section>
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
-        <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-sand/60 bg-linen/60 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="font-semibold text-clay">이벤트 목록</h2>
-              <p className="text-xs text-clay/70 sm:text-sm">
-                총 {pageResponse.totalCount}건 · 페이지 {pageResponse.page} / {pageResponse.totalPages || 1}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-clay/70 sm:text-sm">선택 {selectedCount}건</span>
-              <button
-                type="button"
-                onClick={() => handleOpenResolutionConfirm('Y')}
-                className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
-              >
-                Y 조치
-              </button>
-              <button
-                type="button"
-                onClick={() => handleOpenResolutionConfirm('N')}
-                className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
-              >
-                N 조치
-              </button>
-              <button
-                type="button"
-                onClick={handleRefresh}
-                className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
-              >
-                새로고침
-              </button>
-            </div>
+      <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-sand/60 bg-linen/60 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-semibold text-clay">이벤트 목록</h2>
+            <p className="text-xs text-clay/70 sm:text-sm">
+              총 {pageResponse.totalCount}건 · 페이지 {pageResponse.page} / {pageResponse.totalPages || 1}
+            </p>
           </div>
-
-          <AdminDataTable
-            data={pageResponse.items}
-            columns={columns}
-            rowKey={(row) => String(row.eventId)}
-            onRowClick={handleSelectRow}
-            selectedKey={selectedEventId != null ? String(selectedEventId) : null}
-            emptyMessage={isListLoading ? '목록을 불러오는 중입니다.' : '조회된 모니터링 이벤트가 없습니다.'}
-            maxHeightClassName="max-h-[540px]"
-            tableClassName="min-w-[1650px]"
-          />
-
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-clay/70 sm:text-sm">페이지당 20건</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <PaginationButton
-                disabled={page <= 1 || isListLoading}
-                onClick={() => setPage(Math.max(1, page - 1))}
-              >
-                이전
-              </PaginationButton>
-              {pagination.map((pageNo) => (
-                <PaginationButton
-                  key={pageNo}
-                  active={pageNo === page}
-                  disabled={isListLoading}
-                  onClick={() => setPage(pageNo)}
-                >
-                  {pageNo}
-                </PaginationButton>
-              ))}
-              <PaginationButton
-                disabled={page >= Math.max(1, pageResponse.totalPages) || isListLoading}
-                onClick={() => setPage(Math.min(Math.max(1, pageResponse.totalPages), page + 1))}
-              >
-                다음
-              </PaginationButton>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-clay/70 sm:text-sm">선택 {selectedCount}건</span>
+            <button
+              type="button"
+              onClick={() => handleOpenResolutionConfirm('Y')}
+              className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
+            >
+              Y 조치
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOpenResolutionConfirm('N')}
+              className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
+            >
+              N 조치
+            </button>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
+            >
+              새로고침
+            </button>
           </div>
-        </section>
+        </div>
 
-        <MonitoringEventDetailPanel detail={detail} isLoading={isDetailLoading} />
-      </div>
+        <AdminDataTable
+          data={pageResponse.items}
+          columns={columns}
+          rowKey={(row) => String(row.eventId)}
+          selectedKey={selectedEventId != null ? String(selectedEventId) : null}
+          emptyMessage={isListLoading ? '목록을 불러오는 중입니다.' : '조회된 모니터링 이벤트가 없습니다.'}
+          maxHeightClassName="max-h-[540px]"
+          tableClassName="min-w-[1650px]"
+        />
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-clay/70 sm:text-sm">페이지당 20건</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <PaginationButton
+              disabled={page <= 1 || isListLoading}
+              onClick={() => setPage(Math.max(1, page - 1))}
+            >
+              이전
+            </PaginationButton>
+            {pagination.map((pageNo) => (
+              <PaginationButton
+                key={pageNo}
+                active={pageNo === page}
+                disabled={isListLoading}
+                onClick={() => setPage(pageNo)}
+              >
+                {pageNo}
+              </PaginationButton>
+            ))}
+            <PaginationButton
+              disabled={page >= Math.max(1, pageResponse.totalPages) || isListLoading}
+              onClick={() => setPage(Math.min(Math.max(1, pageResponse.totalPages), page + 1))}
+            >
+              다음
+            </PaginationButton>
+          </div>
+        </div>
+      </section>
+
+      <MonitoringEventDetailModal
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+        detail={detail}
+        isLoading={isDetailLoading}
+      />
 
       <AdminConfirmDialog
         open={resolutionTarget != null}

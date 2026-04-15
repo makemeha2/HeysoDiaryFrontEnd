@@ -13,7 +13,7 @@ import type {
   ResolutionYn,
 } from '../types/monitoringEvent';
 import {
-  defaultMonitoringEventSearchForm,
+  createDefaultMonitoringEventSearchForm,
   MONITORING_EVENT_PAGE_SIZE,
 } from '../types/monitoringEvent';
 
@@ -27,9 +27,10 @@ const emptyPageResponse: MonitoringEventPageResponse = {
 
 export const useMonitoringEventPageState = () => {
   const { handleApiError, notifyError, notifySuccess } = useAdminPageContext();
+  const defaultFilters = useMemo(() => createDefaultMonitoringEventSearchForm(), []);
 
-  const [filters, setFilters] = useState<MonitoringEventSearchForm>(defaultMonitoringEventSearchForm);
-  const [appliedFilters, setAppliedFilters] = useState<MonitoringEventSearchForm>(defaultMonitoringEventSearchForm);
+  const [filters, setFilters] = useState<MonitoringEventSearchForm>(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState<MonitoringEventSearchForm>(defaultFilters);
   const [page, setPage] = useState(1);
   const [pageResponse, setPageResponse] = useState<MonitoringEventPageResponse>(emptyPageResponse);
   const [isListLoading, setIsListLoading] = useState(false);
@@ -38,6 +39,7 @@ export const useMonitoringEventPageState = () => {
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const [detail, setDetail] = useState<MonitoringEventDetail | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const [resolutionTarget, setResolutionTarget] = useState<ResolutionYn | null>(null);
   const [isMutatingResolution, setIsMutatingResolution] = useState(false);
@@ -88,20 +90,15 @@ export const useMonitoringEventPageState = () => {
   }, [appliedFilters, loadPage, page]);
 
   const handleSearch = useCallback(() => {
-    setSelectedEventIds(new Set());
-    setSelectedEventId(null);
-    setDetail(null);
     setPage(1);
     setAppliedFilters({ ...filters, keyword: filters.keyword.trim() });
   }, [filters]);
 
   const handleResetFilters = useCallback(() => {
-    setFilters(defaultMonitoringEventSearchForm);
-    setSelectedEventIds(new Set());
-    setSelectedEventId(null);
-    setDetail(null);
+    const nextDefaultFilters = createDefaultMonitoringEventSearchForm();
+    setFilters(nextDefaultFilters);
     setPage(1);
-    setAppliedFilters(defaultMonitoringEventSearchForm);
+    setAppliedFilters(nextDefaultFilters);
   }, []);
 
   const handleRefresh = useCallback(() => {
@@ -111,9 +108,10 @@ export const useMonitoringEventPageState = () => {
     }
   }, [appliedFilters, loadDetail, loadPage, page, selectedEventId]);
 
-  const handleSelectRow = useCallback(
+  const handleOpenDetail = useCallback(
     (item: MonitoringEventListItem) => {
       setSelectedEventId(item.eventId);
+      setIsDetailDialogOpen(true);
       loadDetail(item.eventId);
     },
     [loadDetail],
@@ -187,6 +185,7 @@ export const useMonitoringEventPageState = () => {
     setSelectedEventIds(new Set());
     setSelectedEventId(null);
     setDetail(null);
+    setIsDetailDialogOpen(false);
     await loadPage(page, appliedFilters);
   }, [appliedFilters, handleApiError, isMutatingResolution, loadPage, notifySuccess, page, resolutionTarget, selectedEventIds]);
 
@@ -214,6 +213,8 @@ export const useMonitoringEventPageState = () => {
     selectedEventId,
     detail,
     isDetailLoading,
+    isDetailDialogOpen,
+    setIsDetailDialogOpen,
     resolutionTarget,
     isMutatingResolution,
     pagination,
@@ -221,7 +222,7 @@ export const useMonitoringEventPageState = () => {
     handleSearch,
     handleResetFilters,
     handleRefresh,
-    handleSelectRow,
+    handleOpenDetail,
     toggleSelectAllCurrentPage,
     toggleSelectOne,
     handleOpenResolutionConfirm,
