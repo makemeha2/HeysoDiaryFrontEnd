@@ -120,6 +120,7 @@ const AdminMonitoringEventPageContent = () => {
               onChange={(event) => updateFilter('resolvedYn', event.target.value as MonitoringEventSearchForm['resolvedYn'])}
               className="rounded border border-sand px-2 py-1"
             >
+              <option value="">전체</option>
               <option value="N">N</option>
               <option value="Y">Y</option>
             </select>
@@ -173,7 +174,7 @@ const AdminMonitoringEventPageContent = () => {
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-clay/70 sm:text-sm">
-            기본 정렬: created_at DESC, event_id DESC / 현재 필터 resolved_yn={appliedFilters.resolvedYn}
+            기본 정렬: created_at DESC, event_id DESC / 현재 필터 resolved_yn={appliedFilters.resolvedYn || 'ALL'}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -283,6 +284,7 @@ const AdminMonitoringEventPageContent = () => {
         description={`선택한 ${selectedCount}건의 resolved_yn 값을 ${resolutionTarget ?? '-'}로 변경합니다.`}
         confirmLabel={isMutatingResolution ? '처리 중...' : '확인'}
         onConfirm={handleConfirmResolution}
+        disabled={isMutatingResolution}
       />
 
       <AdminAlertDialog

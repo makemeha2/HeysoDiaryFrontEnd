@@ -8,6 +8,7 @@ type AdminConfirmDialogProps = {
   confirmLabel?: string;
   cancelLabel?: string;
   onConfirm: () => void;
+  disabled?: boolean;
 };
 
 const AdminConfirmDialog = ({
@@ -18,6 +19,7 @@ const AdminConfirmDialog = ({
   confirmLabel = '확인',
   cancelLabel = '취소',
   onConfirm,
+  disabled = false,
 }: AdminConfirmDialogProps) => {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -37,7 +39,10 @@ const AdminConfirmDialog = ({
             <button
               type="button"
               onClick={onConfirm}
-              className="rounded-md bg-clay px-3 py-1.5 text-xs text-white sm:text-sm"
+              disabled={disabled}
+              className={`rounded-md bg-clay px-3 py-1.5 text-xs text-white sm:text-sm ${
+                disabled ? 'cursor-not-allowed opacity-50' : ''
+              }`}
             >
               {confirmLabel}
             </button>

@@ -68,6 +68,7 @@ export const useMonitoringEventPageState = () => {
   const loadDetail = useCallback(
     async (eventId: number) => {
       setIsDetailLoading(true);
+      notifyError(null);
       const result = await getMonitoringEventDetail(eventId);
       setIsDetailLoading(false);
 
@@ -79,7 +80,7 @@ export const useMonitoringEventPageState = () => {
 
       setDetail(result.data ?? null);
     },
-    [handleApiError],
+    [handleApiError, notifyError],
   );
 
   useEffect(() => {
@@ -159,6 +160,7 @@ export const useMonitoringEventPageState = () => {
   }, [notifyError, selectedCount]);
 
   const handleConfirmResolution = useCallback(async () => {
+    if (isMutatingResolution) return;
     if (resolutionTarget == null || selectedEventIds.size === 0) {
       setResolutionTarget(null);
       return;
@@ -186,12 +188,12 @@ export const useMonitoringEventPageState = () => {
     setSelectedEventId(null);
     setDetail(null);
     await loadPage(page, appliedFilters);
-  }, [appliedFilters, handleApiError, loadPage, notifySuccess, page, resolutionTarget, selectedEventIds]);
+  }, [appliedFilters, handleApiError, isMutatingResolution, loadPage, notifySuccess, page, resolutionTarget, selectedEventIds]);
 
   const pagination = useMemo(() => {
     const totalPages = pageResponse.totalPages;
     if (totalPages <= 1) {
-      return [];
+      return [1];
     }
 
     const start = Math.max(1, page - 2);

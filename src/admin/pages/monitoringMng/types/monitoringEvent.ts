@@ -1,11 +1,12 @@
 export type ResolutionYn = 'Y' | 'N';
+export type MonitoringEventSearchResolvedYn = '' | ResolutionYn;
 export type MonitoringEventType = '' | 'ERROR' | 'WARN' | 'INFO' | 'SECURITY' | 'BUSINESS';
 export type MonitoringSeverity = '' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export type MonitoringEventSearchForm = {
   startDate: string;
   endDate: string;
-  resolvedYn: ResolutionYn;
+  resolvedYn: MonitoringEventSearchResolvedYn;
   eventType: MonitoringEventType;
   severity: MonitoringSeverity;
   keyword: string;

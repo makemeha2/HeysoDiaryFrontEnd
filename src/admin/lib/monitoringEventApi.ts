@@ -9,13 +9,13 @@ import type {
 
 export async function getMonitoringEventPage(params: MonitoringEventSearchParams) {
   const queryParams: Record<string, string | number> = {
-    resolvedYn: params.resolvedYn,
     page: params.page,
     size: params.size,
   };
 
   if (params.startDate) queryParams.startDate = params.startDate;
   if (params.endDate) queryParams.endDate = params.endDate;
+  if (params.resolvedYn) queryParams.resolvedYn = params.resolvedYn;
   if (params.eventType) queryParams.eventType = params.eventType;
   if (params.severity) queryParams.severity = params.severity;
   if (params.keyword) queryParams.keyword = params.keyword;
