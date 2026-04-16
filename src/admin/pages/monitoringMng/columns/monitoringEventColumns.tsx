@@ -104,7 +104,7 @@ export function buildMonitoringEventColumns({
       cell: ({ row }) => <span className="min-w-[180px]">{renderText(row.original.requestUri)}</span>,
     },
     { accessorKey: 'clientIp', header: 'client_ip', cell: ({ row }) => renderText(row.original.clientIp) },
-    { accessorKey: 'userId', header: 'user_id', cell: ({ row }) => renderText(row.original.userId) },
+    { accessorKey: 'userId', header: 'user_email', cell: ({ row }) => renderText(row.original.email) },
     { accessorKey: 'traceId', header: 'trace_id', cell: ({ row }) => renderText(row.original.traceId) },
     { accessorKey: 'sourceClass', header: 'source_class', cell: ({ row }) => renderText(row.original.sourceClass) },
     {

@@ -39,7 +39,6 @@ const AdminMonitoringEventPageContent = () => {
   const {
     filters,
     setFilters,
-    appliedFilters,
     page,
     setPage,
     pageResponse,
@@ -86,7 +85,6 @@ const AdminMonitoringEventPageContent = () => {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold text-clay sm:text-xl">모니터링 이벤트 관리</h1>
-          <p className="text-xs text-clay/80 sm:text-sm">tb_monitoring_event 데이터를 조회하고 조치 상태를 관리합니다.</p>
         </div>
       </header>
 
@@ -96,44 +94,44 @@ const AdminMonitoringEventPageContent = () => {
         </div>
       )}
 
-      <section className="rounded-xl border border-sand/60 bg-linen/60 p-3">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <label className="grid gap-1 text-xs text-clay sm:text-sm xl:col-span-2">
-            기간
-            <div className="flex items-center gap-2">
+      <section className="overflow-x-auto rounded-xl border border-sand/60 bg-linen/60 p-3">
+        <div className="flex min-w-max items-center gap-2 text-xs text-clay">
+          <label className="flex items-center gap-1 whitespace-nowrap">
+            <span>기간</span>
+            <div className="flex items-center gap-1">
               <input
                 type="date"
                 value={filters.startDate}
                 onChange={(event) => updateFilter('startDate', event.target.value)}
-                className="min-w-0 flex-1 rounded border border-sand px-2 py-1"
+                className="rounded border border-sand px-2 py-1 text-xs"
               />
               <span className="text-clay/70">~</span>
               <input
                 type="date"
                 value={filters.endDate}
                 onChange={(event) => updateFilter('endDate', event.target.value)}
-                className="min-w-0 flex-1 rounded border border-sand px-2 py-1"
+                className="rounded border border-sand px-2 py-1 text-xs"
               />
             </div>
           </label>
-          <label className="grid gap-1 text-xs text-clay sm:text-sm">
-            조치 여부
+          <label className="flex items-center gap-1 whitespace-nowrap">
+            <span>조치 여부</span>
             <select
               value={filters.resolvedYn}
               onChange={(event) => updateFilter('resolvedYn', event.target.value as MonitoringEventSearchForm['resolvedYn'])}
-              className="rounded border border-sand px-2 py-1"
+              className="rounded border border-sand px-2 py-1 text-xs"
             >
               <option value="">전체</option>
               <option value="N">N</option>
               <option value="Y">Y</option>
             </select>
           </label>
-          <label className="grid gap-1 text-xs text-clay sm:text-sm">
-            이벤트 유형
+          <label className="flex items-center gap-1 whitespace-nowrap">
+            <span>이벤트 유형</span>
             <select
               value={filters.eventType}
               onChange={(event) => updateFilter('eventType', event.target.value as MonitoringEventSearchForm['eventType'])}
-              className="rounded border border-sand px-2 py-1"
+              className="rounded border border-sand px-2 py-1 text-xs"
             >
               <option value="">전체</option>
               {eventTypeOptions.filter(Boolean).map((option) => (
@@ -143,12 +141,12 @@ const AdminMonitoringEventPageContent = () => {
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-xs text-clay sm:text-sm">
-            심각도
+          <label className="flex items-center gap-1 whitespace-nowrap">
+            <span>심각도</span>
             <select
               value={filters.severity}
               onChange={(event) => updateFilter('severity', event.target.value as MonitoringEventSearchForm['severity'])}
-              className="rounded border border-sand px-2 py-1"
+              className="rounded border border-sand px-2 py-1 text-xs"
             >
               <option value="">전체</option>
               {severityOptions.filter(Boolean).map((option) => (
@@ -158,8 +156,8 @@ const AdminMonitoringEventPageContent = () => {
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-xs text-clay sm:text-sm xl:col-span-2">
-            통합 검색어
+          <label className="flex min-w-[420px] items-center gap-1">
+            <span className="shrink-0 whitespace-nowrap">통합 검색어</span>
             <input
               type="text"
               value={filters.keyword}
@@ -170,27 +168,21 @@ const AdminMonitoringEventPageContent = () => {
                 }
               }}
               placeholder="event_code, title, message, request_uri, trace_id, exception_class"
-              className="rounded border border-sand px-2 py-1"
+              className="min-w-[320px] flex-1 rounded border border-sand px-2 py-1 text-xs"
             />
           </label>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-clay/70 sm:text-sm">
-            기본 정렬: created_at DESC, event_id DESC / 현재 필터 resolved_yn={appliedFilters.resolvedYn || 'ALL'}
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="ml-2 flex items-center gap-2">
             <button
               type="button"
               onClick={handleResetFilters}
-              className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
+              className="rounded border border-sand px-2 py-1 text-xs text-clay"
             >
               초기화
             </button>
             <button
               type="button"
               onClick={handleSearch}
-              className="rounded bg-clay px-3 py-1 text-xs text-white sm:text-sm"
+              className="rounded bg-clay px-3 py-1 text-xs text-white"
             >
               조회
             </button>

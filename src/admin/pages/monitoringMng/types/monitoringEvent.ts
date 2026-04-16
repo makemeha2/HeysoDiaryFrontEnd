@@ -29,6 +29,7 @@ export type MonitoringEventListItem = {
   requestUri: string | null;
   clientIp: string | null;
   userId: number | null;
+  email: string | null;
   traceId: string | null;
   sourceClass: string | null;
   resolvedYn: ResolutionYn;
@@ -84,4 +85,4 @@ export const createDefaultMonitoringEventSearchForm = (): MonitoringEventSearchF
   };
 };
 
-export const MONITORING_EVENT_PAGE_SIZE = 20;
+export const MONITORING_EVENT_PAGE_SIZE = 50;
