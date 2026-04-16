@@ -32,6 +32,7 @@ Thumbs.db
 # Local caches
 .parcel-cache/
 .cache/
+.agent-context/
 
 # Storybook
 out/
