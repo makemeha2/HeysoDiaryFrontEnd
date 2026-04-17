@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getAiPromptBindingList,
   getAiPromptBindingDetail,
@@ -7,104 +8,166 @@ import {
   getAiPromptTemplateList,
   getAiRuntimeProfileList,
 } from '../api/aiTemplateApi';
+import { assertOk, AdminApiError } from '@admin/lib/queryClientHelpers';
+import { adminKeys } from '@admin/lib/queryKeys';
+import useComCodesQuery from '@admin/features/commonCode/hooks/useComCodesQuery';
 import type {
   AiPromptBindingListItem,
-  AiPromptBindingDetail,
   AiPromptBindingCreateRequest,
-  AiPromptTemplateListItem,
-  AiRuntimeProfile,
 } from '@admin/types/aiTemplate';
-import type { CommonCode, StatusFilter } from '@admin/types/comCd';
+import type { StatusFilter } from '@admin/types/comCd';
 import type { BindingForm } from '../types/forms';
 import { initialBindingForm } from '../constants/formDefaults';
 import { useAdminPageContext } from '@admin/context/AdminPageContext';
 
 export const useBindingPageState = () => {
-  const { handleApiError, notifySuccess, notifyError, loadComCodes } = useAdminPageContext();
+  const queryClient = useQueryClient();
+  const { handleApiError, notifySuccess, notifyError } = useAdminPageContext();
 
   const [status, setStatus] = useState<StatusFilter>('ACTIVE');
   const [domainFilter, setDomainFilter] = useState<string>('');
-  const [bindings, setBindings] = useState<AiPromptBindingListItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [detail, setDetail] = useState<AiPromptBindingDetail | null>(null);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBinding, setEditingBinding] = useState<AiPromptBindingListItem | null>(null);
   const [form, setForm] = useState<BindingForm>(initialBindingForm);
 
-  const [allTemplates, setAllTemplates] = useState<AiPromptTemplateListItem[]>([]);
-  const [allProfiles, setAllProfiles] = useState<AiRuntimeProfile[]>([]);
-  const [domainCodes, setDomainCodes] = useState<CommonCode[]>([]);
+  const bindingsQuery = useQuery({
+    queryKey: adminKeys.ai.binding.list({ status, domain: domainFilter }),
+    queryFn: () => getAiPromptBindingList(status, domainFilter || undefined).then(assertOk),
+    staleTime: 0,
+  });
 
+  const detailQuery = useQuery({
+    queryKey: adminKeys.ai.binding.detail(selectedId!),
+    queryFn: () => getAiPromptBindingDetail(selectedId!).then(assertOk),
+    enabled: selectedId != null,
+    staleTime: 0,
+  });
+
+  const allTemplatesQuery = useQuery({
+    queryKey: adminKeys.ai.template.list({ status: 'ALL' }),
+    queryFn: () => getAiPromptTemplateList('ALL').then(assertOk),
+    staleTime: 30_000,
+  });
+
+  const allProfilesQuery = useQuery({
+    queryKey: adminKeys.ai.profile.list({ status: 'ALL' }),
+    queryFn: () => getAiRuntimeProfileList('ALL').then(assertOk),
+    staleTime: 30_000,
+  });
+
+  const domainCodesQuery = useComCodesQuery('aitp_domain');
+
+  const detail = detailQuery.data ?? null;
+  const allTemplates = allTemplatesQuery.data ?? [];
+  const allProfiles = allProfilesQuery.data ?? [];
+
+  // 필터 변경 시 선택 초기화
   useEffect(() => {
-    getAiPromptTemplateList('ALL').then((r) => { if (r.ok) setAllTemplates(r.data ?? []); });
-    getAiRuntimeProfileList('ALL').then((r) => { if (r.ok) setAllProfiles(r.data ?? []); });
-    loadComCodes('aitp_domain').then(setDomainCodes);
-  }, [loadComCodes]);
+    setSelectedId(null);
+    notifyError(null);
+  }, [status, domainFilter, notifyError]);
+
+  // 쿼리 에러 → 컨텍스트 에러 핸들러로 위임
+  useEffect(() => {
+    const err = bindingsQuery.error ?? detailQuery.error;
+    if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
+  }, [bindingsQuery.error, detailQuery.error, handleApiError]);
+
+  // 편집 폼 열릴 때 상세 description 동기화
+  useEffect(() => {
+    if (
+      isFormOpen &&
+      editingBinding != null &&
+      detail != null &&
+      detail.bindingId === editingBinding.bindingId
+    ) {
+      setForm((prev) => ({ ...prev, description: detail.description ?? '' }));
+    }
+  }, [isFormOpen, editingBinding, detail]);
 
   const selectedSystemTemplateId = Number(form.systemTemplateId);
   const selectedUserTemplateId = Number(form.userTemplateId);
   const selectedProfileId = Number(form.runtimeProfileId);
 
   const systemTemplateOptions = useMemo(
-    () => allTemplates.filter(
-      (t) => t.templateRole === 'SYSTEM' &&
-        (t.isActive === 1 || (Number.isFinite(selectedSystemTemplateId) && t.templateId === selectedSystemTemplateId)),
-    ),
+    () =>
+      allTemplates.filter(
+        (t) =>
+          t.templateRole === 'SYSTEM' &&
+          (t.isActive === 1 ||
+            (Number.isFinite(selectedSystemTemplateId) &&
+              t.templateId === selectedSystemTemplateId)),
+      ),
     [allTemplates, selectedSystemTemplateId],
   );
 
   const userTemplateOptions = useMemo(
-    () => allTemplates.filter(
-      (t) => t.templateRole === 'USER' &&
-        (t.isActive === 1 || (Number.isFinite(selectedUserTemplateId) && t.templateId === selectedUserTemplateId)),
-    ),
+    () =>
+      allTemplates.filter(
+        (t) =>
+          t.templateRole === 'USER' &&
+          (t.isActive === 1 ||
+            (Number.isFinite(selectedUserTemplateId) && t.templateId === selectedUserTemplateId)),
+      ),
     [allTemplates, selectedUserTemplateId],
   );
 
   const runtimeProfileOptions = useMemo(
-    () => allProfiles.filter(
-      (p) => p.isActive === 1 || (Number.isFinite(selectedProfileId) && p.runtimeProfileId === selectedProfileId),
-    ),
+    () =>
+      allProfiles.filter(
+        (p) =>
+          p.isActive === 1 ||
+          (Number.isFinite(selectedProfileId) && p.runtimeProfileId === selectedProfileId),
+      ),
     [allProfiles, selectedProfileId],
   );
 
-  // domainFilter는 서버에서 처리: domainType 파라미터로 전달
-  const loadBindings = useCallback(
-    async (s: StatusFilter, d: string) => {
-      const result = await getAiPromptBindingList(s, d || undefined);
-      if (!result.ok) {
-        handleApiError(result.status, '바인딩 목록을 불러오지 못했습니다.');
-        return;
+  const saveMutation = useMutation({
+    mutationFn: async (payload: {
+      form: BindingForm;
+      editingId: number | null;
+    }) => {
+      const { form: f, editingId } = payload;
+      const req: AiPromptBindingCreateRequest = {
+        bindingName: f.bindingName.trim(),
+        domainType: f.domainType.trim(),
+        featureKey: f.featureKey.trim(),
+        systemTemplateId: Number(f.systemTemplateId),
+        userTemplateId: Number(f.userTemplateId),
+        runtimeProfileId: Number(f.runtimeProfileId),
+        description: f.description.trim() || undefined,
+      };
+      if (editingId == null) {
+        return assertOk(await createAiPromptBinding(req));
       }
-      setBindings(result.data ?? []);
+      return assertOk(
+        await updateAiPromptBinding(editingId, {
+          bindingName: req.bindingName,
+          domainType: req.domainType,
+          systemTemplateId: req.systemTemplateId,
+          userTemplateId: req.userTemplateId,
+          runtimeProfileId: req.runtimeProfileId,
+          description: req.description,
+          isActive: f.isActive,
+        }),
+      );
     },
-    [handleApiError],
-  );
-
-  const loadDetail = useCallback(
-    async (id: number) => {
-      const result = await getAiPromptBindingDetail(id);
-      if (!result.ok) {
-        handleApiError(result.status, '바인딩 상세를 불러오지 못했습니다.');
-        return;
+    onSuccess: async (_data, variables) => {
+      notifySuccess(variables.editingId == null ? '등록되었습니다.' : '수정되었습니다.');
+      setIsFormOpen(false);
+      await queryClient.invalidateQueries({
+        queryKey: adminKeys.ai.binding.list({ status, domain: domainFilter }),
+      });
+      if (selectedId != null) {
+        await queryClient.invalidateQueries({ queryKey: adminKeys.ai.binding.detail(selectedId) });
       }
-      setDetail(result.data ?? null);
     },
-    [handleApiError],
-  );
-
-  useEffect(() => {
-    notifyError(null);
-    setSelectedId(null);
-    setDetail(null);
-    loadBindings(status, domainFilter);
-  }, [status, domainFilter, loadBindings, notifyError]);
-
-  useEffect(() => {
-    if (selectedId != null) loadDetail(selectedId);
-    else setDetail(null);
-  }, [selectedId, loadDetail]);
+    onError: (err: unknown) => {
+      if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
+    },
+  });
 
   const handleOpenCreate = () => {
     setEditingBinding(null);
@@ -127,12 +190,6 @@ export const useBindingPageState = () => {
     setIsFormOpen(true);
   }, []);
 
-  useEffect(() => {
-    if (isFormOpen && editingBinding != null && detail != null && detail.bindingId === editingBinding.bindingId) {
-      setForm((prev) => ({ ...prev, description: detail.description ?? '' }));
-    }
-  }, [isFormOpen, editingBinding, detail]);
-
   const handleSave = async () => {
     if (
       !form.bindingName.trim() ||
@@ -146,47 +203,24 @@ export const useBindingPageState = () => {
       return;
     }
     notifyError(null);
-
-    const payload: AiPromptBindingCreateRequest = {
-      bindingName: form.bindingName.trim(),
-      domainType: form.domainType.trim(),
-      featureKey: form.featureKey.trim(),
-      systemTemplateId: Number(form.systemTemplateId),
-      userTemplateId: Number(form.userTemplateId),
-      runtimeProfileId: Number(form.runtimeProfileId),
-      description: form.description.trim() || undefined,
-    };
-
-    const result =
-      editingBinding == null
-        ? await createAiPromptBinding(payload)
-        : await updateAiPromptBinding(editingBinding.bindingId, {
-            bindingName: payload.bindingName,
-            domainType: payload.domainType,
-            systemTemplateId: payload.systemTemplateId,
-            userTemplateId: payload.userTemplateId,
-            runtimeProfileId: payload.runtimeProfileId,
-            description: payload.description,
-            isActive: form.isActive,
-          });
-
-    if (!result.ok) {
-      handleApiError(result.status, result.errorMessage ?? '저장에 실패했습니다.');
-      return;
-    }
-
-    notifySuccess(editingBinding == null ? '등록되었습니다.' : '수정되었습니다.');
-    setIsFormOpen(false);
-    await loadBindings(status, domainFilter);
-    if (selectedId != null) await loadDetail(selectedId);
+    await saveMutation.mutateAsync({ form, editingId: editingBinding?.bindingId ?? null });
   };
+
+  const loadBindings = useCallback(
+    async (_s?: StatusFilter, _d?: string) => {
+      await queryClient.invalidateQueries({
+        queryKey: adminKeys.ai.binding.list({ status, domain: domainFilter }),
+      });
+    },
+    [queryClient, status, domainFilter],
+  );
 
   return {
     status,
     setStatus,
     domainFilter,
     setDomainFilter,
-    bindings,
+    bindings: bindingsQuery.data ?? [],
     loadBindings,
     selectedId,
     setSelectedId,
@@ -196,7 +230,7 @@ export const useBindingPageState = () => {
     editingBinding,
     form,
     setForm,
-    domainCodes,
+    domainCodes: domainCodesQuery.data ?? [],
     systemTemplateOptions,
     userTemplateOptions,
     runtimeProfileOptions,
