@@ -1,204 +1,49 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import StatusFilterSelect from '@admin/components/StatusFilterSelect';
 import AdminDataTable from '@admin/components/common/AdminDataTable';
 import AdminAlertDialog from '@admin/components/common/dialog/AdminAlertDialog';
+import { AdminPageProvider, useAdminPageContext } from '@admin/context/AdminPageContext';
 import { buildCodeColumns } from './columns/codeColumns';
 import { buildCodeGroupColumns } from './columns/codeGroupColumns';
 import CodeFormDialog from './components/CodeFormDialog';
 import CodeGroupFormDialog from './components/CodeGroupFormDialog';
-import useAdminComCdPage from './hooks/useAdminComCdPage';
-import { adminKeys } from '@admin/lib/queryKeys';
-import { AdminApiError } from '@admin/lib/queryClientHelpers';
-import { clearAdminAccessToken } from '@admin/lib/auth';
-import type { CommonCode, CommonCodeGroup, StatusFilter } from '@admin/types/comCd';
+import { useComCdPageState } from './hooks/useComCdPageState';
 
-type GroupSubmitPayload = {
-  groupId: string;
-  groupName: string;
-  isActive: boolean;
-};
-
-type CodeSubmitPayload = {
-  groupId: string;
-  codeId: string;
-  codeName: string;
-  sortSeq: number;
-  extraInfo1: string;
-  extraInfo2: string;
-  isActive: boolean;
-};
-
-const AdminComCdPage = () => {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
-  const [groupStatus, setGroupStatus] = useState<StatusFilter>('ACTIVE');
-  const [codeStatus, setCodeStatus] = useState<StatusFilter>('ACTIVE');
-  const [showEditedAt, setShowEditedAt] = useState(false);
-
-  const [selectedGroupId, setSelectedGroupId] = useState('');
-  const [selectedCodeId, setSelectedCodeId] = useState('');
-
-  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
-  const [isCodeDialogOpen, setIsCodeDialogOpen] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<CommonCodeGroup | null>(null);
-  const [editingCode, setEditingCode] = useState<CommonCode | null>(null);
-
-  const [alertMessage, setAlertMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // mutation 후 우선 선택할 ID를 임시 보관 (ref이므로 리렌더 유발 없음)
-  const preferredGroupIdRef = useRef('');
-  const preferredCodeIdRef = useRef('');
-
+const AdminComCdPageContent = () => {
+  const { alertMessage, errorMessage, clearAlert } = useAdminPageContext();
   const {
+    groupStatus,
+    setGroupStatus,
+    codeStatus,
+    setCodeStatus,
+    showEditedAt,
+    setShowEditedAt,
+    groups,
+    codes,
     groupsQuery,
     codesQuery,
-    createGroupMutation,
-    updateGroupMutation,
-    createCodeMutation,
-    updateCodeMutation,
-  } = useAdminComCdPage({
-    groupStatus,
     selectedGroupId,
-    codeStatus,
-    onGroupSuccess: (mode) => {
-      setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
-      setIsGroupDialogOpen(false);
-    },
-    onCodeSuccess: (mode) => {
-      setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
-      setIsCodeDialogOpen(false);
-    },
-    onError: handleApiError,
-  });
-
-  const groups = groupsQuery.data ?? [];
-  const codes = codesQuery.data ?? [];
-
-  const handleApiError = useCallback(
-    (err: AdminApiError) => {
-      if (err.status === 401) {
-        clearAdminAccessToken();
-        navigate('/admin/login?reason=sessionExpired', {
-          replace: true,
-          state: { from: '/admin/com-codes' },
-        });
-        return;
-      }
-      setErrorMessage(err.status === 403 ? '관리자 권한이 없습니다.' : err.errorMessage);
-    },
-    [navigate],
-  );
-
-  // 그룹 데이터가 바뀔 때마다 selectedGroupId 정규화
-  useEffect(() => {
-    const data = groupsQuery.data ?? [];
-    if (!data.length) {
-      setSelectedGroupId('');
-      return;
-    }
-    const preferred = preferredGroupIdRef.current;
-    const hasPreferred = !!preferred && data.some((g) => g.groupId === preferred);
-    const hasCurrent = !!selectedGroupId && data.some((g) => g.groupId === selectedGroupId);
-    const firstActive = data.find((g) => g.isActive)?.groupId;
-
-    if (hasPreferred) {
-      setSelectedGroupId(preferred);
-    } else if (!hasCurrent) {
-      setSelectedGroupId(firstActive ?? data[0]?.groupId ?? '');
-    }
-    preferredGroupIdRef.current = '';
-  }, [groupsQuery.data]);
-
-  // 코드 데이터가 바뀔 때마다 selectedCodeId 정규화
-  useEffect(() => {
-    const data = codesQuery.data ?? [];
-    if (!data.length) {
-      setSelectedCodeId('');
-      return;
-    }
-    const preferred = preferredCodeIdRef.current;
-    const hasPreferred = !!preferred && data.some((c) => c.codeId === preferred);
-    const hasCurrent = !!selectedCodeId && data.some((c) => c.codeId === selectedCodeId);
-
-    if (hasPreferred) {
-      setSelectedCodeId(preferred);
-    } else if (!hasCurrent) {
-      setSelectedCodeId(data[0]?.codeId ?? '');
-    }
-    preferredCodeIdRef.current = '';
-  }, [codesQuery.data]);
-
-  // 쿼리 에러 처리
-  useEffect(() => {
-    const err = groupsQuery.error ?? codesQuery.error;
-    if (err instanceof AdminApiError) handleApiError(err);
-  }, [groupsQuery.error, codesQuery.error, handleApiError]);
-
-  const selectedGroup = useMemo(
-    () => groups.find((group) => group.groupId === selectedGroupId) ?? null,
-    [groups, selectedGroupId],
-  );
-
-  const handleOpenCreateGroupDialog = () => {
-    setEditingGroup(null);
-    setIsGroupDialogOpen(true);
-  };
-
-  const handleOpenEditGroupDialog = useCallback((group: CommonCodeGroup) => {
-    setSelectedGroupId(group.groupId);
-    setEditingGroup(group);
-    setIsGroupDialogOpen(true);
-  }, []);
-
-  const handleGroupSubmit = async (payload: GroupSubmitPayload, mode: 'create' | 'edit') => {
-    setErrorMessage(null);
-    preferredGroupIdRef.current = payload.groupId;
-    if (mode === 'create') {
-      await createGroupMutation.mutateAsync(payload);
-    } else {
-      await updateGroupMutation.mutateAsync(payload);
-    }
-  };
-
-  const handleOpenCreateCodeDialog = () => {
-    if (!selectedGroupId) {
-      setErrorMessage('먼저 그룹을 선택하세요.');
-      return;
-    }
-    setEditingCode(null);
-    setIsCodeDialogOpen(true);
-  };
-
-  const handleOpenEditCodeDialog = useCallback((code: CommonCode) => {
-    setSelectedGroupId(code.groupId);
-    setSelectedCodeId(code.codeId);
-    setEditingCode(code);
-    setIsCodeDialogOpen(true);
-  }, []);
-
-  const handleCodeSubmit = async (payload: CodeSubmitPayload, mode: 'create' | 'edit') => {
-    setErrorMessage(null);
-    if (!payload.groupId) {
-      setErrorMessage('먼저 그룹을 선택하세요.');
-      return;
-    }
-    preferredCodeIdRef.current = payload.codeId;
-    const normalized = {
-      ...payload,
-      sortSeq: Number(payload.sortSeq),
-      extraInfo1: payload.extraInfo1.trim() || undefined,
-      extraInfo2: payload.extraInfo2.trim() || undefined,
-    };
-    if (mode === 'create') {
-      await createCodeMutation.mutateAsync(normalized);
-    } else {
-      await updateCodeMutation.mutateAsync(normalized);
-    }
-  };
+    setSelectedGroupId,
+    selectedCodeId,
+    setSelectedCodeId,
+    selectedGroup,
+    isGroupDialogOpen,
+    setIsGroupDialogOpen,
+    isCodeDialogOpen,
+    setIsCodeDialogOpen,
+    editingGroup,
+    editingCode,
+    isGroupMutating,
+    isCodeMutating,
+    handleRefreshGroups,
+    handleRefreshCodes,
+    handleOpenCreateGroupDialog,
+    handleOpenEditGroupDialog,
+    handleGroupSubmit,
+    handleOpenCreateCodeDialog,
+    handleOpenEditCodeDialog,
+    handleCodeSubmit,
+  } = useComCdPageState();
 
   const groupColumns = useMemo(
     () => buildCodeGroupColumns({ showEditedAt, onEdit: handleOpenEditGroupDialog }),
@@ -209,9 +54,6 @@ const AdminComCdPage = () => {
     () => buildCodeColumns({ showEditedAt, onEdit: handleOpenEditCodeDialog }),
     [showEditedAt, handleOpenEditCodeDialog],
   );
-
-  const isGroupMutating = createGroupMutation.isPending || updateGroupMutation.isPending;
-  const isCodeMutating = createCodeMutation.isPending || updateCodeMutation.isPending;
 
   return (
     <div className="flex w-full flex-col gap-4 text-sm">
@@ -245,9 +87,7 @@ const AdminComCdPage = () => {
               <StatusFilterSelect value={groupStatus} onChange={setGroupStatus} />
               <button
                 type="button"
-                onClick={() =>
-                  queryClient.invalidateQueries({ queryKey: adminKeys.comCd.groups(groupStatus) })
-                }
+                onClick={handleRefreshGroups}
                 disabled={groupsQuery.isFetching}
                 className="rounded border border-sand px-2 py-1 text-xs text-clay disabled:opacity-50 sm:text-sm"
               >
@@ -288,15 +128,7 @@ const AdminComCdPage = () => {
               <StatusFilterSelect value={codeStatus} onChange={setCodeStatus} />
               <button
                 type="button"
-                onClick={() => {
-                  if (!selectedGroupId) {
-                    setErrorMessage('먼저 그룹을 선택하세요.');
-                    return;
-                  }
-                  queryClient.invalidateQueries({
-                    queryKey: adminKeys.comCd.codes(selectedGroupId, codeStatus),
-                  });
-                }}
+                onClick={handleRefreshCodes}
                 disabled={codesQuery.isFetching}
                 className="rounded border border-sand px-2 py-1 text-xs text-clay disabled:opacity-50 sm:text-sm"
               >
@@ -343,7 +175,9 @@ const AdminComCdPage = () => {
       <AdminAlertDialog
         open={!!alertMessage}
         onOpenChange={(open) => {
-          if (!open) setAlertMessage(null);
+          if (!open) {
+            clearAlert();
+          }
         }}
         title="알림"
         description={alertMessage ?? ''}
@@ -351,5 +185,11 @@ const AdminComCdPage = () => {
     </div>
   );
 };
+
+const AdminComCdPage = () => (
+  <AdminPageProvider>
+    <AdminComCdPageContent />
+  </AdminPageProvider>
+);
 
 export default AdminComCdPage;
