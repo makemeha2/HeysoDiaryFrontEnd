@@ -9,7 +9,7 @@ import {
   resetUserPassword,
   updateUser,
   updateUserStatus,
-} from '@admin/lib/userApi';
+} from '../api/userApi';
 import type { AdminApiResult } from '@admin/lib/api';
 import type {
   CreateLocalUserRequest,

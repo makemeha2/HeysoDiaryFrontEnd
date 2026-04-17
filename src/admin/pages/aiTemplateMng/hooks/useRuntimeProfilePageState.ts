@@ -3,7 +3,7 @@ import {
   getAiRuntimeProfileList,
   createAiRuntimeProfile,
   updateAiRuntimeProfile,
-} from '@admin/lib/aiTemplateApi';
+} from '../api/aiTemplateApi';
 import type { AiRuntimeProfile, AiRuntimeProfileCreateRequest } from '@admin/types/aiTemplate';
 import type { CommonCode, StatusFilter } from '@admin/types/comCd';
 import type { ProfileForm } from '../types/forms';

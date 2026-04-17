@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   getAiPromptTemplateList,
   getAiPromptTemplateDetail,
-} from '@admin/lib/aiTemplateApi';
+} from '../api/aiTemplateApi';
 import type {
   AiPromptTemplateListItem,
   AiPromptTemplateDetail,

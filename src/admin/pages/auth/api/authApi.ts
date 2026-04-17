@@ -1,4 +1,4 @@
-import { adminFetch } from './api';
+import { adminFetch } from '@admin/lib/api';
 
 type AdminLoginResponse = {
   accessToken: string;

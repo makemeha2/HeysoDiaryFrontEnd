@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { previewTemplate } from '@admin/lib/aiTemplateApi';
+import { previewTemplate } from '../api/aiTemplateApi';
 
 type UseTemplatePreviewStateOptions = {
   selectedId: number | null;

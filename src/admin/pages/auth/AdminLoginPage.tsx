@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { loginAdmin } from '../lib/authApi';
-import { setAdminAccessToken, setAdminUserId } from '../lib/auth';
+import { loginAdmin } from './api/authApi';
+import { setAdminAccessToken, setAdminUserId } from '../../lib/auth';
 
 const AdminLoginPage = () => {
   const navigate = useNavigate();

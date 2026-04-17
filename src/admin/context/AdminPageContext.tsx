@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clearAdminAccessToken } from '@admin/lib/auth';
-import { fetchAdminCodeList } from '@admin/lib/comCdApi';
+import { fetchAdminCodeList } from '@admin/pages/comCd/api/comCdApi';
 import type { CommonCode, StatusFilter } from '@admin/types/comCd';
 
 type AdminPageContextValue = {

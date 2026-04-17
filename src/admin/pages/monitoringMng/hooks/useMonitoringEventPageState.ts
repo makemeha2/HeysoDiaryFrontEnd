@@ -4,7 +4,7 @@ import {
   getMonitoringEventDetail,
   getMonitoringEventPage,
   patchMonitoringEventResolution,
-} from '@admin/lib/monitoringEventApi';
+} from '../api/monitoringEventApi';
 import type {
   MonitoringEventDetail,
   MonitoringEventListItem,

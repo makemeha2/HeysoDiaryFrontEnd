@@ -1,11 +1,11 @@
-import { adminFetch } from './api';
+import { adminFetch } from '@admin/lib/api';
 import type {
   MonitoringEventDetail,
   MonitoringEventPageResponse,
   MonitoringEventResolutionRequest,
   MonitoringEventResolutionResponse,
   MonitoringEventSearchParams,
-} from '@admin/pages/monitoringMng/types/monitoringEvent';
+} from '../types/monitoringEvent';
 
 export async function getMonitoringEventPage(params: MonitoringEventSearchParams) {
   const queryParams: Record<string, string | number> = {

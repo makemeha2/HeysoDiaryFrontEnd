@@ -6,7 +6,7 @@ import {
   updateAiPromptBinding,
   getAiPromptTemplateList,
   getAiRuntimeProfileList,
-} from '@admin/lib/aiTemplateApi';
+} from '../api/aiTemplateApi';
 import type {
   AiPromptBindingListItem,
   AiPromptBindingDetail,

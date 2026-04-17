@@ -1,4 +1,4 @@
-import { adminFetch } from './api';
+import { adminFetch } from '@admin/lib/api';
 import type {
   CreateLocalUserRequest,
   ResetUserPasswordRequest,
@@ -7,7 +7,7 @@ import type {
   UserDetail,
   UserPageResponse,
   UserSearchParams,
-} from '@admin/pages/userMng/types/userMng';
+} from '../types/userMng';
 
 export async function getUserPage(params: UserSearchParams) {
   const queryParams: Record<string, string | number> = {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   addTemplateRelation,
   deleteTemplateRelation,
-} from '@admin/lib/aiTemplateApi';
+} from '../api/aiTemplateApi';
 import type { RelForm } from '../types/forms';
 import { initialRelForm } from '../constants/formDefaults';
 import { useAdminPageContext } from '@admin/context/AdminPageContext';

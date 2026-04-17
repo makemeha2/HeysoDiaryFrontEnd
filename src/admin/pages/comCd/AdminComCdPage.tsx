@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import StatusFilterSelect from '@admin/components/StatusFilterSelect';
 import AdminDataTable from '@admin/components/common/AdminDataTable';
 import AdminAlertDialog from '@admin/components/common/dialog/AdminAlertDialog';
-import { buildCodeColumns } from '@admin/features/commonCode/codeColumns';
-import { buildCodeGroupColumns } from '@admin/features/commonCode/codeGroupColumns';
-import CodeFormDialog from '@admin/features/commonCode/components/CodeFormDialog';
-import CodeGroupFormDialog from '@admin/features/commonCode/components/CodeGroupFormDialog';
+import { buildCodeColumns } from './columns/codeColumns';
+import { buildCodeGroupColumns } from './columns/codeGroupColumns';
+import CodeFormDialog from './components/CodeFormDialog';
+import CodeGroupFormDialog from './components/CodeGroupFormDialog';
 import {
   createAdminCode,
   createAdminGroup,
@@ -14,7 +14,7 @@ import {
   fetchAdminGroupList,
   updateAdminCode,
   updateAdminGroup,
-} from '@admin/lib/comCdApi';
+} from './api/comCdApi';
 import { clearAdminAccessToken } from '@admin/lib/auth';
 import type { CommonCode, CommonCodeGroup, StatusFilter } from '@admin/types/comCd';
 
