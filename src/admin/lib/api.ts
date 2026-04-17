@@ -14,6 +14,7 @@ export type AdminApiResult<T = unknown> = {
   status: number;
   data: T;
   errorMessage?: string;
+  errorCode?: string;
 };
 
 export async function adminFetch<T = unknown>(
@@ -45,6 +46,7 @@ export async function adminFetch<T = unknown>(
       status: response.status,
       data: response.data as T,
       errorMessage: typeof response.data?.message === 'string' ? response.data.message : undefined,
+      errorCode: typeof response.data?.errorCode === 'string' ? response.data.errorCode : undefined,
     };
   } catch {
     return {
@@ -52,6 +54,7 @@ export async function adminFetch<T = unknown>(
       status: 0,
       data: null as T,
       errorMessage: '네트워크 오류가 발생했습니다.',
+      errorCode: undefined,
     };
   }
 }

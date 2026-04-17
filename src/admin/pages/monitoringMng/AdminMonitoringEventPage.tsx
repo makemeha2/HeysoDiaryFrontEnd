@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import AdminDataTable from '@admin/components/common/AdminDataTable';
+import AdminPaginationButton from '@admin/components/common/AdminPaginationButton';
 import AdminAlertDialog from '@admin/components/common/dialog/AdminAlertDialog';
 import AdminConfirmDialog from '@admin/components/common/dialog/AdminConfirmDialog';
 import { AdminPageProvider, useAdminPageContext } from '@admin/context/AdminPageContext';
@@ -10,29 +11,6 @@ import type { MonitoringEventSearchForm } from './types/monitoringEvent';
 
 const eventTypeOptions = ['', 'ERROR', 'WARN', 'INFO', 'SECURITY', 'BUSINESS'] as const;
 const severityOptions = ['', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
-
-const PaginationButton = ({
-  active,
-  disabled,
-  onClick,
-  children,
-}: {
-  active?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) => (
-  <button
-    type="button"
-    disabled={disabled}
-    onClick={onClick}
-    className={`rounded border px-2 py-1 text-xs sm:text-sm ${
-      active ? 'border-clay bg-clay text-white' : 'border-sand text-clay'
-    } ${disabled ? 'cursor-not-allowed opacity-40' : 'hover:bg-amber/10'}`}
-  >
-    {children}
-  </button>
-);
 
 const AdminMonitoringEventPageContent = () => {
   const { alertMessage, errorMessage, clearAlert } = useAdminPageContext();
@@ -237,28 +215,28 @@ const AdminMonitoringEventPageContent = () => {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-clay/70 sm:text-sm">페이지당 20건</p>
           <div className="flex flex-wrap items-center gap-2">
-            <PaginationButton
+            <AdminPaginationButton
               disabled={page <= 1 || isListLoading}
               onClick={() => setPage(Math.max(1, page - 1))}
             >
               이전
-            </PaginationButton>
+            </AdminPaginationButton>
             {pagination.map((pageNo) => (
-              <PaginationButton
+              <AdminPaginationButton
                 key={pageNo}
                 active={pageNo === page}
                 disabled={isListLoading}
                 onClick={() => setPage(pageNo)}
               >
                 {pageNo}
-              </PaginationButton>
+              </AdminPaginationButton>
             ))}
-            <PaginationButton
+            <AdminPaginationButton
               disabled={page >= Math.max(1, pageResponse.totalPages) || isListLoading}
               onClick={() => setPage(Math.min(Math.max(1, pageResponse.totalPages), page + 1))}
             >
               다음
-            </PaginationButton>
+            </AdminPaginationButton>
           </div>
         </div>
       </section>

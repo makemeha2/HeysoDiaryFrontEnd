@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { loginAdmin } from '../lib/authApi';
-import { setAdminAccessToken } from '../lib/auth';
+import { setAdminAccessToken, setAdminUserId } from '../lib/auth';
 
 const AdminLoginPage = () => {
   const navigate = useNavigate();
@@ -51,6 +51,7 @@ const AdminLoginPage = () => {
       }
 
       setAdminAccessToken(result.data.accessToken);
+      setAdminUserId(result.data.userId);
       navigate(fromPath, { replace: true });
     } finally {
       setIsSubmitting(false);

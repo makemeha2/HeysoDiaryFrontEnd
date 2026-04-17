@@ -8,6 +8,7 @@ import AdminAiTemplatePage from '../pages/aiTemplateMng/AdminAiTemplatePage';
 import AdminAiBindingPage from '../pages/aiTemplateMng/AdminAiBindingPage';
 import AdminRuntimeProfilePage from '../pages/aiTemplateMng/AdminRuntimeProfilePage';
 import AdminMonitoringEventPage from '../pages/monitoringMng/AdminMonitoringEventPage';
+import AdminUserMngPage from '../pages/userMng/AdminUserMngPage';
 
 const ROBOTS_META_NAME = 'robots';
 const ADMIN_ROBOTS_CONTENT = 'noindex,nofollow';
@@ -46,6 +47,7 @@ const AdminApp = () => {
           <Route path="ai-template/bindings" element={<AdminAiBindingPage />} />
           <Route path="ai-template/runtime-profiles" element={<AdminRuntimeProfilePage />} />
           <Route path="monitoring-events" element={<AdminMonitoringEventPage />} />
+          <Route path="user-mng" element={<AdminUserMngPage />} />
           <Route index element={<Navigate to="/admin/com-codes" replace />} />
         </Route>
       </Route>
