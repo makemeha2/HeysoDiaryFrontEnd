@@ -8,10 +8,7 @@ import { buildCodeColumns } from './columns/codeColumns';
 import { buildCodeGroupColumns } from './columns/codeGroupColumns';
 import CodeFormDialog from './components/CodeFormDialog';
 import CodeGroupFormDialog from './components/CodeGroupFormDialog';
-import useCodeGroupsQuery from '@admin/features/commonCode/hooks/useCodeGroupsQuery';
-import useCodeListQuery from '@admin/features/commonCode/hooks/useCodeListQuery';
-import useCodeGroupMutations from '@admin/features/commonCode/hooks/useCodeGroupMutations';
-import useCodeMutations from '@admin/features/commonCode/hooks/useCodeMutations';
+import useAdminComCdPage from './hooks/useAdminComCdPage';
 import { adminKeys } from '@admin/lib/queryKeys';
 import { AdminApiError } from '@admin/lib/queryClientHelpers';
 import { clearAdminAccessToken } from '@admin/lib/auth';
@@ -56,8 +53,27 @@ const AdminComCdPage = () => {
   const preferredGroupIdRef = useRef('');
   const preferredCodeIdRef = useRef('');
 
-  const groupsQuery = useCodeGroupsQuery(groupStatus);
-  const codesQuery = useCodeListQuery(selectedGroupId, codeStatus);
+  const {
+    groupsQuery,
+    codesQuery,
+    createGroupMutation,
+    updateGroupMutation,
+    createCodeMutation,
+    updateCodeMutation,
+  } = useAdminComCdPage({
+    groupStatus,
+    selectedGroupId,
+    codeStatus,
+    onGroupSuccess: (mode) => {
+      setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
+      setIsGroupDialogOpen(false);
+    },
+    onCodeSuccess: (mode) => {
+      setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
+      setIsCodeDialogOpen(false);
+    },
+    onError: handleApiError,
+  });
 
   const groups = groupsQuery.data ?? [];
   const codes = codesQuery.data ?? [];
@@ -121,25 +137,6 @@ const AdminComCdPage = () => {
     const err = groupsQuery.error ?? codesQuery.error;
     if (err instanceof AdminApiError) handleApiError(err);
   }, [groupsQuery.error, codesQuery.error, handleApiError]);
-
-  const { createMutation: createGroupMutation, updateMutation: updateGroupMutation } =
-    useCodeGroupMutations({
-      onSuccess: (mode) => {
-        setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
-        setIsGroupDialogOpen(false);
-      },
-      onError: handleApiError,
-    });
-
-  const { createMutation: createCodeMutation, updateMutation: updateCodeMutation } =
-    useCodeMutations({
-      codeStatus,
-      onSuccess: (mode) => {
-        setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
-        setIsCodeDialogOpen(false);
-      },
-      onError: handleApiError,
-    });
 
   const selectedGroup = useMemo(
     () => groups.find((group) => group.groupId === selectedGroupId) ?? null,

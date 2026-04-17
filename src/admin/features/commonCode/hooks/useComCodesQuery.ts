@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchAdminCodeList } from '@admin/pages/comCd/api/comCdApi';
+import { fetchAdminCodeList } from '../api/commonCodeApi';
 import { assertOk } from '@admin/lib/queryClientHelpers';
 import { adminKeys } from '@admin/lib/queryKeys';
 import type { StatusFilter } from '@admin/types/comCd';
