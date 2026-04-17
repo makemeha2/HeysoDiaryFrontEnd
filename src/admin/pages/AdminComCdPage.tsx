@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import StatusFilterSelect from '@admin/components/StatusFilterSelect';
 import AdminDataTable from '@admin/components/common/AdminDataTable';
 import AdminAlertDialog from '@admin/components/common/dialog/AdminAlertDialog';
@@ -7,14 +8,12 @@ import { buildCodeColumns } from '@admin/features/commonCode/codeColumns';
 import { buildCodeGroupColumns } from '@admin/features/commonCode/codeGroupColumns';
 import CodeFormDialog from '@admin/features/commonCode/components/CodeFormDialog';
 import CodeGroupFormDialog from '@admin/features/commonCode/components/CodeGroupFormDialog';
-import {
-  createAdminCode,
-  createAdminGroup,
-  fetchAdminCodeList,
-  fetchAdminGroupList,
-  updateAdminCode,
-  updateAdminGroup,
-} from '@admin/lib/comCdApi';
+import useCodeGroupsQuery from '@admin/features/commonCode/hooks/useCodeGroupsQuery';
+import useCodeListQuery from '@admin/features/commonCode/hooks/useCodeListQuery';
+import useCodeGroupMutations from '@admin/features/commonCode/hooks/useCodeGroupMutations';
+import useCodeMutations from '@admin/features/commonCode/hooks/useCodeMutations';
+import { adminKeys } from '@admin/lib/queryKeys';
+import { AdminApiError } from '@admin/lib/queryClientHelpers';
 import { clearAdminAccessToken } from '@admin/lib/auth';
 import type { CommonCode, CommonCodeGroup, StatusFilter } from '@admin/types/comCd';
 
@@ -36,13 +35,12 @@ type CodeSubmitPayload = {
 
 const AdminComCdPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [groupStatus, setGroupStatus] = useState<StatusFilter>('ACTIVE');
   const [codeStatus, setCodeStatus] = useState<StatusFilter>('ACTIVE');
   const [showEditedAt, setShowEditedAt] = useState(false);
 
-  const [groups, setGroups] = useState<CommonCodeGroup[]>([]);
-  const [codes, setCodes] = useState<CommonCode[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedCodeId, setSelectedCodeId] = useState('');
 
@@ -54,14 +52,19 @@ const AdminComCdPage = () => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const selectedGroup = useMemo(
-    () => groups.find((group) => group.groupId === selectedGroupId) ?? null,
-    [groups, selectedGroupId],
-  );
+  // mutation 후 우선 선택할 ID를 임시 보관 (ref이므로 리렌더 유발 없음)
+  const preferredGroupIdRef = useRef('');
+  const preferredCodeIdRef = useRef('');
+
+  const groupsQuery = useCodeGroupsQuery(groupStatus);
+  const codesQuery = useCodeListQuery(selectedGroupId, codeStatus);
+
+  const groups = groupsQuery.data ?? [];
+  const codes = codesQuery.data ?? [];
 
   const handleApiError = useCallback(
-    (status: number, fallback: string) => {
-      if (status === 401) {
+    (err: AdminApiError) => {
+      if (err.status === 401) {
         clearAdminAccessToken();
         navigate('/admin/login?reason=sessionExpired', {
           replace: true,
@@ -69,85 +72,79 @@ const AdminComCdPage = () => {
         });
         return;
       }
-      if (status === 403) {
-        setErrorMessage('관리자 권한이 없습니다.');
-        return;
-      }
-      setErrorMessage(fallback);
+      setErrorMessage(err.status === 403 ? '관리자 권한이 없습니다.' : err.errorMessage);
     },
     [navigate],
   );
 
-  const loadGroups = useCallback(
-    async (status: StatusFilter, keepSelectionId?: string) => {
-      const result = await fetchAdminGroupList(status);
-      if (!result.ok) {
-        handleApiError(result.status, '그룹 목록을 불러오지 못했습니다.');
-        return null;
-      }
-
-      const next = result.data ?? [];
-      setGroups(next);
-
-      const preservedId = keepSelectionId ?? '';
-      const hasPreserved = next.some((group) => group.groupId === preservedId);
-      const firstActive = next.find((group) => group.isActive)?.groupId;
-      const nextSelectedGroupId = hasPreserved ? preservedId : firstActive ?? next[0]?.groupId ?? '';
-
-      setSelectedGroupId(nextSelectedGroupId);
-      return nextSelectedGroupId;
-    },
-    [handleApiError],
-  );
-
-  const loadCodes = useCallback(
-    async (groupId: string, status: StatusFilter, keepSelectionId?: string) => {
-      if (!groupId) {
-        setCodes([]);
-        setSelectedCodeId('');
-        return;
-      }
-
-      const result = await fetchAdminCodeList(groupId, status);
-      if (!result.ok) {
-        handleApiError(result.status, '코드 목록을 불러오지 못했습니다.');
-        return;
-      }
-
-      const next = result.data ?? [];
-      setCodes(next);
-
-      const preservedId = keepSelectionId ?? '';
-      const hasPreserved = next.some((code) => code.codeId === preservedId);
-      setSelectedCodeId(hasPreserved ? preservedId : next[0]?.codeId ?? '');
-    },
-    [handleApiError],
-  );
-
+  // 그룹 데이터가 바뀔 때마다 selectedGroupId 정규화
   useEffect(() => {
-    setErrorMessage(null);
-    loadGroups(groupStatus, selectedGroupId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupStatus]);
-
-  useEffect(() => {
-    setErrorMessage(null);
-    loadCodes(selectedGroupId, codeStatus, selectedCodeId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedGroupId, codeStatus]);
-
-  const refreshGroups = async () => {
-    await loadGroups(groupStatus, selectedGroupId);
-  };
-
-  const refreshCodes = async () => {
-    if (!selectedGroupId) {
-      setErrorMessage('먼저 그룹을 선택하세요.');
+    const data = groupsQuery.data ?? [];
+    if (!data.length) {
+      setSelectedGroupId('');
       return;
     }
+    const preferred = preferredGroupIdRef.current;
+    const hasPreferred = !!preferred && data.some((g) => g.groupId === preferred);
+    const hasCurrent = !!selectedGroupId && data.some((g) => g.groupId === selectedGroupId);
+    const firstActive = data.find((g) => g.isActive)?.groupId;
 
-    await loadCodes(selectedGroupId, codeStatus, selectedCodeId);
-  };
+    if (hasPreferred) {
+      setSelectedGroupId(preferred);
+    } else if (!hasCurrent) {
+      setSelectedGroupId(firstActive ?? data[0]?.groupId ?? '');
+    }
+    preferredGroupIdRef.current = '';
+  }, [groupsQuery.data]);
+
+  // 코드 데이터가 바뀔 때마다 selectedCodeId 정규화
+  useEffect(() => {
+    const data = codesQuery.data ?? [];
+    if (!data.length) {
+      setSelectedCodeId('');
+      return;
+    }
+    const preferred = preferredCodeIdRef.current;
+    const hasPreferred = !!preferred && data.some((c) => c.codeId === preferred);
+    const hasCurrent = !!selectedCodeId && data.some((c) => c.codeId === selectedCodeId);
+
+    if (hasPreferred) {
+      setSelectedCodeId(preferred);
+    } else if (!hasCurrent) {
+      setSelectedCodeId(data[0]?.codeId ?? '');
+    }
+    preferredCodeIdRef.current = '';
+  }, [codesQuery.data]);
+
+  // 쿼리 에러 처리
+  useEffect(() => {
+    const err = groupsQuery.error ?? codesQuery.error;
+    if (err instanceof AdminApiError) handleApiError(err);
+  }, [groupsQuery.error, codesQuery.error, handleApiError]);
+
+  const { createMutation: createGroupMutation, updateMutation: updateGroupMutation } =
+    useCodeGroupMutations({
+      onSuccess: (mode) => {
+        setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
+        setIsGroupDialogOpen(false);
+      },
+      onError: handleApiError,
+    });
+
+  const { createMutation: createCodeMutation, updateMutation: updateCodeMutation } =
+    useCodeMutations({
+      codeStatus,
+      onSuccess: (mode) => {
+        setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
+        setIsCodeDialogOpen(false);
+      },
+      onError: handleApiError,
+    });
+
+  const selectedGroup = useMemo(
+    () => groups.find((group) => group.groupId === selectedGroupId) ?? null,
+    [groups, selectedGroupId],
+  );
 
   const handleOpenCreateGroupDialog = () => {
     setEditingGroup(null);
@@ -162,26 +159,11 @@ const AdminComCdPage = () => {
 
   const handleGroupSubmit = async (payload: GroupSubmitPayload, mode: 'create' | 'edit') => {
     setErrorMessage(null);
-
-    const result =
-      mode === 'create'
-        ? await createAdminGroup(payload)
-        : await updateAdminGroup(payload.groupId, {
-            groupName: payload.groupName,
-            isActive: payload.isActive,
-          });
-
-    if (!result.ok) {
-      handleApiError(result.status, result.errorMessage ?? '그룹 저장에 실패했습니다.');
-      return;
-    }
-
-    setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
-    setIsGroupDialogOpen(false);
-
-    const nextGroupId = await loadGroups(groupStatus, payload.groupId);
-    if (nextGroupId) {
-      await loadCodes(nextGroupId, codeStatus, selectedCodeId);
+    preferredGroupIdRef.current = payload.groupId;
+    if (mode === 'create') {
+      await createGroupMutation.mutateAsync(payload);
+    } else {
+      await updateGroupMutation.mutateAsync(payload);
     }
   };
 
@@ -190,7 +172,6 @@ const AdminComCdPage = () => {
       setErrorMessage('먼저 그룹을 선택하세요.');
       return;
     }
-
     setEditingCode(null);
     setIsCodeDialogOpen(true);
   };
@@ -204,38 +185,22 @@ const AdminComCdPage = () => {
 
   const handleCodeSubmit = async (payload: CodeSubmitPayload, mode: 'create' | 'edit') => {
     setErrorMessage(null);
-
     if (!payload.groupId) {
       setErrorMessage('먼저 그룹을 선택하세요.');
       return;
     }
-
-    const result =
-      mode === 'create'
-        ? await createAdminCode(payload.groupId, {
-            codeId: payload.codeId,
-            codeName: payload.codeName,
-            sortSeq: Number(payload.sortSeq),
-            extraInfo1: payload.extraInfo1.trim() || undefined,
-            extraInfo2: payload.extraInfo2.trim() || undefined,
-            isActive: payload.isActive,
-          })
-        : await updateAdminCode(payload.groupId, payload.codeId, {
-            codeName: payload.codeName,
-            sortSeq: Number(payload.sortSeq),
-            extraInfo1: payload.extraInfo1.trim() || undefined,
-            extraInfo2: payload.extraInfo2.trim() || undefined,
-            isActive: payload.isActive,
-          });
-
-    if (!result.ok) {
-      handleApiError(result.status, result.errorMessage ?? '코드 저장에 실패했습니다.');
-      return;
+    preferredCodeIdRef.current = payload.codeId;
+    const normalized = {
+      ...payload,
+      sortSeq: Number(payload.sortSeq),
+      extraInfo1: payload.extraInfo1.trim() || undefined,
+      extraInfo2: payload.extraInfo2.trim() || undefined,
+    };
+    if (mode === 'create') {
+      await createCodeMutation.mutateAsync(normalized);
+    } else {
+      await updateCodeMutation.mutateAsync(normalized);
     }
-
-    setAlertMessage(mode === 'create' ? '등록되었습니다.' : '수정되었습니다.');
-    setIsCodeDialogOpen(false);
-    await loadCodes(payload.groupId, codeStatus, payload.codeId);
   };
 
   const groupColumns = useMemo(
@@ -247,6 +212,9 @@ const AdminComCdPage = () => {
     () => buildCodeColumns({ showEditedAt, onEdit: handleOpenEditCodeDialog }),
     [showEditedAt, handleOpenEditCodeDialog],
   );
+
+  const isGroupMutating = createGroupMutation.isPending || updateGroupMutation.isPending;
+  const isCodeMutating = createCodeMutation.isPending || updateCodeMutation.isPending;
 
   return (
     <div className="flex w-full flex-col gap-4 text-sm">
@@ -280,15 +248,19 @@ const AdminComCdPage = () => {
               <StatusFilterSelect value={groupStatus} onChange={setGroupStatus} />
               <button
                 type="button"
-                onClick={refreshGroups}
-                className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
+                onClick={() =>
+                  queryClient.invalidateQueries({ queryKey: adminKeys.comCd.groups(groupStatus) })
+                }
+                disabled={groupsQuery.isFetching}
+                className="rounded border border-sand px-2 py-1 text-xs text-clay disabled:opacity-50 sm:text-sm"
               >
                 새로고침
               </button>
               <button
                 type="button"
                 onClick={handleOpenCreateGroupDialog}
-                className="rounded bg-clay px-2 py-1 text-xs text-white sm:text-sm"
+                disabled={isGroupMutating}
+                className="rounded bg-clay px-2 py-1 text-xs text-white disabled:opacity-50 sm:text-sm"
               >
                 등록
               </button>
@@ -301,7 +273,7 @@ const AdminComCdPage = () => {
             rowKey={(row) => row.groupId}
             onRowClick={(row) => setSelectedGroupId(row.groupId)}
             selectedKey={selectedGroupId}
-            emptyMessage="그룹 데이터가 없습니다."
+            emptyMessage={groupsQuery.isLoading ? '불러오는 중...' : '그룹 데이터가 없습니다.'}
             maxHeightClassName="max-h-[360px]"
           />
 
@@ -319,15 +291,25 @@ const AdminComCdPage = () => {
               <StatusFilterSelect value={codeStatus} onChange={setCodeStatus} />
               <button
                 type="button"
-                onClick={refreshCodes}
-                className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
+                onClick={() => {
+                  if (!selectedGroupId) {
+                    setErrorMessage('먼저 그룹을 선택하세요.');
+                    return;
+                  }
+                  queryClient.invalidateQueries({
+                    queryKey: adminKeys.comCd.codes(selectedGroupId, codeStatus),
+                  });
+                }}
+                disabled={codesQuery.isFetching}
+                className="rounded border border-sand px-2 py-1 text-xs text-clay disabled:opacity-50 sm:text-sm"
               >
                 새로고침
               </button>
               <button
                 type="button"
                 onClick={handleOpenCreateCodeDialog}
-                className="rounded bg-clay px-2 py-1 text-xs text-white sm:text-sm"
+                disabled={isCodeMutating}
+                className="rounded bg-clay px-2 py-1 text-xs text-white disabled:opacity-50 sm:text-sm"
               >
                 등록
               </button>
@@ -340,7 +322,7 @@ const AdminComCdPage = () => {
             rowKey={(row) => row.codeId}
             onRowClick={(row) => setSelectedCodeId(row.codeId)}
             selectedKey={selectedCodeId}
-            emptyMessage="코드 데이터가 없습니다."
+            emptyMessage={codesQuery.isLoading ? '불러오는 중...' : '코드 데이터가 없습니다.'}
             maxHeightClassName="max-h-[360px]"
           />
         </section>
@@ -364,9 +346,7 @@ const AdminComCdPage = () => {
       <AdminAlertDialog
         open={!!alertMessage}
         onOpenChange={(open) => {
-          if (!open) {
-            setAlertMessage(null);
-          }
+          if (!open) setAlertMessage(null);
         }}
         title="알림"
         description={alertMessage ?? ''}
