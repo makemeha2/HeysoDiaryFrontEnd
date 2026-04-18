@@ -7,7 +7,16 @@ import App from './App.jsx';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => {
+        if (error?.status < 500) return false;
+        return failureCount < 2;
+      },
+    },
+  },
+});
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

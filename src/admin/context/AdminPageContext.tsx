@@ -1,8 +1,6 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clearAdminAccessToken } from '@admin/lib/auth';
-import { fetchAdminCodeList } from '@admin/lib/comCdApi';
-import type { CommonCode, StatusFilter } from '@admin/types/comCd';
 
 type AdminPageContextValue = {
   alertMessage: string | null;
@@ -11,7 +9,6 @@ type AdminPageContextValue = {
   notifyError: (msg: string | null) => void;
   clearAlert: () => void;
   handleApiError: (status: number, fallback: string) => void;
-  loadComCodes: (groupId: string, status?: StatusFilter) => Promise<CommonCode[]>;
 };
 
 const AdminPageContext = createContext<AdminPageContextValue | null>(null);
@@ -37,14 +34,6 @@ export const AdminPageProvider = ({ children }: { children: React.ReactNode }) =
     [navigate],
   );
 
-  const loadComCodes = useCallback(
-    async (groupId: string, status: StatusFilter = 'ACTIVE'): Promise<CommonCode[]> => {
-      const result = await fetchAdminCodeList(groupId, status);
-      return result.ok ? (result.data ?? []) : [];
-    },
-    [],
-  );
-
   return (
     <AdminPageContext.Provider
       value={{
@@ -54,7 +43,6 @@ export const AdminPageProvider = ({ children }: { children: React.ReactNode }) =
         notifyError: setErrorMessage,
         clearAlert: () => setAlertMessage(null),
         handleApiError,
-        loadComCodes,
       }}
     >
       {children}

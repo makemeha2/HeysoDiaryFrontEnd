@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createAiPromptTemplate,
   updateAiPromptTemplate,
-} from '@admin/lib/aiTemplateApi';
+} from '../api/aiTemplateApi';
+import { assertOk, AdminApiError } from '@admin/lib/queryClientHelpers';
+import { adminKeys } from '@admin/lib/queryKeys';
 import type {
   AiPromptTemplateListItem,
   AiPromptTemplateDetail,
@@ -14,13 +17,15 @@ import { useAdminPageContext } from '@admin/context/AdminPageContext';
 
 type UseTemplateFormStateOptions = {
   detail: AiPromptTemplateDetail | null;
-  refreshAfterSave: () => Promise<void>;
+  // 하위호환: 외부에서 refreshAfterSave를 전달하면 mutation onSuccess에서 호출
+  refreshAfterSave?: () => Promise<void>;
 };
 
 export const useTemplateFormState = ({
   detail,
   refreshAfterSave,
 }: UseTemplateFormStateOptions) => {
+  const queryClient = useQueryClient();
   const { handleApiError, notifySuccess, notifyError } = useAdminPageContext();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -50,7 +55,12 @@ export const useTemplateFormState = ({
   }, []);
 
   useEffect(() => {
-    if (isFormOpen && editingTemplate != null && detail != null && detail.templateId === editingTemplate.templateId) {
+    if (
+      isFormOpen &&
+      editingTemplate != null &&
+      detail != null &&
+      detail.templateId === editingTemplate.templateId
+    ) {
       setForm((prev) => ({
         ...prev,
         content: detail.content ?? '',
@@ -59,46 +69,63 @@ export const useTemplateFormState = ({
     }
   }, [isFormOpen, editingTemplate, detail]);
 
+  const saveMutation = useMutation({
+    mutationFn: async (payload: { form: TemplateForm; editingId: number | null }) => {
+      const { form: f, editingId } = payload;
+      const req: AiPromptTemplateCreateRequest = {
+        templateKey: f.templateKey.trim(),
+        templateName: f.templateName.trim(),
+        domainType: f.domainType.trim(),
+        featureKey: f.featureKey.trim() || undefined,
+        templateRole: f.templateRole,
+        templateType: f.templateType,
+        content: f.content,
+        description: f.description.trim() || undefined,
+      };
+      if (editingId == null) {
+        return assertOk(await createAiPromptTemplate(req));
+      }
+      return assertOk(
+        await updateAiPromptTemplate(editingId, {
+          templateName: req.templateName,
+          domainType: req.domainType,
+          featureKey: req.featureKey,
+          templateRole: req.templateRole,
+          templateType: req.templateType,
+          content: req.content,
+          description: req.description,
+          isActive: f.isActive,
+        }),
+      );
+    },
+    onSuccess: async (_data, variables) => {
+      notifySuccess(variables.editingId == null ? '등록되었습니다.' : '수정되었습니다.');
+      setIsFormOpen(false);
+      if (refreshAfterSave) {
+        await refreshAfterSave();
+      } else {
+        // refreshAfterSave가 없으면 직접 관련 쿼리 무효화
+        await queryClient.invalidateQueries({ queryKey: adminKeys.ai.template.list({}) });
+        await queryClient.invalidateQueries({ queryKey: adminKeys.ai.template.fragmentOptions() });
+      }
+    },
+    onError: (err: unknown) => {
+      if (err instanceof AdminApiError) {
+        handleApiError(err.status, err.errorMessage);
+      }
+    },
+  });
+
   const handleSave = async () => {
     if (!form.templateName.trim() || !form.domainType.trim() || !form.content.trim()) {
       notifyError('템플릿명, 도메인 유형, 내용은 필수입니다.');
       return;
     }
     notifyError(null);
-
-    const payload: AiPromptTemplateCreateRequest = {
-      templateKey: form.templateKey.trim(),
-      templateName: form.templateName.trim(),
-      domainType: form.domainType.trim(),
-      featureKey: form.featureKey.trim() || undefined,
-      templateRole: form.templateRole,
-      templateType: form.templateType,
-      content: form.content,
-      description: form.description.trim() || undefined,
-    };
-
-    const result =
-      editingTemplate == null
-        ? await createAiPromptTemplate(payload)
-        : await updateAiPromptTemplate(editingTemplate.templateId, {
-            templateName: payload.templateName,
-            domainType: payload.domainType,
-            featureKey: payload.featureKey,
-            templateRole: payload.templateRole,
-            templateType: payload.templateType,
-            content: payload.content,
-            description: payload.description,
-            isActive: form.isActive,
-          });
-
-    if (!result.ok) {
-      handleApiError(result.status, result.errorMessage ?? '저장에 실패했습니다.');
-      return;
-    }
-
-    notifySuccess(editingTemplate == null ? '등록되었습니다.' : '수정되었습니다.');
-    setIsFormOpen(false);
-    await refreshAfterSave();
+    await saveMutation.mutateAsync({
+      form,
+      editingId: editingTemplate?.templateId ?? null,
+    });
   };
 
   return {

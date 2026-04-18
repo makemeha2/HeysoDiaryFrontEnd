@@ -1,4 +1,4 @@
-import { adminFetch } from './api';
+import { adminFetch } from '@admin/lib/api';
 import type {
   AiRuntimeProfile,
   AiRuntimeProfileCreateRequest,
@@ -14,7 +14,7 @@ import type {
   AiPromptBindingDetail,
   AiPromptBindingCreateRequest,
   AiPromptBindingUpdateRequest,
-} from '../types/aiTemplate';
+} from '@admin/types/aiTemplate';
 
 // Runtime Profile
 export async function getAiRuntimeProfileList(status?: string, domainType?: string) {
@@ -116,4 +116,3 @@ export async function updateAiPromptBinding(id: number, req: AiPromptBindingUpda
     data: req,
   });
 }
-

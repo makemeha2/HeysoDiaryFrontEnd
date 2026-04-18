@@ -1,75 +1,81 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getAiPromptTemplateList,
   getAiPromptTemplateDetail,
-} from '@admin/lib/aiTemplateApi';
-import type {
-  AiPromptTemplateListItem,
-  AiPromptTemplateDetail,
-} from '@admin/types/aiTemplate';
-import type { CommonCode, StatusFilter } from '@admin/types/comCd';
+} from '../api/aiTemplateApi';
+import { assertOk, AdminApiError } from '@admin/lib/queryClientHelpers';
+import { adminKeys } from '@admin/lib/queryKeys';
+import useComCodesQuery from '@admin/features/commonCode/hooks/useComCodesQuery';
+import type { StatusFilter } from '@admin/types/comCd';
 import { useAdminPageContext } from '@admin/context/AdminPageContext';
 
 export const useTemplateListState = () => {
-  const { handleApiError, notifyError, loadComCodes } = useAdminPageContext();
+  const queryClient = useQueryClient();
+  const { handleApiError, notifyError } = useAdminPageContext();
 
   const [status, setStatus] = useState<StatusFilter>('ACTIVE');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [domainFilter, setDomainFilter] = useState<string>('');
-  const [templates, setTemplates] = useState<AiPromptTemplateListItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [detail, setDetail] = useState<AiPromptTemplateDetail | null>(null);
-  const [domainCodes, setDomainCodes] = useState<CommonCode[]>([]);
-  const [fragmentOptions, setFragmentOptions] = useState<AiPromptTemplateListItem[]>([]);
 
+  const templatesQuery = useQuery({
+    queryKey: adminKeys.ai.template.list({ status, type: typeFilter, domain: domainFilter }),
+    queryFn: () =>
+      getAiPromptTemplateList(
+        status,
+        typeFilter === 'ALL' ? undefined : typeFilter,
+        domainFilter || undefined,
+      ).then(assertOk),
+    staleTime: 0,
+  });
+
+  const detailQuery = useQuery({
+    queryKey: adminKeys.ai.template.detail(selectedId!),
+    queryFn: () => getAiPromptTemplateDetail(selectedId!).then(assertOk),
+    enabled: selectedId != null,
+    staleTime: 0,
+  });
+
+  const fragmentOptionsQuery = useQuery({
+    queryKey: adminKeys.ai.template.fragmentOptions(),
+    queryFn: () => getAiPromptTemplateList('ACTIVE', 'FRAGMENT').then(assertOk),
+    staleTime: 60_000,
+  });
+
+  const domainCodesQuery = useComCodesQuery('aitp_domain');
+
+  // 필터 변경 시 선택 초기화
   useEffect(() => {
-    loadComCodes('aitp_domain').then(setDomainCodes);
-  }, [loadComCodes]);
+    setSelectedId(null);
+    notifyError(null);
+  }, [status, typeFilter, domainFilter, notifyError]);
 
-  const loadFragmentOptions = useCallback(async () => {
-    const r = await getAiPromptTemplateList('ACTIVE', 'FRAGMENT');
-    if (r.ok) setFragmentOptions(r.data ?? []);
-  }, []);
-
+  // 쿼리 에러 → 컨텍스트 에러 핸들러로 위임
   useEffect(() => {
-    loadFragmentOptions();
-  }, [loadFragmentOptions]);
+    const err = templatesQuery.error ?? detailQuery.error;
+    if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
+  }, [templatesQuery.error, detailQuery.error, handleApiError]);
 
   const loadTemplates = useCallback(
-    async (s: StatusFilter, t: string, d: string) => {
-      const result = await getAiPromptTemplateList(s, t === 'ALL' ? undefined : t, d || undefined);
-      if (!result.ok) {
-        handleApiError(result.status, '템플릿 목록을 불러오지 못했습니다.');
-        return;
-      }
-      setTemplates(result.data ?? []);
+    async (_s?: StatusFilter, _t?: string, _d?: string) => {
+      await queryClient.invalidateQueries({
+        queryKey: adminKeys.ai.template.list({ status, type: typeFilter, domain: domainFilter }),
+      });
     },
-    [handleApiError],
+    [queryClient, status, typeFilter, domainFilter],
   );
 
   const loadDetail = useCallback(
     async (id: number) => {
-      const result = await getAiPromptTemplateDetail(id);
-      if (!result.ok) {
-        handleApiError(result.status, '템플릿 상세를 불러오지 못했습니다.');
-        return;
-      }
-      setDetail(result.data);
+      await queryClient.invalidateQueries({ queryKey: adminKeys.ai.template.detail(id) });
     },
-    [handleApiError],
+    [queryClient],
   );
 
-  useEffect(() => {
-    notifyError(null);
-    setSelectedId(null);
-    setDetail(null);
-    loadTemplates(status, typeFilter, domainFilter);
-  }, [status, typeFilter, domainFilter, loadTemplates, notifyError]);
-
-  useEffect(() => {
-    if (selectedId != null) loadDetail(selectedId);
-    else setDetail(null);
-  }, [selectedId, loadDetail]);
+  const loadFragmentOptions = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: adminKeys.ai.template.fragmentOptions() });
+  }, [queryClient]);
 
   return {
     filters: {
@@ -81,12 +87,12 @@ export const useTemplateListState = () => {
       setDomainFilter,
     },
     list: {
-      templates,
+      templates: templatesQuery.data ?? [],
       selectedId,
       setSelectedId,
-      detail,
-      domainCodes,
-      fragmentOptions,
+      detail: detailQuery.data ?? null,
+      domainCodes: domainCodesQuery.data ?? [],
+      fragmentOptions: fragmentOptionsQuery.data ?? [],
       loadTemplates,
       loadDetail,
       loadFragmentOptions,

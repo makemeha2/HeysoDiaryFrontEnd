@@ -7,12 +7,12 @@ type Props = {
 
 const StatusFilterSelect = ({ value, onChange }: Props) => {
   return (
-    <label className="flex items-center gap-2 text-sm text-slate-700">
+    <label className="flex items-center gap-2 text-sm text-clay">
       상태
       <select
         value={value}
         onChange={(event) => onChange(event.target.value as StatusFilter)}
-        className="rounded-md border border-slate-300 px-2 py-1"
+        className="rounded-md border border-sand bg-white/90 px-2 py-1 text-clay"
       >
         <option value="ACTIVE">활성</option>
         <option value="INACTIVE">비활성</option>

@@ -1,5 +1,5 @@
-import { adminFetch } from './api';
-import type { CommonCode, CommonCodeGroup, StatusFilter } from '../types/comCd';
+import { adminFetch } from '@admin/lib/api';
+import type { CommonCode, CommonCodeGroup, StatusFilter } from '@admin/types/comCd';
 
 export async function fetchAdminGroupList(status: StatusFilter) {
   return adminFetch<CommonCodeGroup[]>('/api/admin/comCd/groups', {

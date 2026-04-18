@@ -1,32 +1,51 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getAiRuntimeProfileList,
   createAiRuntimeProfile,
   updateAiRuntimeProfile,
-} from '@admin/lib/aiTemplateApi';
+} from '../api/aiTemplateApi';
+import { assertOk, AdminApiError } from '@admin/lib/queryClientHelpers';
+import { adminKeys } from '@admin/lib/queryKeys';
+import useComCodesQuery from '@admin/features/commonCode/hooks/useComCodesQuery';
 import type { AiRuntimeProfile, AiRuntimeProfileCreateRequest } from '@admin/types/aiTemplate';
-import type { CommonCode, StatusFilter } from '@admin/types/comCd';
+import type { StatusFilter } from '@admin/types/comCd';
 import type { ProfileForm } from '../types/forms';
 import { initialProfileForm } from '../constants/formDefaults';
 import { useAdminPageContext } from '@admin/context/AdminPageContext';
 
 export const useRuntimeProfilePageState = () => {
-  const { handleApiError, notifySuccess, notifyError, loadComCodes } = useAdminPageContext();
+  const queryClient = useQueryClient();
+  const { handleApiError, notifySuccess, notifyError } = useAdminPageContext();
 
   const [status, setStatus] = useState<StatusFilter>('ACTIVE');
   const [domainFilter, setDomainFilter] = useState<string>('');
-  const [profiles, setProfiles] = useState<AiRuntimeProfile[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<AiRuntimeProfile | null>(null);
   const [form, setForm] = useState<ProfileForm>(initialProfileForm);
 
-  const [domainCodes, setDomainCodes] = useState<CommonCode[]>([]);
-  const [aiModelCodes, setAiModelCodes] = useState<CommonCode[]>([]);
+  const profilesQuery = useQuery({
+    queryKey: adminKeys.ai.profile.list({ status, domain: domainFilter }),
+    queryFn: () => getAiRuntimeProfileList(status, domainFilter || undefined).then(assertOk),
+    staleTime: 0,
+  });
 
+  const domainCodesQuery = useComCodesQuery('aitp_domain');
+  const aiModelCodesQuery = useComCodesQuery('ai_models');
+
+  const domainCodes = domainCodesQuery.data ?? [];
+  const aiModelCodes = aiModelCodesQuery.data ?? [];
+
+  // 필터 변경 시 에러 초기화
   useEffect(() => {
-    loadComCodes('aitp_domain').then(setDomainCodes);
-    loadComCodes('ai_models').then(setAiModelCodes);
-  }, [loadComCodes]);
+    notifyError(null);
+  }, [status, domainFilter, notifyError]);
+
+  // 쿼리 에러 → 컨텍스트 에러 핸들러로 위임
+  useEffect(() => {
+    const err = profilesQuery.error;
+    if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
+  }, [profilesQuery.error, handleApiError]);
 
   const providerOptions = useMemo(
     () => [...new Set(aiModelCodes.map((c) => c.extraInfo1).filter((v): v is string => !!v))],
@@ -38,22 +57,48 @@ export const useRuntimeProfilePageState = () => {
     [aiModelCodes, form.provider],
   );
 
-  const loadProfiles = useCallback(
-    async (s: StatusFilter, d: string) => {
-      const result = await getAiRuntimeProfileList(s, d || undefined);
-      if (!result.ok) {
-        handleApiError(result.status, '런타임 프로파일 목록을 불러오지 못했습니다.');
-        return;
+  const saveMutation = useMutation({
+    mutationFn: async (payload: { form: ProfileForm; editingId: number | null }) => {
+      const { form: f, editingId } = payload;
+      const req: AiRuntimeProfileCreateRequest = {
+        profileKey: f.profileKey.trim(),
+        profileName: f.profileName.trim(),
+        domainType: f.domainType.trim(),
+        model: f.model.trim(),
+        provider: f.provider.trim() || undefined,
+        temperature: f.temperature !== '' ? Number(f.temperature) : null,
+        topP: f.topP !== '' ? Number(f.topP) : null,
+        maxTokens: f.maxTokens !== '' ? Number(f.maxTokens) : null,
+        description: f.description.trim() || undefined,
+      };
+      if (editingId == null) {
+        return assertOk(await createAiRuntimeProfile(req));
       }
-      setProfiles(result.data ?? []);
+      return assertOk(
+        await updateAiRuntimeProfile(editingId, {
+          profileName: req.profileName,
+          domainType: req.domainType,
+          model: req.model,
+          provider: req.provider,
+          temperature: req.temperature,
+          topP: req.topP,
+          maxTokens: req.maxTokens,
+          description: req.description,
+          isActive: f.isActive,
+        }),
+      );
     },
-    [handleApiError],
-  );
-
-  useEffect(() => {
-    notifyError(null);
-    loadProfiles(status, domainFilter);
-  }, [status, domainFilter, loadProfiles, notifyError]);
+    onSuccess: async (_data, variables) => {
+      notifySuccess(variables.editingId == null ? '등록되었습니다.' : '수정되었습니다.');
+      setIsDialogOpen(false);
+      await queryClient.invalidateQueries({
+        queryKey: adminKeys.ai.profile.list({ status, domain: domainFilter }),
+      });
+    },
+    onError: (err: unknown) => {
+      if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
+    },
+  });
 
   const handleOpenCreate = () => {
     setEditingProfile(null);
@@ -69,7 +114,6 @@ export const useRuntimeProfilePageState = () => {
       domainType: profile.domainType,
       provider: profile.provider ?? '',
       model: profile.model,
-      // modelName: UI 표시용 필드 (저장하지 않음)
       modelName: profile.modelName,
       temperature: profile.temperature != null ? String(profile.temperature) : '',
       topP: profile.topP != null ? String(profile.topP) : '',
@@ -86,51 +130,24 @@ export const useRuntimeProfilePageState = () => {
       return;
     }
     notifyError(null);
-
-    const payload: AiRuntimeProfileCreateRequest = {
-      profileKey: form.profileKey.trim(),
-      profileName: form.profileName.trim(),
-      domainType: form.domainType.trim(),
-      model: form.model.trim(),
-      provider: form.provider.trim() || undefined,
-      temperature: form.temperature !== '' ? Number(form.temperature) : null,
-      topP: form.topP !== '' ? Number(form.topP) : null,
-      maxTokens: form.maxTokens !== '' ? Number(form.maxTokens) : null,
-      description: form.description.trim() || undefined,
-      // modelName: UI 표시용 필드 (저장하지 않음)
-    };
-
-    const result =
-      editingProfile == null
-        ? await createAiRuntimeProfile(payload)
-        : await updateAiRuntimeProfile(editingProfile.runtimeProfileId, {
-            profileName: payload.profileName,
-            domainType: payload.domainType,
-            model: payload.model,
-            provider: payload.provider,
-            temperature: payload.temperature,
-            topP: payload.topP,
-            maxTokens: payload.maxTokens,
-            description: payload.description,
-            isActive: form.isActive,
-          });
-
-    if (!result.ok) {
-      handleApiError(result.status, result.errorMessage ?? '저장에 실패했습니다.');
-      return;
-    }
-
-    notifySuccess(editingProfile == null ? '등록되었습니다.' : '수정되었습니다.');
-    setIsDialogOpen(false);
-    await loadProfiles(status, domainFilter);
+    await saveMutation.mutateAsync({ form, editingId: editingProfile?.runtimeProfileId ?? null });
   };
+
+  const loadProfiles = useCallback(
+    async (_s?: StatusFilter, _d?: string) => {
+      await queryClient.invalidateQueries({
+        queryKey: adminKeys.ai.profile.list({ status, domain: domainFilter }),
+      });
+    },
+    [queryClient, status, domainFilter],
+  );
 
   return {
     status,
     setStatus,
     domainFilter,
     setDomainFilter,
-    profiles,
+    profiles: profilesQuery.data ?? [],
     loadProfiles,
     isDialogOpen,
     setIsDialogOpen,
