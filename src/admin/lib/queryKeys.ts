@@ -11,6 +11,24 @@ type AiBindingFilter = {
   domain?: string;
 };
 
+type MonitoringPageFilter = {
+  startDate?: string;
+  endDate?: string;
+  resolvedYn?: string;
+  eventType?: string;
+  severity?: string;
+  keyword?: string;
+  page?: number;
+};
+
+type UserPageFilter = {
+  keyword?: string;
+  role?: string;
+  status?: string;
+  authProvider?: string;
+  page?: number;
+};
+
 export const adminKeys = {
   all: ['admin'] as const,
 
@@ -36,5 +54,16 @@ export const adminKeys = {
     profile: {
       list: (filter: AiBindingFilter) => ['admin', 'ai', 'profile', 'list', filter] as const,
     },
+  },
+
+  monitoring: {
+    page: (filter: MonitoringPageFilter) => ['admin', 'monitoring', 'page', filter] as const,
+    detail: (eventId: number) => ['admin', 'monitoring', 'detail', eventId] as const,
+  },
+
+  user: {
+    all: () => ['admin', 'user'] as const,
+    page: (filter: UserPageFilter) => ['admin', 'user', 'page', filter] as const,
+    detail: (userId: number) => ['admin', 'user', 'detail', userId] as const,
   },
 } as const;

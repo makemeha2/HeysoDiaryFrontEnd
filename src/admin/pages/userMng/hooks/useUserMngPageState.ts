@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminPageContext } from '@admin/context/AdminPageContext';
 import { getAdminUserId } from '@admin/lib/auth';
 import {
@@ -10,13 +11,13 @@ import {
   updateUser,
   updateUserStatus,
 } from '../api/userApi';
-import type { AdminApiResult } from '@admin/lib/api';
+import { assertOk, AdminApiError } from '@admin/lib/queryClientHelpers';
+import { adminKeys } from '@admin/lib/queryKeys';
 import type {
   CreateLocalUserRequest,
   ResetUserPasswordRequest,
   UpdateUserRequest,
   UpdateUserStatusRequest,
-  UserDetail,
   UserListItem,
   UserPageResponse,
   UserSearchForm,
@@ -36,20 +37,18 @@ const emptyPageResponse: UserPageResponse = {
 };
 
 export const useUserMngPageState = () => {
+  const queryClient = useQueryClient();
   const { handleApiError, notifyError, notifySuccess } = useAdminPageContext();
   const defaultFilters = useMemo(() => createDefaultUserSearchForm(), []);
 
   const [filters, setFilters] = useState<UserSearchForm>(defaultFilters);
   const [appliedFilters, setAppliedFilters] = useState<UserSearchForm>(defaultFilters);
   const [page, setPage] = useState(1);
-  const [pageResponse, setPageResponse] = useState<UserPageResponse>(emptyPageResponse);
-  const [isListLoading, setIsListLoading] = useState(false);
 
   const [currentUserId] = useState<number | null>(() => getAdminUserId());
 
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [detail, setDetail] = useState<UserDetail | null>(null);
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [activeUser, setActiveUser] = useState<UserListItem | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -58,112 +57,122 @@ export const useUserMngPageState = () => {
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserListItem | null>(null);
 
-  const [activeUser, setActiveUser] = useState<UserListItem | null>(null);
-  const [isMutating, setIsMutating] = useState(false);
+  const pageQuery = useQuery({
+    queryKey: adminKeys.user.page({ ...appliedFilters, page }),
+    queryFn: () =>
+      getUserPage({ ...appliedFilters, page, size: USER_PAGE_SIZE }).then(assertOk),
+    staleTime: 0,
+  });
 
-  const resolveErrorMessage = useCallback(
-    (result: AdminApiResult, fallback: string) => {
-      if (result.status === 409) {
-        const mapped = result.errorCode ? USER_CONFLICT_MESSAGE_MAP[result.errorCode] : null;
+  const detailQuery = useQuery({
+    queryKey: adminKeys.user.detail(selectedUserId!),
+    queryFn: () => getUserDetail(selectedUserId!).then(assertOk),
+    enabled: selectedUserId != null,
+    staleTime: 0,
+  });
+
+  // 적용 필터/페이지 변경 시 에러 초기화
+  useEffect(() => {
+    notifyError(null);
+  }, [appliedFilters, page, notifyError]);
+
+  // 쿼리 에러 → 컨텍스트 에러 핸들러로 위임
+  useEffect(() => {
+    const err = pageQuery.error ?? detailQuery.error;
+    if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
+  }, [pageQuery.error, detailQuery.error, handleApiError]);
+
+  // 페이지 데이터 갱신 시 activeUser 동기화
+  const pageResponse = pageQuery.data ?? emptyPageResponse;
+  useEffect(() => {
+    if (!activeUser) return;
+    const matched = pageResponse.items.find((item) => item.userId === activeUser.userId);
+    if (matched) setActiveUser(matched);
+  }, [activeUser, pageResponse.items]);
+
+  const resolveConflictError = useCallback(
+    (err: unknown) => {
+      if (!(err instanceof AdminApiError)) return;
+      if (err.status === 409 && err.errorCode) {
+        const mapped = USER_CONFLICT_MESSAGE_MAP[err.errorCode];
         if (mapped) {
           notifyError(mapped);
           return;
         }
       }
-
-      handleApiError(result.status, result.errorMessage ?? fallback);
+      handleApiError(err.status, err.errorMessage);
     },
     [handleApiError, notifyError],
   );
 
-  const loadPage = useCallback(
-    async (targetPage: number, targetFilters: UserSearchForm) => {
-      setIsListLoading(true);
-      notifyError(null);
+  const createMutation = useMutation({
+    mutationFn: (request: CreateLocalUserRequest) => createLocalUser(request).then(assertOk),
+    onSuccess: async () => {
+      notifySuccess('LOCAL 회원이 등록되었습니다.');
+      setIsCreateDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: adminKeys.user.all() });
+    },
+    onError: resolveConflictError,
+  });
 
-      const result = await getUserPage({
-        ...targetFilters,
-        page: targetPage,
-        size: USER_PAGE_SIZE,
-      });
+  const updateMutation = useMutation({
+    mutationFn: ({ userId, request }: { userId: number; request: UpdateUserRequest }) =>
+      updateUser(userId, request).then(assertOk),
+    onSuccess: async () => {
+      notifySuccess('회원 정보가 수정되었습니다.');
+      setIsUpdateDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: adminKeys.user.all() });
+    },
+    onError: resolveConflictError,
+  });
 
-      setIsListLoading(false);
+  const statusMutation = useMutation({
+    mutationFn: ({ userId, request }: { userId: number; request: UpdateUserStatusRequest }) =>
+      updateUserStatus(userId, request).then(assertOk),
+    onSuccess: async () => {
+      notifySuccess('회원 상태가 변경되었습니다.');
+      setIsStatusDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: adminKeys.user.all() });
+    },
+    onError: resolveConflictError,
+  });
 
-      if (!result.ok) {
-        resolveErrorMessage(result, '회원 목록을 불러오지 못했습니다.');
-        return;
+  const passwordMutation = useMutation({
+    mutationFn: ({ userId, request }: { userId: number; request: ResetUserPasswordRequest }) =>
+      resetUserPassword(userId, request).then(assertOk),
+    onSuccess: async () => {
+      notifySuccess('비밀번호가 재설정되었습니다.');
+      setIsPasswordDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: adminKeys.user.all() });
+    },
+    onError: resolveConflictError,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (userId: number) => deleteUser(userId).then(assertOk),
+    onSuccess: async (_data, deletedUserId) => {
+      notifySuccess('회원이 삭제되었습니다.');
+      setDeleteTarget(null);
+      if (selectedUserId === deletedUserId) {
+        setSelectedUserId(null);
+        setActiveUser(null);
+        setIsDetailDialogOpen(false);
       }
-
-      setPageResponse(result.data ?? emptyPageResponse);
+      await queryClient.invalidateQueries({ queryKey: adminKeys.user.all() });
     },
-    [notifyError, resolveErrorMessage],
-  );
+    onError: resolveConflictError,
+  });
 
-  const loadDetail = useCallback(
-    async (userId: number) => {
-      setIsDetailLoading(true);
-      notifyError(null);
-
-      const result = await getUserDetail(userId);
-
-      setIsDetailLoading(false);
-
-      if (!result.ok) {
-        setDetail(null);
-        resolveErrorMessage(result, '회원 상세 정보를 불러오지 못했습니다.');
-        return null;
-      }
-
-      const nextDetail = result.data ?? null;
-      setDetail(nextDetail);
-      return nextDetail;
-    },
-    [notifyError, resolveErrorMessage],
-  );
-
-  const syncMutationDetail = useCallback(
-    (nextDetail: UserDetail | null) => {
-      if (!nextDetail) return;
-
-      setSelectedUserId(nextDetail.userId);
-      setDetail(nextDetail);
-      setActiveUser({
-        userId: nextDetail.userId,
-        email: nextDetail.email,
-        nickname: nextDetail.nickname,
-        role: nextDetail.role,
-        status: nextDetail.status,
-        authProvider: nextDetail.authProvider,
-        loginId: nextDetail.loginId,
-        lastLoginAt: nextDetail.lastLoginAt,
-        createdAt: nextDetail.createdAt,
-      });
-    },
-    [],
-  );
-
-  useEffect(() => {
-    loadPage(page, appliedFilters);
-  }, [appliedFilters, loadPage, page]);
-
-  useEffect(() => {
-    if (!activeUser) return;
-    const matched = pageResponse.items.find((item) => item.userId === activeUser.userId);
-    if (matched) {
-      setActiveUser(matched);
-    }
-  }, [activeUser, pageResponse.items]);
-
-  const refreshPage = useCallback(async () => {
-    await loadPage(page, appliedFilters);
-  }, [appliedFilters, loadPage, page]);
+  const isMutating =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    statusMutation.isPending ||
+    passwordMutation.isPending ||
+    deleteMutation.isPending;
 
   const handleSearch = useCallback(() => {
     setPage(1);
-    setAppliedFilters({
-      ...filters,
-      keyword: filters.keyword.trim(),
-    });
+    setAppliedFilters({ ...filters, keyword: filters.keyword.trim() });
   }, [filters]);
 
   const handleResetFilters = useCallback(() => {
@@ -174,49 +183,66 @@ export const useUserMngPageState = () => {
   }, []);
 
   const handleRefresh = useCallback(async () => {
-    await refreshPage();
+    await queryClient.invalidateQueries({
+      queryKey: adminKeys.user.page({ ...appliedFilters, page }),
+    });
     if (selectedUserId != null && isDetailDialogOpen) {
-      await loadDetail(selectedUserId);
+      await queryClient.invalidateQueries({ queryKey: adminKeys.user.detail(selectedUserId) });
     }
-  }, [isDetailDialogOpen, loadDetail, refreshPage, selectedUserId]);
+  }, [queryClient, appliedFilters, page, selectedUserId, isDetailDialogOpen]);
 
   const handleOpenDetail = useCallback(
-    async (user: UserListItem) => {
+    (user: UserListItem) => {
       setSelectedUserId(user.userId);
       setActiveUser(user);
       setIsDetailDialogOpen(true);
-      await loadDetail(user.userId);
+      queryClient.invalidateQueries({ queryKey: adminKeys.user.detail(user.userId) });
     },
-    [loadDetail],
+    [queryClient],
   );
 
   const openActionDialog = useCallback(
     async (user: UserListItem, setOpen: (open: boolean) => void) => {
-      setSelectedUserId(user.userId);
       setActiveUser(user);
-      const nextDetail = await loadDetail(user.userId);
-      if (nextDetail) {
+      try {
+        await queryClient.fetchQuery({
+          queryKey: adminKeys.user.detail(user.userId),
+          queryFn: () => getUserDetail(user.userId).then(assertOk),
+          staleTime: 0,
+        });
+        setSelectedUserId(user.userId);
         setOpen(true);
+      } catch (err) {
+        if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
       }
     },
-    [loadDetail],
+    [queryClient, handleApiError],
   );
 
   const handleOpenCreateDialog = useCallback(() => {
     setIsCreateDialogOpen(true);
   }, []);
 
-  const handleOpenUpdateDialog = useCallback(async (user: UserListItem) => {
-    await openActionDialog(user, setIsUpdateDialogOpen);
-  }, [openActionDialog]);
+  const handleOpenUpdateDialog = useCallback(
+    async (user: UserListItem) => {
+      await openActionDialog(user, setIsUpdateDialogOpen);
+    },
+    [openActionDialog],
+  );
 
-  const handleOpenStatusDialog = useCallback(async (user: UserListItem) => {
-    await openActionDialog(user, setIsStatusDialogOpen);
-  }, [openActionDialog]);
+  const handleOpenStatusDialog = useCallback(
+    async (user: UserListItem) => {
+      await openActionDialog(user, setIsStatusDialogOpen);
+    },
+    [openActionDialog],
+  );
 
-  const handleOpenPasswordDialog = useCallback(async (user: UserListItem) => {
-    await openActionDialog(user, setIsPasswordDialogOpen);
-  }, [openActionDialog]);
+  const handleOpenPasswordDialog = useCallback(
+    async (user: UserListItem) => {
+      await openActionDialog(user, setIsPasswordDialogOpen);
+    },
+    [openActionDialog],
+  );
 
   const handleOpenDeleteDialog = useCallback((user: UserListItem) => {
     setSelectedUserId(user.userId);
@@ -224,133 +250,70 @@ export const useUserMngPageState = () => {
     setDeleteTarget(user);
   }, []);
 
-  const runMutation = useCallback(
-    async (
-      action: () => Promise<AdminApiResult<UserDetail | null>>,
-      successMessage: string,
-      fallbackMessage: string,
-    ) => {
-      if (isMutating) return false;
-
-      setIsMutating(true);
-      notifyError(null);
-      const result = await action();
-      setIsMutating(false);
-
-      if (!result.ok) {
-        resolveErrorMessage(result, fallbackMessage);
+  const handleCreateUser = useCallback(
+    async (request: CreateLocalUserRequest): Promise<boolean> => {
+      try {
+        await createMutation.mutateAsync(request);
+        return true;
+      } catch {
         return false;
       }
-
-      syncMutationDetail(result.data ?? null);
-      notifySuccess(successMessage);
-      await refreshPage();
-      if (selectedUserId != null && isDetailDialogOpen) {
-        await loadDetail(selectedUserId);
-      }
-      return true;
     },
-    [
-      isDetailDialogOpen,
-      isMutating,
-      loadDetail,
-      notifyError,
-      notifySuccess,
-      refreshPage,
-      resolveErrorMessage,
-      selectedUserId,
-      syncMutationDetail,
-    ],
-  );
-
-  const handleCreateUser = useCallback(
-    async (request: CreateLocalUserRequest) => {
-      const ok = await runMutation(
-        () => createLocalUser(request),
-        'LOCAL 회원이 등록되었습니다.',
-        '회원 등록에 실패했습니다.',
-      );
-      if (ok) {
-        setIsCreateDialogOpen(false);
-      }
-      return ok;
-    },
-    [runMutation],
+    [createMutation],
   );
 
   const handleUpdateUser = useCallback(
-    async (request: UpdateUserRequest) => {
+    async (request: UpdateUserRequest): Promise<boolean> => {
       if (selectedUserId == null) return false;
-      const ok = await runMutation(
-        () => updateUser(selectedUserId, request),
-        '회원 정보가 수정되었습니다.',
-        '회원 정보 수정에 실패했습니다.',
-      );
-      if (ok) {
-        setIsUpdateDialogOpen(false);
+      try {
+        await updateMutation.mutateAsync({ userId: selectedUserId, request });
+        return true;
+      } catch {
+        return false;
       }
-      return ok;
     },
-    [runMutation, selectedUserId],
+    [updateMutation, selectedUserId],
   );
 
   const handleUpdateStatus = useCallback(
-    async (request: UpdateUserStatusRequest) => {
+    async (request: UpdateUserStatusRequest): Promise<boolean> => {
       if (selectedUserId == null) return false;
-      const ok = await runMutation(
-        () => updateUserStatus(selectedUserId, request),
-        '회원 상태가 변경되었습니다.',
-        '회원 상태 변경에 실패했습니다.',
-      );
-      if (ok) {
-        setIsStatusDialogOpen(false);
+      try {
+        await statusMutation.mutateAsync({ userId: selectedUserId, request });
+        return true;
+      } catch {
+        return false;
       }
-      return ok;
     },
-    [runMutation, selectedUserId],
+    [statusMutation, selectedUserId],
   );
 
   const handleResetPassword = useCallback(
-    async (request: ResetUserPasswordRequest) => {
+    async (request: ResetUserPasswordRequest): Promise<boolean> => {
       if (selectedUserId == null) return false;
-      const ok = await runMutation(
-        () => resetUserPassword(selectedUserId, request) as Promise<AdminApiResult<UserDetail | null>>,
-        '비밀번호가 재설정되었습니다.',
-        '비밀번호 재설정에 실패했습니다.',
-      );
-      if (ok) {
-        setIsPasswordDialogOpen(false);
+      try {
+        await passwordMutation.mutateAsync({ userId: selectedUserId, request });
+        return true;
+      } catch {
+        return false;
       }
-      return ok;
     },
-    [runMutation, selectedUserId],
+    [passwordMutation, selectedUserId],
   );
 
-  const handleDeleteUser = useCallback(async () => {
+  const handleDeleteUser = useCallback(async (): Promise<boolean> => {
     if (!deleteTarget) return false;
-    const ok = await runMutation(
-      () => deleteUser(deleteTarget.userId) as Promise<AdminApiResult<UserDetail | null>>,
-      '회원이 삭제되었습니다.',
-      '회원 삭제에 실패했습니다.',
-    );
-    if (ok) {
-      setDeleteTarget(null);
-      if (selectedUserId === deleteTarget.userId) {
-        setSelectedUserId(null);
-        setDetail(null);
-        setActiveUser(null);
-        setIsDetailDialogOpen(false);
-      }
+    try {
+      await deleteMutation.mutateAsync(deleteTarget.userId);
+      return true;
+    } catch {
+      return false;
     }
-    return ok;
-  }, [deleteTarget, runMutation, selectedUserId]);
+  }, [deleteMutation, deleteTarget]);
 
   const pagination = useMemo(() => {
     const totalPages = pageResponse.totalPages;
-    if (totalPages <= 1) {
-      return [1];
-    }
-
+    if (totalPages <= 1) return [1];
     const start = Math.max(1, page - 2);
     const end = Math.min(totalPages, start + 4);
     const normalizedStart = Math.max(1, end - 4);
@@ -363,12 +326,12 @@ export const useUserMngPageState = () => {
     page,
     setPage,
     pageResponse,
-    isListLoading,
+    isListLoading: pageQuery.isFetching,
     currentUserId,
     selectedUserId,
     activeUser,
-    detail,
-    isDetailLoading,
+    detail: detailQuery.data ?? null,
+    isDetailLoading: detailQuery.isFetching,
     isDetailDialogOpen,
     setIsDetailDialogOpen,
     isCreateDialogOpen,

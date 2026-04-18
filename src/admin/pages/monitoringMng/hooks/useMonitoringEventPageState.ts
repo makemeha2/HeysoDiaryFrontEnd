@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminPageContext } from '@admin/context/AdminPageContext';
 import {
   getMonitoringEventDetail,
   getMonitoringEventPage,
   patchMonitoringEventResolution,
 } from '../api/monitoringEventApi';
+import { assertOk, AdminApiError } from '@admin/lib/queryClientHelpers';
+import { adminKeys } from '@admin/lib/queryKeys';
 import type {
-  MonitoringEventDetail,
   MonitoringEventListItem,
   MonitoringEventPageResponse,
   MonitoringEventSearchForm,
@@ -26,68 +28,68 @@ const emptyPageResponse: MonitoringEventPageResponse = {
 };
 
 export const useMonitoringEventPageState = () => {
+  const queryClient = useQueryClient();
   const { handleApiError, notifyError, notifySuccess } = useAdminPageContext();
   const defaultFilters = useMemo(() => createDefaultMonitoringEventSearchForm(), []);
 
   const [filters, setFilters] = useState<MonitoringEventSearchForm>(defaultFilters);
   const [appliedFilters, setAppliedFilters] = useState<MonitoringEventSearchForm>(defaultFilters);
   const [page, setPage] = useState(1);
-  const [pageResponse, setPageResponse] = useState<MonitoringEventPageResponse>(emptyPageResponse);
-  const [isListLoading, setIsListLoading] = useState(false);
 
   const [selectedEventIds, setSelectedEventIds] = useState<Set<number>>(new Set());
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
-  const [detail, setDetail] = useState<MonitoringEventDetail | null>(null);
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-
   const [resolutionTarget, setResolutionTarget] = useState<ResolutionYn | null>(null);
-  const [isMutatingResolution, setIsMutatingResolution] = useState(false);
 
-  const loadPage = useCallback(
-    async (targetPage: number, targetFilters: MonitoringEventSearchForm) => {
-      setIsListLoading(true);
-      notifyError(null);
-
-      const result = await getMonitoringEventPage({
-        ...targetFilters,
-        page: targetPage,
+  const pageQuery = useQuery({
+    queryKey: adminKeys.monitoring.page({ ...appliedFilters, page }),
+    queryFn: () =>
+      getMonitoringEventPage({
+        ...appliedFilters,
+        page,
         size: MONITORING_EVENT_PAGE_SIZE,
-      });
+      }).then(assertOk),
+    staleTime: 0,
+  });
 
-      setIsListLoading(false);
+  const detailQuery = useQuery({
+    queryKey: adminKeys.monitoring.detail(selectedEventId!),
+    queryFn: () => getMonitoringEventDetail(selectedEventId!).then(assertOk),
+    enabled: selectedEventId != null,
+    staleTime: 0,
+  });
 
-      if (!result.ok) {
-        handleApiError(result.status, result.errorMessage ?? '모니터링 이벤트 목록을 불러오지 못했습니다.');
-        return;
-      }
-
-      setPageResponse(result.data ?? emptyPageResponse);
-    },
-    [handleApiError, notifyError],
-  );
-
-  const loadDetail = useCallback(
-    async (eventId: number) => {
-      setIsDetailLoading(true);
-      notifyError(null);
-      const result = await getMonitoringEventDetail(eventId);
-      setIsDetailLoading(false);
-
-      if (!result.ok) {
-        setDetail(null);
-        handleApiError(result.status, result.errorMessage ?? '모니터링 이벤트 상세를 불러오지 못했습니다.');
-        return;
-      }
-
-      setDetail(result.data ?? null);
-    },
-    [handleApiError, notifyError],
-  );
-
+  // 적용 필터/페이지 변경 시 에러 초기화
   useEffect(() => {
-    loadPage(page, appliedFilters);
-  }, [appliedFilters, loadPage, page]);
+    notifyError(null);
+  }, [appliedFilters, page, notifyError]);
+
+  // 쿼리 에러 → 컨텍스트 에러 핸들러로 위임
+  useEffect(() => {
+    const err = pageQuery.error ?? detailQuery.error;
+    if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
+  }, [pageQuery.error, detailQuery.error, handleApiError]);
+
+  const resolutionMutation = useMutation({
+    mutationFn: (payload: { eventIds: number[]; resolvedYn: ResolutionYn }) =>
+      patchMonitoringEventResolution(payload).then(assertOk),
+    onSuccess: async (data) => {
+      notifySuccess(
+        `요청 ${data.requestedCount}건 중 성공 ${data.successCount}건, 스킵 ${data.skippedCount}건, 실패 ${data.failedCount}건 처리되었습니다.`,
+      );
+      setSelectedEventIds(new Set());
+      setSelectedEventId(null);
+      setIsDetailDialogOpen(false);
+      setResolutionTarget(null);
+      await queryClient.invalidateQueries({
+        queryKey: adminKeys.monitoring.page({ ...appliedFilters, page }),
+      });
+    },
+    onError: (err: unknown) => {
+      setResolutionTarget(null);
+      if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
+    },
+  });
 
   const handleSearch = useCallback(() => {
     setPage(1);
@@ -101,25 +103,31 @@ export const useMonitoringEventPageState = () => {
     setAppliedFilters(nextDefaultFilters);
   }, []);
 
-  const handleRefresh = useCallback(() => {
-    loadPage(page, appliedFilters);
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: adminKeys.monitoring.page({ ...appliedFilters, page }),
+    });
     if (selectedEventId != null) {
-      loadDetail(selectedEventId);
+      await queryClient.invalidateQueries({
+        queryKey: adminKeys.monitoring.detail(selectedEventId),
+      });
     }
-  }, [appliedFilters, loadDetail, loadPage, page, selectedEventId]);
+  }, [queryClient, appliedFilters, page, selectedEventId]);
 
   const handleOpenDetail = useCallback(
     (item: MonitoringEventListItem) => {
       setSelectedEventId(item.eventId);
       setIsDetailDialogOpen(true);
-      loadDetail(item.eventId);
+      queryClient.invalidateQueries({
+        queryKey: adminKeys.monitoring.detail(item.eventId),
+      });
     },
-    [loadDetail],
+    [queryClient],
   );
 
   const toggleSelectAllCurrentPage = useCallback(
     (checked: boolean) => {
-      const currentPageIds = pageResponse.items.map((item) => item.eventId);
+      const currentPageIds = (pageQuery.data?.items ?? []).map((item) => item.eventId);
       setSelectedEventIds((previous) => {
         const next = new Set(previous);
         currentPageIds.forEach((eventId) => {
@@ -132,7 +140,7 @@ export const useMonitoringEventPageState = () => {
         return next;
       });
     },
-    [pageResponse.items],
+    [pageQuery.data],
   );
 
   const toggleSelectOne = useCallback((eventId: number, checked: boolean) => {
@@ -149,52 +157,34 @@ export const useMonitoringEventPageState = () => {
 
   const selectedCount = selectedEventIds.size;
 
-  const handleOpenResolutionConfirm = useCallback((resolvedYn: ResolutionYn) => {
-    if (selectedCount === 0) {
-      notifyError('조치할 이벤트를 먼저 선택해 주세요.');
-      return;
-    }
-    setResolutionTarget(resolvedYn);
-  }, [notifyError, selectedCount]);
+  const handleOpenResolutionConfirm = useCallback(
+    (resolvedYn: ResolutionYn) => {
+      if (selectedCount === 0) {
+        notifyError('조치할 이벤트를 먼저 선택해 주세요.');
+        return;
+      }
+      setResolutionTarget(resolvedYn);
+    },
+    [notifyError, selectedCount],
+  );
 
-  const handleConfirmResolution = useCallback(async () => {
-    if (isMutatingResolution) return;
+  const handleConfirmResolution = useCallback(() => {
+    if (resolutionMutation.isPending) return;
     if (resolutionTarget == null || selectedEventIds.size === 0) {
       setResolutionTarget(null);
       return;
     }
-
-    setIsMutatingResolution(true);
-    const result = await patchMonitoringEventResolution({
+    resolutionMutation.mutate({
       eventIds: Array.from(selectedEventIds),
       resolvedYn: resolutionTarget,
     });
-    setIsMutatingResolution(false);
-    setResolutionTarget(null);
+  }, [resolutionMutation, resolutionTarget, selectedEventIds]);
 
-    if (!result.ok) {
-      handleApiError(result.status, result.errorMessage ?? '일괄 조치 처리에 실패했습니다.');
-      return;
-    }
-
-    const response = result.data;
-    notifySuccess(
-      `요청 ${response.requestedCount}건 중 성공 ${response.successCount}건, 스킵 ${response.skippedCount}건, 실패 ${response.failedCount}건 처리되었습니다.`,
-    );
-
-    setSelectedEventIds(new Set());
-    setSelectedEventId(null);
-    setDetail(null);
-    setIsDetailDialogOpen(false);
-    await loadPage(page, appliedFilters);
-  }, [appliedFilters, handleApiError, isMutatingResolution, loadPage, notifySuccess, page, resolutionTarget, selectedEventIds]);
+  const pageResponse = pageQuery.data ?? emptyPageResponse;
 
   const pagination = useMemo(() => {
     const totalPages = pageResponse.totalPages;
-    if (totalPages <= 1) {
-      return [1];
-    }
-
+    if (totalPages <= 1) return [1];
     const start = Math.max(1, page - 2);
     const end = Math.min(totalPages, start + 4);
     const normalizedStart = Math.max(1, end - 4);
@@ -208,15 +198,15 @@ export const useMonitoringEventPageState = () => {
     page,
     setPage,
     pageResponse,
-    isListLoading,
+    isListLoading: pageQuery.isFetching,
     selectedEventIds,
     selectedEventId,
-    detail,
-    isDetailLoading,
+    detail: detailQuery.data ?? null,
+    isDetailLoading: detailQuery.isFetching,
     isDetailDialogOpen,
     setIsDetailDialogOpen,
     resolutionTarget,
-    isMutatingResolution,
+    isMutatingResolution: resolutionMutation.isPending,
     pagination,
     selectedCount,
     handleSearch,
