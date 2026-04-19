@@ -70,6 +70,10 @@ export type MonitoringEventResolutionResponse = {
   failedCount: number;
 };
 
+export type MonitoringEventDiagnoseResponse = {
+  diagnosis: string;
+};
+
 const toInputDate = (value: Date) => format(value, 'yyyy-MM-dd');
 
 export const createDefaultMonitoringEventSearchForm = (): MonitoringEventSearchForm => {

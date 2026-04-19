@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAdminPageContext } from '@admin/context/AdminPageContext';
 import {
+  diagnoseMonitoringEvent,
   getMonitoringEventDetail,
   getMonitoringEventPage,
   patchMonitoringEventResolution,
@@ -89,6 +90,10 @@ export const useMonitoringEventPageState = () => {
       setResolutionTarget(null);
       if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
     },
+  });
+
+  const diagnoseMutation = useMutation({
+    mutationFn: (eventId: number) => diagnoseMonitoringEvent(eventId).then(assertOk),
   });
 
   const handleSearch = useCallback(() => {
@@ -207,6 +212,7 @@ export const useMonitoringEventPageState = () => {
     setIsDetailDialogOpen,
     resolutionTarget,
     isMutatingResolution: resolutionMutation.isPending,
+    diagnoseMutation,
     pagination,
     selectedCount,
     handleSearch,

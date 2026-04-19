@@ -1,5 +1,6 @@
 import { adminFetch } from '@admin/lib/api';
 import type {
+  MonitoringEventDiagnoseResponse,
   MonitoringEventDetail,
   MonitoringEventPageResponse,
   MonitoringEventResolutionRequest,
@@ -27,6 +28,12 @@ export async function getMonitoringEventPage(params: MonitoringEventSearchParams
 
 export async function getMonitoringEventDetail(eventId: number) {
   return adminFetch<MonitoringEventDetail>(`/api/admin/monitoring-events/${eventId}`);
+}
+
+export async function diagnoseMonitoringEvent(eventId: number) {
+  return adminFetch<MonitoringEventDiagnoseResponse>(`/api/admin/monitoring-events/${eventId}/diagnose`, {
+    method: 'POST',
+  });
 }
 
 export async function patchMonitoringEventResolution(request: MonitoringEventResolutionRequest) {
