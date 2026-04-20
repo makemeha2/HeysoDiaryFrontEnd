@@ -29,6 +29,7 @@ const AdminMonitoringEventPageContent = () => {
     setIsDetailDialogOpen,
     resolutionTarget,
     isMutatingResolution,
+    diagnoseMutation,
     pagination,
     selectedCount,
     handleSearch,
@@ -246,6 +247,7 @@ const AdminMonitoringEventPageContent = () => {
         onOpenChange={setIsDetailDialogOpen}
         detail={detail}
         isLoading={isDetailLoading}
+        diagnoseMutation={diagnoseMutation}
       />
 
       <AdminConfirmDialog
