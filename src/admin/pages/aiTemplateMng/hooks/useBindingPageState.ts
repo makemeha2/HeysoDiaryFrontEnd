@@ -75,30 +75,16 @@ export const useBindingPageState = () => {
     if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
   }, [bindingsQuery.error, detailQuery.error, handleApiError]);
 
-  // 편집 폼 열릴 때 상세 description 동기화
-  useEffect(() => {
-    if (
-      isFormOpen &&
-      editingBinding != null &&
-      detail != null &&
-      detail.bindingId === editingBinding.bindingId
-    ) {
-      setForm((prev) => ({ ...prev, description: detail.description ?? '' }));
-    }
-  }, [isFormOpen, editingBinding, detail]);
-
-  const selectedSystemTemplateId = Number(form.systemTemplateId);
-  const selectedUserTemplateId = Number(form.userTemplateId);
-  const selectedProfileId = Number(form.runtimeProfileId);
+  const selectedSystemTemplateId = form.systemTemplateId === '' ? null : Number(form.systemTemplateId);
+  const selectedUserTemplateId = form.userTemplateId === '' ? null : Number(form.userTemplateId);
+  const selectedProfileId = form.runtimeProfileId === '' ? null : Number(form.runtimeProfileId);
 
   const systemTemplateOptions = useMemo(
     () =>
       allTemplates.filter(
         (t) =>
           t.templateRole === 'SYSTEM' &&
-          (t.isActive === 1 ||
-            (Number.isFinite(selectedSystemTemplateId) &&
-              t.templateId === selectedSystemTemplateId)),
+          (t.isActive === 1 || (selectedSystemTemplateId != null && t.templateId === selectedSystemTemplateId)),
       ),
     [allTemplates, selectedSystemTemplateId],
   );
@@ -108,8 +94,7 @@ export const useBindingPageState = () => {
       allTemplates.filter(
         (t) =>
           t.templateRole === 'USER' &&
-          (t.isActive === 1 ||
-            (Number.isFinite(selectedUserTemplateId) && t.templateId === selectedUserTemplateId)),
+          (t.isActive === 1 || (selectedUserTemplateId != null && t.templateId === selectedUserTemplateId)),
       ),
     [allTemplates, selectedUserTemplateId],
   );
@@ -117,9 +102,7 @@ export const useBindingPageState = () => {
   const runtimeProfileOptions = useMemo(
     () =>
       allProfiles.filter(
-        (p) =>
-          p.isActive === 1 ||
-          (Number.isFinite(selectedProfileId) && p.runtimeProfileId === selectedProfileId),
+        (p) => p.isActive === 1 || (selectedProfileId != null && p.runtimeProfileId === selectedProfileId),
       ),
     [allProfiles, selectedProfileId],
   );
@@ -160,8 +143,9 @@ export const useBindingPageState = () => {
       await queryClient.invalidateQueries({
         queryKey: adminKeys.ai.binding.list({ status, domain: domainFilter }),
       });
-      if (selectedId != null) {
-        await queryClient.invalidateQueries({ queryKey: adminKeys.ai.binding.detail(selectedId) });
+      const detailId = variables.editingId ?? selectedId;
+      if (detailId != null) {
+        await queryClient.invalidateQueries({ queryKey: adminKeys.ai.binding.detail(detailId) });
       }
     },
     onError: (err: unknown) => {
@@ -175,20 +159,36 @@ export const useBindingPageState = () => {
     setIsFormOpen(true);
   };
 
-  const handleOpenEdit = useCallback((b: AiPromptBindingListItem) => {
-    setEditingBinding(b);
-    setForm({
-      bindingName: b.bindingName,
-      domainType: b.domainType,
-      featureKey: b.featureKey,
-      systemTemplateId: String(b.systemTemplateId),
-      userTemplateId: String(b.userTemplateId),
-      runtimeProfileId: String(b.runtimeProfileId),
-      description: '',
-      isActive: b.isActive,
-    });
-    setIsFormOpen(true);
-  }, []);
+  const handleOpenEdit = useCallback(
+    async (b: AiPromptBindingListItem) => {
+      try {
+        const bindingDetail = await queryClient.fetchQuery({
+          queryKey: adminKeys.ai.binding.detail(b.bindingId),
+          queryFn: () => getAiPromptBindingDetail(b.bindingId).then(assertOk),
+          staleTime: 0,
+        });
+
+        setSelectedId(b.bindingId);
+        setEditingBinding(b);
+        setForm({
+          bindingName: bindingDetail.bindingName,
+          domainType: bindingDetail.domainType,
+          featureKey: bindingDetail.featureKey,
+          systemTemplateId: String(bindingDetail.systemTemplateId),
+          userTemplateId: String(bindingDetail.userTemplateId),
+          runtimeProfileId: String(bindingDetail.runtimeProfileId),
+          description: bindingDetail.description ?? '',
+          isActive: bindingDetail.isActive,
+        });
+        setIsFormOpen(true);
+      } catch (err) {
+        if (err instanceof AdminApiError) {
+          handleApiError(err.status, err.errorMessage);
+        }
+      }
+    },
+    [queryClient, handleApiError],
+  );
 
   const handleSave = async () => {
     if (
@@ -207,7 +207,7 @@ export const useBindingPageState = () => {
   };
 
   const loadBindings = useCallback(
-    async (_s?: StatusFilter, _d?: string) => {
+    async () => {
       await queryClient.invalidateQueries({
         queryKey: adminKeys.ai.binding.list({ status, domain: domainFilter }),
       });

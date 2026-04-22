@@ -9,6 +9,7 @@ type FragmentRelationDialogProps = {
   setRelForm: React.Dispatch<React.SetStateAction<RelForm>>;
   fragmentOptions: AiPromptTemplateListItem[];
   onAdd: () => Promise<void>;
+  isAdding?: boolean;
 };
 
 const FragmentRelationDialog = ({
@@ -18,19 +19,20 @@ const FragmentRelationDialog = ({
   setRelForm,
   fragmentOptions,
   onAdd,
+  isAdding,
 }: FragmentRelationDialogProps) => {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[51] w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-sand/60 bg-white p-4 shadow-xl">
+        <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/30" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[71] w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-sand/60 bg-white p-4 shadow-xl">
           <Dialog.Title className="text-sm font-semibold text-clay">Fragment 추가</Dialog.Title>
 
           <div className="mt-4 flex flex-col gap-3 text-sm">
             <label className="flex flex-col gap-1">
               <span className="text-xs text-clay/80">Fragment 템플릿 <span className="text-blush">*</span></span>
               <select
-                value={relForm.childTemplateId === '' ? '' : String(relForm.childTemplateId)}
+                value={String(relForm.childTemplateId)}
                 onChange={(e) =>
                   setRelForm((p) => ({
                     ...p,
@@ -79,8 +81,9 @@ const FragmentRelationDialog = ({
             </button>
             <button
               type="button"
+              disabled={isAdding}
               onClick={onAdd}
-              className="rounded bg-clay px-3 py-1.5 text-xs text-white sm:text-sm"
+              className="rounded bg-clay px-3 py-1.5 text-xs text-white sm:text-sm disabled:opacity-50"
             >
               추가
             </button>

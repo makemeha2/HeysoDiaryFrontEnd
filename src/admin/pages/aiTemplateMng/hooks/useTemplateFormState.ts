@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createAiPromptTemplate,
+  getAiPromptTemplateDetail,
   updateAiPromptTemplate,
 } from '../api/aiTemplateApi';
 import { assertOk, AdminApiError } from '@admin/lib/queryClientHelpers';
@@ -16,13 +17,10 @@ import { initialTemplateForm } from '../constants/formDefaults';
 import { useAdminPageContext } from '@admin/context/AdminPageContext';
 
 type UseTemplateFormStateOptions = {
-  detail: AiPromptTemplateDetail | null;
-  // 하위호환: 외부에서 refreshAfterSave를 전달하면 mutation onSuccess에서 호출
-  refreshAfterSave?: () => Promise<void>;
+  refreshAfterSave?: (editingId: number | null) => Promise<void>;
 };
 
 export const useTemplateFormState = ({
-  detail,
   refreshAfterSave,
 }: UseTemplateFormStateOptions) => {
   const queryClient = useQueryClient();
@@ -30,44 +28,56 @@ export const useTemplateFormState = ({
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<AiPromptTemplateListItem | null>(null);
+  const [editingDetail, setEditingDetail] = useState<AiPromptTemplateDetail | null>(null);
   const [form, setForm] = useState<TemplateForm>(initialTemplateForm);
 
   const handleOpenCreate = () => {
     setEditingTemplate(null);
+    setEditingDetail(null);
     setForm(initialTemplateForm);
     setIsFormOpen(true);
   };
 
-  const handleOpenEdit = useCallback((t: AiPromptTemplateListItem) => {
-    setEditingTemplate(t);
-    setForm({
-      templateKey: t.templateKey,
-      templateName: t.templateName,
-      domainType: t.domainType,
-      featureKey: t.featureKey ?? '',
-      templateRole: t.templateRole,
-      templateType: t.templateType,
-      content: '',
-      description: '',
-      isActive: t.isActive,
-    });
-    setIsFormOpen(true);
-  }, []);
+  const loadTemplateDetail = useCallback(
+    async (templateId: number) => {
+      const templateDetail = await queryClient.fetchQuery({
+        queryKey: adminKeys.ai.template.detail(templateId),
+        queryFn: () => getAiPromptTemplateDetail(templateId).then(assertOk),
+        staleTime: 0,
+      });
 
-  useEffect(() => {
-    if (
-      isFormOpen &&
-      editingTemplate != null &&
-      detail != null &&
-      detail.templateId === editingTemplate.templateId
-    ) {
-      setForm((prev) => ({
-        ...prev,
-        content: detail.content ?? '',
-        description: detail.description ?? '',
-      }));
-    }
-  }, [isFormOpen, editingTemplate, detail]);
+      setEditingDetail(templateDetail);
+      return templateDetail;
+    },
+    [queryClient],
+  );
+
+  const handleOpenEdit = useCallback(
+    async (t: AiPromptTemplateListItem) => {
+      try {
+        const templateDetail = await loadTemplateDetail(t.templateId);
+
+        setEditingTemplate(t);
+        setForm({
+          templateKey: templateDetail.templateKey,
+          templateName: templateDetail.templateName,
+          domainType: templateDetail.domainType,
+          featureKey: templateDetail.featureKey ?? '',
+          templateRole: templateDetail.templateRole,
+          templateType: templateDetail.templateType,
+          content: templateDetail.content ?? '',
+          description: templateDetail.description ?? '',
+          isActive: templateDetail.isActive,
+        });
+        setIsFormOpen(true);
+      } catch (err) {
+        if (err instanceof AdminApiError) {
+          handleApiError(err.status, err.errorMessage);
+        }
+      }
+    },
+    [loadTemplateDetail, handleApiError],
+  );
 
   const saveMutation = useMutation({
     mutationFn: async (payload: { form: TemplateForm; editingId: number | null }) => {
@@ -102,7 +112,7 @@ export const useTemplateFormState = ({
       notifySuccess(variables.editingId == null ? '등록되었습니다.' : '수정되었습니다.');
       setIsFormOpen(false);
       if (refreshAfterSave) {
-        await refreshAfterSave();
+        await refreshAfterSave(variables.editingId);
       } else {
         // refreshAfterSave가 없으면 직접 관련 쿼리 무효화
         await queryClient.invalidateQueries({ queryKey: adminKeys.ai.template.list({}) });
@@ -133,11 +143,13 @@ export const useTemplateFormState = ({
       isFormOpen,
       setIsFormOpen,
       editingTemplate,
+      editingDetail,
       form,
       setForm,
       handleOpenCreate,
       handleOpenEdit,
       handleSave,
+      loadTemplateDetail,
     },
   };
 };

@@ -10,7 +10,22 @@ export function buildTemplateListColumns({
 }: BuildTemplateListColumnsOptions): ColumnDef<AiPromptTemplateListItem>[] {
   return [
     { accessorKey: 'templateKey', header: 'Key' },
-    { accessorKey: 'templateName', header: '템플릿명' },
+    {
+      accessorKey: 'templateName',
+      header: '템플릿명',
+      cell: ({ row }) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(row.original);
+          }}
+          className="text-left text-clay underline-offset-2 hover:underline"
+        >
+          {row.original.templateName}
+        </button>
+      ),
+    },
     { accessorKey: 'templateRole', header: 'Role' },
     { accessorKey: 'templateType', header: 'Type' },
     { accessorKey: 'domainType', header: '도메인' },
