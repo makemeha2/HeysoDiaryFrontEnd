@@ -78,7 +78,7 @@ const AdminAiBindingPageContent = () => {
               <StatusFilterSelect value={status} onChange={setStatus} />
               <button
                 type="button"
-                onClick={() => loadBindings(status, domainFilter)}
+                onClick={() => loadBindings()}
                 className="rounded border border-sand px-2 py-1 text-xs text-clay sm:text-sm"
               >
                 새로고침

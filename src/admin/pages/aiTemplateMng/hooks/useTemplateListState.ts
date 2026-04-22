@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getAiPromptTemplateList,
-  getAiPromptTemplateDetail,
 } from '../api/aiTemplateApi';
 import { assertOk, AdminApiError } from '@admin/lib/queryClientHelpers';
 import { adminKeys } from '@admin/lib/queryKeys';
@@ -17,7 +16,6 @@ export const useTemplateListState = () => {
   const [status, setStatus] = useState<StatusFilter>('ACTIVE');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [domainFilter, setDomainFilter] = useState<string>('');
-  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const templatesQuery = useQuery({
     queryKey: adminKeys.ai.template.list({ status, type: typeFilter, domain: domainFilter }),
@@ -27,13 +25,6 @@ export const useTemplateListState = () => {
         typeFilter === 'ALL' ? undefined : typeFilter,
         domainFilter || undefined,
       ).then(assertOk),
-    staleTime: 0,
-  });
-
-  const detailQuery = useQuery({
-    queryKey: adminKeys.ai.template.detail(selectedId!),
-    queryFn: () => getAiPromptTemplateDetail(selectedId!).then(assertOk),
-    enabled: selectedId != null,
     staleTime: 0,
   });
 
@@ -47,30 +38,22 @@ export const useTemplateListState = () => {
 
   // 필터 변경 시 선택 초기화
   useEffect(() => {
-    setSelectedId(null);
     notifyError(null);
   }, [status, typeFilter, domainFilter, notifyError]);
 
   // 쿼리 에러 → 컨텍스트 에러 핸들러로 위임
   useEffect(() => {
-    const err = templatesQuery.error ?? detailQuery.error;
+    const err = templatesQuery.error;
     if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
-  }, [templatesQuery.error, detailQuery.error, handleApiError]);
+  }, [templatesQuery.error, handleApiError]);
 
   const loadTemplates = useCallback(
-    async (_s?: StatusFilter, _t?: string, _d?: string) => {
+    async () => {
       await queryClient.invalidateQueries({
         queryKey: adminKeys.ai.template.list({ status, type: typeFilter, domain: domainFilter }),
       });
     },
     [queryClient, status, typeFilter, domainFilter],
-  );
-
-  const loadDetail = useCallback(
-    async (id: number) => {
-      await queryClient.invalidateQueries({ queryKey: adminKeys.ai.template.detail(id) });
-    },
-    [queryClient],
   );
 
   const loadFragmentOptions = useCallback(async () => {
@@ -88,13 +71,9 @@ export const useTemplateListState = () => {
     },
     list: {
       templates: templatesQuery.data ?? [],
-      selectedId,
-      setSelectedId,
-      detail: detailQuery.data ?? null,
       domainCodes: domainCodesQuery.data ?? [],
       fragmentOptions: fragmentOptionsQuery.data ?? [],
       loadTemplates,
-      loadDetail,
       loadFragmentOptions,
     },
   };

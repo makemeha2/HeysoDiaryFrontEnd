@@ -1,19 +1,21 @@
 import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import {
   addTemplateRelation,
   deleteTemplateRelation,
 } from '../api/aiTemplateApi';
+import { assertOk, AdminApiError } from '@admin/lib/queryClientHelpers';
 import type { RelForm } from '../types/forms';
 import { initialRelForm } from '../constants/formDefaults';
 import { useAdminPageContext } from '@admin/context/AdminPageContext';
 
 type UseTemplateRelationStateOptions = {
-  selectedId: number | null;
-  refreshAfterSave: () => Promise<void>;
+  parentTemplateId: number | null;
+  refreshAfterSave: (parentTemplateId: number) => Promise<void>;
 };
 
 export const useTemplateRelationState = ({
-  selectedId,
+  parentTemplateId,
   refreshAfterSave,
 }: UseTemplateRelationStateOptions) => {
   const { handleApiError, notifySuccess, notifyError } = useAdminPageContext();
@@ -22,40 +24,54 @@ export const useTemplateRelationState = ({
   const [relForm, setRelForm] = useState<RelForm>(initialRelForm);
   const [confirmDeleteRelId, setConfirmDeleteRelId] = useState<number | null>(null);
 
+  const addMutation = useMutation({
+    mutationFn: (vars: { parentId: number; childTemplateId: number; mergeType: string; sortSeq?: number }) =>
+      addTemplateRelation(vars.parentId, {
+        childTemplateId: vars.childTemplateId,
+        mergeType: vars.mergeType,
+        sortSeq: vars.sortSeq,
+      }).then(assertOk),
+    onSuccess: async (_, vars) => {
+      notifySuccess('Fragment가 추가되었습니다.');
+      setIsRelOpen(false);
+      setRelForm(initialRelForm);
+      await refreshAfterSave(vars.parentId);
+    },
+    onError: (err: unknown) => {
+      if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (vars: { parentId: number; relId: number }) =>
+      deleteTemplateRelation(vars.parentId, vars.relId).then(assertOk),
+    onSuccess: async (_, vars) => {
+      notifySuccess('Fragment 연결이 삭제되었습니다.');
+      setConfirmDeleteRelId(null);
+      await refreshAfterSave(vars.parentId);
+    },
+    onError: (err: unknown) => {
+      if (err instanceof AdminApiError) handleApiError(err.status, err.errorMessage);
+    },
+  });
+
   const handleAddRelation = async () => {
-    if (relForm.childTemplateId === '' || selectedId == null) {
+    if (relForm.childTemplateId === '' || parentTemplateId == null) {
       notifyError('Fragment 템플릿을 선택하세요.');
       return;
     }
     notifyError(null);
-
-    const result = await addTemplateRelation(selectedId, {
+    await addMutation.mutateAsync({
+      parentId: parentTemplateId,
       childTemplateId: Number(relForm.childTemplateId),
       mergeType: relForm.mergeType,
       sortSeq: relForm.sortSeq !== '' ? Number(relForm.sortSeq) : undefined,
     });
-
-    if (!result.ok) {
-      handleApiError(result.status, result.errorMessage ?? 'Fragment 추가에 실패했습니다.');
-      return;
-    }
-
-    notifySuccess('Fragment가 추가되었습니다.');
-    setIsRelOpen(false);
-    setRelForm(initialRelForm);
-    await refreshAfterSave();
   };
 
   const handleDeleteRelation = async (relId: number) => {
-    if (selectedId == null) return;
-    const result = await deleteTemplateRelation(selectedId, relId);
-    if (!result.ok) {
-      handleApiError(result.status, result.errorMessage ?? 'Fragment 삭제에 실패했습니다.');
-      return;
-    }
-    notifySuccess('Fragment 연결이 삭제되었습니다.');
-    setConfirmDeleteRelId(null);
-    await refreshAfterSave();
+    if (parentTemplateId == null) return;
+    await deleteMutation.mutateAsync({ parentId: parentTemplateId, relId });
   };
 
   return {
@@ -68,6 +84,8 @@ export const useTemplateRelationState = ({
       setConfirmDeleteRelId,
       handleAddRelation,
       handleDeleteRelation,
+      isAdding: addMutation.isPending,
+      isDeleting: deleteMutation.isPending,
     },
   };
 };

@@ -2,44 +2,48 @@ import { useCallback } from 'react';
 import { useTemplateListState } from './useTemplateListState';
 import { useTemplateFormState } from './useTemplateFormState';
 import { useTemplateRelationState } from './useTemplateRelationState';
-import { useTemplatePreviewState } from './useTemplatePreviewState';
+import { adminKeys } from '@admin/lib/queryKeys';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const useTemplatePageState = () => {
+  const queryClient = useQueryClient();
   const { filters, list } = useTemplateListState();
 
   const refreshAfterSave = useCallback(async () => {
-    await list.loadTemplates(filters.status, filters.typeFilter, filters.domainFilter);
-    if (list.selectedId != null) await list.loadDetail(list.selectedId);
+    await list.loadTemplates();
     await list.loadFragmentOptions();
-  }, [
-    list.loadTemplates,
-    list.loadDetail,
-    list.loadFragmentOptions,
-    list.selectedId,
-    filters.status,
-    filters.typeFilter,
-    filters.domainFilter,
-  ]);
+  }, [list.loadTemplates, list.loadFragmentOptions]);
 
   const { formDialog } = useTemplateFormState({
-    detail: list.detail,
-    refreshAfterSave,
+    refreshAfterSave: async (editingId) => {
+      await refreshAfterSave();
+      if (editingId != null) {
+        await queryClient.invalidateQueries({ queryKey: adminKeys.ai.template.detail(editingId) });
+      }
+    },
   });
 
   const { relationDialog } = useTemplateRelationState({
-    selectedId: list.selectedId,
-    refreshAfterSave,
+    parentTemplateId: formDialog.editingTemplate?.templateId ?? null,
+    refreshAfterSave: async (parentTemplateId) => {
+      await refreshAfterSave();
+      await formDialog.loadTemplateDetail(parentTemplateId);
+    },
   });
 
-  const { previewDialog } = useTemplatePreviewState({
-    selectedId: list.selectedId,
-  });
+  const setFormOpen = useCallback(
+    (open: boolean) => {
+      formDialog.setIsFormOpen(open);
+      if (!open) relationDialog.setIsRelOpen(false);
+    },
+    [formDialog.setIsFormOpen, relationDialog.setIsRelOpen],
+  );
 
   return {
     filters,
     list,
     formDialog,
     relationDialog,
-    previewDialog,
+    setFormOpen,
   };
 };
