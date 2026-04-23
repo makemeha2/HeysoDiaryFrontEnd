@@ -8,11 +8,11 @@ const getErrorMessageFromResponse = (data) => {
   return '';
 };
 
-export const requestDiaryAiPolish = async ({ diaryId = null, content }) => {
+export const requestDiaryAiPolish = async ({ diaryId = null, content, mode }) => {
   const res = await authFetch('/api/diary-ai-polish/request', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ diaryId, content }),
+    body: JSON.stringify({ diaryId, content, mode }),
   });
 
   if (!res.ok) {

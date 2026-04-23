@@ -28,6 +28,7 @@ Thumbs.db
 *.swo
 .idea/
 .vscode/
+.claude/worktrees/
 
 # Local caches
 .parcel-cache/
