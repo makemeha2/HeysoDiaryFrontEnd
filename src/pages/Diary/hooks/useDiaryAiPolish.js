@@ -44,7 +44,12 @@ const useDiaryAiPolish = () => {
     mutationFn: requestDiaryAiPolish,
   });
 
-  const requestPolish = async ({ diaryId = null, content }) => {
+  const clearPolishResult = () => {
+    setPolishedContent('');
+    setPolishError('');
+  };
+
+  const requestPolish = async ({ diaryId = null, content, mode }) => {
     setPolishError('');
     setPolishedContent('');
 
@@ -52,6 +57,7 @@ const useDiaryAiPolish = () => {
       const data = await polishMutation.mutateAsync({
         diaryId,
         content,
+        mode,
       });
 
       const nextPolishedContent =
@@ -68,6 +74,9 @@ const useDiaryAiPolish = () => {
         setRemainingCount(data.remainingCount);
       }
     } catch (error) {
+      if (error?.status === 429) {
+        setRemainingCount(0);
+      }
       setPolishError(getPolishErrorDescription(error));
     }
   };
@@ -90,18 +99,21 @@ const useDiaryAiPolish = () => {
     return `${usedCount}/${DAILY_POLISH_LIMIT} 사용`;
   }, [usedCount]);
 
+  const isDailyPolishLimitReached = remainingCount === 0;
+
   return {
     polishedContent,
     polishError,
     remainingCount,
+    isDailyPolishLimitReached,
     isPolishing: polishMutation.isPending,
     usageText,
     requestPolish,
     resetPolish,
+    clearPolishResult,
   };
 };
 
 export default useDiaryAiPolish;
 
 export { DAILY_POLISH_LIMIT };
-

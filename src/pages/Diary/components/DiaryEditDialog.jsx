@@ -16,6 +16,7 @@ import useDiaryAiPolish from '../hooks/useDiaryAiPolish.js';
 
 const FONT_SIZE_STORAGE_KEY = 'diaryEditor.fontSize';
 const LINE_HEIGHT_STORAGE_KEY = 'diaryEditor.lineHeight';
+const POLISH_MODE_STORAGE_KEY = 'diaryEditor.polishMode';
 
 const FONT_SIZE_OPTIONS = [
   { label: '작게', value: '14px' },
@@ -56,6 +57,27 @@ const persistEditorSetting = (key, value) => {
   }
 };
 
+const getStoredPolishMode = () => {
+  if (typeof window === 'undefined') return 'RELAXED';
+
+  try {
+    const stored = window.localStorage.getItem(POLISH_MODE_STORAGE_KEY);
+    return stored === 'STRICT' || stored === 'RELAXED' ? stored : 'RELAXED';
+  } catch {
+    return 'RELAXED';
+  }
+};
+
+const persistPolishMode = (value) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(POLISH_MODE_STORAGE_KEY, value);
+  } catch {
+    // ignore localStorage write failures
+  }
+};
+
 const toSnapshot = ({ diaryDate, titleInput, contentMdInput, tagList }) => {
   const tags = Array.isArray(tagList)
     ? Array.from(new Set(tagList.map((tag) => String(tag).trim()).filter(Boolean))).sort()
@@ -91,8 +113,17 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   const [initialFormSnapshot, setInitialFormSnapshot] = useState(null);
   const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 
-  const { polishedContent, polishError, isPolishing, usageText, requestPolish, resetPolish } =
-    useDiaryAiPolish();
+  const {
+    polishedContent,
+    polishError,
+    isPolishing,
+    usageText,
+    requestPolish,
+    isDailyPolishLimitReached,
+    clearPolishResult,
+  } = useDiaryAiPolish();
+
+  const [polishMode, setPolishMode] = useState(() => getStoredPolishMode());
 
   const isEditMode = !!diaryId;
 
@@ -129,7 +160,7 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   const resetPolishState = () => {
     setIsPolishDialogOpen(false);
     setOriginalContent('');
-    resetPolish();
+    clearPolishResult();
   };
 
   const resetForm = () => {
@@ -220,8 +251,15 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
 
   const handleOpenPolishDialog = () => {
     setOriginalContent(contentMdInput ?? '');
-    resetPolish();
+    setPolishMode(getStoredPolishMode());
+    clearPolishResult();
     setIsPolishDialogOpen(true);
+  };
+
+  const handlePolishModeChange = (nextMode) => {
+    if (nextMode === polishMode) return;
+    setPolishMode(nextMode);
+    clearPolishResult();
   };
 
   const closePolishDialog = () => {
@@ -237,15 +275,18 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
   const polishSourceLength = originalContent.length;
   const isPolishSourceTooShort = polishSourceLength < POLISH_MIN_LENGTH;
   const isPolishSourceTooLong = polishSourceLength > POLISH_MAX_LENGTH;
-  const canRequestPolish = !isPolishing && !isPolishSourceTooShort && !isPolishSourceTooLong;
+  const canRequestPolish =
+    !isPolishing && !isPolishSourceTooShort && !isPolishSourceTooLong && !isDailyPolishLimitReached;
   const requestButtonLabel = `AI에게 요청 · ${usageText}`;
 
   const handleRequestPolish = async () => {
     if (!canRequestPolish) return;
 
+    persistPolishMode(polishMode);
     await requestPolish({
       diaryId: diaryId ?? null,
       content: originalContent,
+      mode: polishMode,
     });
   };
 
@@ -516,6 +557,8 @@ const DiaryEditDialog = ({ diaryId, isOpen, onClose, onView }) => {
         requestButtonLabel={requestButtonLabel}
         isPolishSourceTooShort={isPolishSourceTooShort}
         isPolishSourceTooLong={isPolishSourceTooLong}
+        polishMode={polishMode}
+        onModeChange={handlePolishModeChange}
         onRequestPolish={handleRequestPolish}
         onApply={handleApplyPolishedContent}
         onCancel={closePolishDialog}
