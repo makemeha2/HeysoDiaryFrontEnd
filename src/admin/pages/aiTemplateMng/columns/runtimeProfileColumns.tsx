@@ -9,8 +9,32 @@ export function buildRuntimeProfileColumns({
   onEdit,
 }: BuildRuntimeProfileColumnsOptions): ColumnDef<AiRuntimeProfile>[] {
   return [
-    { accessorKey: 'profileKey', header: 'Profile Key' },
-    { accessorKey: 'profileName', header: '프로파일명' },
+    {
+      accessorKey: 'profileKey',
+      header: 'Profile Key',
+      cell: ({ row }) => (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onEdit(row.original); }}
+          className="text-left text-clay underline underline-offset-2 hover:text-clay/70"
+        >
+          {row.original.profileKey}
+        </button>
+      ),
+    },
+    {
+      accessorKey: 'profileName',
+      header: '프로파일명',
+      cell: ({ row }) => (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onEdit(row.original); }}
+          className="text-left text-clay underline underline-offset-2 hover:text-clay/70"
+        >
+          {row.original.profileName}
+        </button>
+      ),
+    },
     { accessorKey: 'domainType', header: '도메인' },
     { accessorKey: 'provider', header: 'Provider' },
     { accessorKey: 'modelName', header: '모델' },
@@ -40,22 +64,6 @@ export function buildRuntimeProfileColumns({
         >
           {row.original.isActive === 1 ? '활성' : '비활성'}
         </span>
-      ),
-    },
-    {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(row.original);
-          }}
-          className="rounded border border-sand px-2 py-0.5 text-xs text-clay hover:bg-sand/30"
-        >
-          수정
-        </button>
       ),
     },
   ];

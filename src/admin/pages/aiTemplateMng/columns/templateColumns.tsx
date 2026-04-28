@@ -42,22 +42,6 @@ export function buildTemplateListColumns({
         </span>
       ),
     },
-    {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(row.original);
-          }}
-          className="rounded border border-sand px-2 py-0.5 text-xs text-clay hover:bg-sand/30"
-        >
-          수정
-        </button>
-      ),
-    },
   ];
 }
 
