@@ -14,7 +14,7 @@ export const useTemplateListState = () => {
   const { handleApiError, notifyError } = useAdminPageContext();
 
   const [status, setStatus] = useState<StatusFilter>('ACTIVE');
-  const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [typeFilter, setTypeFilter] = useState<string>('ROOT');
   const [domainFilter, setDomainFilter] = useState<string>('');
 
   const templatesQuery = useQuery({
