@@ -104,13 +104,6 @@ const Diary = () => {
     console.log('Open diary detail', diary);
   };
 
-  const requestDelete = (diaryId) => {
-    if (!diaryId) return;
-    setViewDiaryId(diaryId);
-    setPendingDeleteId(diaryId);
-    setIsViewDialogOpen(true);
-  };
-
   const handleDeleteSuccess = () => {
     setPendingDeleteId(null);
     handleViewDialogChange(false);

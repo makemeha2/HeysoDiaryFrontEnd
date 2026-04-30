@@ -89,7 +89,6 @@ export default function AutocompleteCommitInput({
     getMenuProps,
     getInputProps,
     getItemProps,
-    selectItem,
     setInputValue,
     closeMenu,
     openMenu,

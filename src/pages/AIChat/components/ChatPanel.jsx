@@ -100,7 +100,6 @@ const styles = {
 
 const ChatPanel = ({
   activeConversation,
-  summary,
   messages,
   isLoadingConversation,
   errorMessage,
