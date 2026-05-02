@@ -1,13 +1,71 @@
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
-import { ArrowDown, BookOpen, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import type { ReactNode } from 'react';
+import { ArrowRight, BookOpen, CalendarDays, Sparkles, Wand2 } from 'lucide-react';
 import { authFetch } from '@lib/apiClient.js';
-// NOTE: JSX 모듈을 import — 타입 추론 제한. 향후 TSX 전환 후보.
 import { useAuthStore } from '@stores/authStore.js';
 import { showError } from '@/lib/confirm';
 
+const FEATURES = [
+  {
+    icon: <BookOpen className="w-4 h-4" />,
+    title: '매일의 기록',
+    desc: '감정과 생각을 자유롭게 담는 나만의 일기 공간',
+  },
+  {
+    icon: <Sparkles className="w-4 h-4" />,
+    title: 'AI 피드백',
+    desc: '일기를 읽고 따뜻한 코멘트를 전해드려요',
+  },
+  {
+    icon: <Wand2 className="w-4 h-4" />,
+    title: '글 다듬기',
+    desc: 'AI가 일기를 더 아름답게 다듬어 드립니다',
+  },
+  {
+    icon: <CalendarDays className="w-4 h-4" />,
+    title: '감정 캘린더',
+    desc: '날짜별 감정 기록으로 나의 패턴을 발견하세요',
+  },
+];
+
+type LoginTriggerProps = {
+  children: ReactNode;
+  className: string;
+  googleSize?: 'large' | 'medium' | 'small';
+  googleWidth: number;
+  onSuccess: (credentialResponse: CredentialResponse) => void;
+  onError: () => void;
+};
+
+function LoginTrigger({
+  children,
+  className,
+  googleSize = 'large',
+  googleWidth,
+  onSuccess,
+  onError,
+}: LoginTriggerProps) {
+  return (
+    <div className="relative inline-flex overflow-hidden rounded-lg">
+      <button type="button" tabIndex={-1} className={`pointer-events-none ${className}`}>
+        {children}
+      </button>
+      <div className="absolute inset-0 z-10 opacity-[0.01]">
+        <GoogleLogin
+          onSuccess={onSuccess}
+          onError={onError}
+          text="continue_with"
+          shape="rectangular"
+          size={googleSize}
+          width={googleWidth}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function IntroPage() {
-  const setAuth = useAuthStore((s: any) => s.setAuth);
+  const setAuth = useAuthStore((state: any) => state.setAuth);
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     const idToken = credentialResponse.credential;
@@ -36,70 +94,85 @@ export default function IntroPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
-        <div className="flex items-center gap-2 font-semibold">
-          <BookOpen className="h-5 w-5 text-primary" />
-          <span>HeysoDiary</span>
-        </div>
-        <div className="overflow-hidden rounded-lg">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={handleGoogleError}
-            text="signin_with"
-            shape="rectangular"
-            width="180"
-          />
-        </div>
-      </header>
-
-      <main>
-        <section className="mx-auto grid min-h-[calc(100vh-88px)] max-w-6xl content-center px-5 pb-16">
-          <div className="max-w-3xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-sm text-muted-foreground">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Workspace UX renewal
-            </div>
-            <h1 className="text-5xl font-semibold leading-tight text-foreground sm:text-6xl">
-              오늘 하루를 기록해 보세요
-            </h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-              일기 작성, AI 코멘트, 글 다듬기, 개인 설정을 하나의 작업 공간에서 이어갑니다.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <div className="overflow-hidden rounded-lg">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  text="continue_with"
-                  shape="rectangular"
-                  width="220"
-                />
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => document.getElementById('intro-features')?.scrollIntoView({ behavior: 'smooth' })}
-              >
-                <ArrowDown className="h-4 w-4" />
-                기능 보기
-              </Button>
-            </div>
+    <div className="min-h-screen bg-background flex flex-col">
+      <nav className="flex items-center justify-between px-6 py-4 border-b border-border/40">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+            <BookOpen className="w-3.5 h-3.5 text-primary-foreground" />
           </div>
-        </section>
+          <span className="font-serif text-sm font-semibold text-foreground">HeysoDiary</span>
+        </div>
+        <LoginTrigger
+          className="px-3 py-1 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          googleSize="medium"
+          googleWidth={140}
+          onSuccess={handleGoogleSuccess}
+          onError={handleGoogleError}
+        >
+          로그인 하기
+        </LoginTrigger>
+      </nav>
 
-        <section id="intro-features" className="border-t border-border bg-card/60 px-5 py-12">
-          <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-3">
-            {['플랫 에디터', 'AI 코멘트', '맞춤 설정'].map((title) => (
-              <article key={title} className="rounded-lg border border-border bg-card p-5">
-                <h2 className="font-semibold">{title}</h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  기록 흐름을 끊지 않도록 필요한 기능을 Workspace 안에 배치했습니다.
-                </p>
-              </article>
-            ))}
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
+        <div className="max-w-lg">
+          <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-[11px] font-medium px-3 py-1 rounded-full mb-6 border border-primary/20">
+            <Sparkles className="w-3 h-3" />
+            AI 피드백 일기 서비스
           </div>
-        </section>
+
+          <h1 className="font-serif text-4xl sm:text-5xl font-bold text-foreground leading-tight text-balance mb-4">
+            오늘 하루를
+            <br />
+            기록해 보세요
+          </h1>
+
+          <p className="text-sm text-muted-foreground leading-relaxed text-pretty mb-8 max-w-sm mx-auto">
+            HeysoDiary는 당신의 감정과 이야기를 소중히 담아두는 공간입니다. AI가 읽고 따뜻한 피드백을
+            전해드려요.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <LoginTrigger
+              className="flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-6 py-2.5 rounded-lg hover:opacity-90 active:scale-[0.98] transition-all"
+              googleWidth={180}
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+            >
+              일기 쓰러 가기
+              <ArrowRight className="w-4 h-4" />
+            </LoginTrigger>
+            <button
+              type="button"
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground border border-border px-6 py-2.5 rounded-lg hover:bg-muted transition-all"
+            >
+              데모 둘러보기
+            </button>
+          </div>
+        </div>
       </main>
+
+      <section className="px-6 pb-16">
+        <div className="max-w-2xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {FEATURES.map((feature) => (
+            <div
+              key={feature.title}
+              className="bg-surface border border-border/60 rounded-xl p-4 text-center hover:border-primary/30 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
+                {feature.icon}
+              </div>
+              <p className="text-xs font-medium text-foreground mb-1">{feature.title}</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{feature.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <footer className="border-t border-border/40 px-6 py-4 text-center">
+        <p className="text-[11px] text-muted-foreground">
+          &copy; 2026 HeysoDiary. 나만의 따뜻한 기록 공간.
+        </p>
+      </footer>
     </div>
   );
 }
