@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
+import { X } from 'lucide-react';
 import { Toaster } from 'sonner';
-import { Button } from '@/components/ui/button';
 import { useWorkspaceState } from '../hooks/useWorkspaceState';
 import useDiary from '../hooks/useDiary';
 import LeftSidebar from './LeftSidebar/LeftSidebar';
@@ -59,61 +59,82 @@ export default function WorkspaceLayout() {
     });
   };
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
-      <div className="hidden lg:block">
-        <LeftSidebar
-          state={state}
-          diaries={recentDiaries}
-          monthlyCounts={monthlyDiaryCounts}
-          onPatchState={patchState}
-          onSelectDate={selectDate}
-          onSelectDiary={selectDiary}
-          onToday={() => selectDate(today)}
-        />
-      </div>
+  const sidebar = (
+    <LeftSidebar
+      state={state}
+      diaries={recentDiaries}
+      monthlyCounts={monthlyDiaryCounts}
+      onPatchState={patchState}
+      onSelectDate={selectDate}
+      onSelectDiary={selectDiary}
+      onToday={() => selectDate(today)}
+    />
+  );
 
+  return (
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
       {state.sidebarOpen ? (
-        <div className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={() => patchState({ sidebarOpen: false })}>
-          <div className="h-full" onClick={(event) => event.stopPropagation()}>
-            <LeftSidebar
-              state={state}
-              diaries={recentDiaries}
-              monthlyCounts={monthlyDiaryCounts}
-              onPatchState={patchState}
-              onSelectDate={selectDate}
-              onSelectDiary={selectDiary}
-              onToday={() => selectDate(today)}
-            />
-          </div>
-        </div>
+        <div
+          className="fixed inset-0 z-40 bg-foreground/20 md:hidden"
+          onClick={() => patchState({ sidebarOpen: false })}
+          aria-hidden="true"
+        />
       ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div
+        className={[
+          'fixed z-50 h-full transition-transform duration-300 ease-in-out md:relative md:z-auto md:translate-x-0',
+          state.sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        ].join(' ')}
+      >
+        {state.sidebarOpen ? (
+          <button
+            type="button"
+            onClick={() => patchState({ sidebarOpen: false })}
+            className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:text-foreground md:hidden"
+            aria-label="사이드바 닫기"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
+        {sidebar}
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopActionBar
           viewMode={state.viewMode}
-          onOpenSidebar={() => patchState({ sidebarOpen: true })}
-          onOpenPolish={() => setPolishState({ open: true, source: currentDiary?.contentMd ?? '', diaryId: currentDiaryId, apply: () => undefined })}
+          rightPanelMode={state.rightPanelMode}
+          onToggleSidebar={() => patchState({ sidebarOpen: !state.sidebarOpen })}
+          onRequestPolish={() =>
+            setPolishState({ open: true, source: currentDiary?.contentMd ?? '', diaryId: currentDiaryId, apply: () => undefined })
+          }
           onToggleAi={toggleAi}
-          onSettings={() => patchState({ viewMode: 'settings' })}
         />
-        <div className="flex min-h-0 flex-1">
-          {state.viewMode === 'settings' ? (
-            <SettingsPanel />
-          ) : (
-            <MainWorkspace
-              state={state}
-              currentDiary={currentDiary}
-              myTags={Array.isArray(myTags) ? myTags : []}
-              isSaving={saveDiaryMutation.isPending}
-              onPatchState={patchState}
-              onSave={(payload) => saveDiaryMutation.mutate(payload)}
-              onDelete={(diaryId) => deleteDiaryMutation.mutate({ diaryId })}
-              onOpenAi={() => patchState({ rightPanelMode: 'ai-comment' })}
-              onOpenPolish={(source, apply, diaryId) => setPolishState({ open: true, source, diaryId, apply })}
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            {state.viewMode === 'settings' ? (
+              <SettingsPanel />
+            ) : (
+              <MainWorkspace
+                state={state}
+                currentDiary={currentDiary}
+                myTags={Array.isArray(myTags) ? myTags : []}
+                isSaving={saveDiaryMutation.isPending}
+                onPatchState={patchState}
+                onSave={(payload) => saveDiaryMutation.mutate(payload)}
+                onDelete={(diaryId) => deleteDiaryMutation.mutate({ diaryId })}
+                onOpenAi={() => patchState({ rightPanelMode: 'ai-comment' })}
+                onOpenPolish={(source, apply, diaryId) => setPolishState({ open: true, source, diaryId, apply })}
+              />
+            )}
+          </div>
+          {state.viewMode === 'diary' ? (
+            <RightPanel
+              open={state.rightPanelMode === 'ai-comment'}
+              diaryId={currentDiaryId}
+              onClose={() => patchState({ rightPanelMode: 'hidden' })}
             />
-          )}
-          <RightPanel open={state.rightPanelMode === 'ai-comment'} diaryId={currentDiaryId} onClose={() => patchState({ rightPanelMode: 'hidden' })} />
+          ) : null}
         </div>
       </div>
 
@@ -128,9 +149,6 @@ export default function WorkspaceLayout() {
         }}
       />
       <Toaster position="bottom-right" />
-      <Button className="fixed bottom-4 right-4 lg:hidden" onClick={() => patchState({ rightPanelMode: 'ai-comment' })}>
-        AI
-      </Button>
     </div>
   );
 }

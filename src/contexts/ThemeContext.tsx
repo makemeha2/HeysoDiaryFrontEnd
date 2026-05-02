@@ -2,21 +2,19 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 export type ThemeId =
   | 'warm-diary'
-  | 'forest-note'
-  | 'clear-morning'
-  | 'rose-paper'
-  | 'ink-focus'
-  | 'notion-light';
+  | 'notion-light'
+  | 'calm-blue'
+  | 'soft-green'
+  | 'dark-diary';
 
 const STORAGE_KEY = 'heyso-theme';
 const DEFAULT_THEME: ThemeId = 'warm-diary';
 const THEME_IDS: ThemeId[] = [
   'warm-diary',
-  'forest-note',
-  'clear-morning',
-  'rose-paper',
-  'ink-focus',
   'notion-light',
+  'calm-blue',
+  'soft-green',
+  'dark-diary',
 ];
 
 type ThemeContextValue = {
