@@ -154,7 +154,7 @@ const useDiary = ({
       const createdId = typeof data === 'number' ? data : data?.diaryId;
       return { diaryId: createdId };
     },
-    onSuccess: async (data, variables, ctx) => {
+    onSuccess: async (data, variables) => {
       // UI는 컴포넌트에서(알림/모달 전환 등) 처리할 수 있게 위임
       if (onSaveSuccess) {
         await onSaveSuccess(data, variables, { refreshAfterSave });
@@ -168,7 +168,7 @@ const useDiary = ({
   });
 
   // 화면에서 자주 쓰는 파생 데이터
-  const diaries = diariesQuery.data ?? [];
+  const diaries = useMemo(() => diariesQuery.data ?? [], [diariesQuery.data]);
   const dailyDiaries = dailyDiariesQuery.data ?? [];
   const myTags = myTagsQuery.data ?? [];
   const monthlyDiaryCounts = monthlyDiaryCountsQuery.data ?? [];

@@ -8,6 +8,160 @@
   --color-amber: #d39b5e;
   --color-blush: #e0b4a4;
   --color-moss: #7a8b6f;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius: 0.75rem;
+}
+
+:root,
+[data-theme="warm-diary"] {
+  --background: #f7f1e8;
+  --foreground: #4b392d;
+  --card: #fffaf3;
+  --card-foreground: #4b392d;
+  --popover: #fffaf3;
+  --popover-foreground: #4b392d;
+  --primary: #b9743f;
+  --primary-foreground: #ffffff;
+  --secondary: #e9ddcf;
+  --secondary-foreground: #4b392d;
+  --muted: #efe5d8;
+  --muted-foreground: #7b6a5e;
+  --accent: #d79b63;
+  --accent-foreground: #3f2f25;
+  --destructive: #c2413d;
+  --destructive-foreground: #ffffff;
+  --border: #dfcfbd;
+  --input: #dfcfbd;
+  --ring: #b9743f;
+}
+
+[data-theme="forest-note"] {
+  --background: #f2f5ef;
+  --foreground: #2f3c31;
+  --card: #fbfdf8;
+  --card-foreground: #2f3c31;
+  --popover: #fbfdf8;
+  --popover-foreground: #2f3c31;
+  --primary: #58724f;
+  --primary-foreground: #ffffff;
+  --secondary: #dde7d8;
+  --secondary-foreground: #2f3c31;
+  --muted: #e5ecdf;
+  --muted-foreground: #657363;
+  --accent: #8c9f6f;
+  --accent-foreground: #263021;
+  --destructive: #b5473f;
+  --destructive-foreground: #ffffff;
+  --border: #cedbc7;
+  --input: #cedbc7;
+  --ring: #58724f;
+}
+
+[data-theme="clear-morning"] {
+  --background: #f3f8fb;
+  --foreground: #263744;
+  --card: #ffffff;
+  --card-foreground: #263744;
+  --popover: #ffffff;
+  --popover-foreground: #263744;
+  --primary: #3d7895;
+  --primary-foreground: #ffffff;
+  --secondary: #dcecf3;
+  --secondary-foreground: #263744;
+  --muted: #e8f2f6;
+  --muted-foreground: #607482;
+  --accent: #8bb7c9;
+  --accent-foreground: #213541;
+  --destructive: #bf3f4a;
+  --destructive-foreground: #ffffff;
+  --border: #cbdde6;
+  --input: #cbdde6;
+  --ring: #3d7895;
+}
+
+[data-theme="rose-paper"] {
+  --background: #fbf1f2;
+  --foreground: #4b3438;
+  --card: #fffafa;
+  --card-foreground: #4b3438;
+  --popover: #fffafa;
+  --popover-foreground: #4b3438;
+  --primary: #b65f6c;
+  --primary-foreground: #ffffff;
+  --secondary: #efdce0;
+  --secondary-foreground: #4b3438;
+  --muted: #f3e3e6;
+  --muted-foreground: #80666a;
+  --accent: #d99aa3;
+  --accent-foreground: #402c30;
+  --destructive: #b73535;
+  --destructive-foreground: #ffffff;
+  --border: #e2c9ce;
+  --input: #e2c9ce;
+  --ring: #b65f6c;
+}
+
+[data-theme="ink-focus"] {
+  --background: #f4f4f1;
+  --foreground: #242424;
+  --card: #ffffff;
+  --card-foreground: #242424;
+  --popover: #ffffff;
+  --popover-foreground: #242424;
+  --primary: #303030;
+  --primary-foreground: #ffffff;
+  --secondary: #e4e2dc;
+  --secondary-foreground: #242424;
+  --muted: #ebe9e3;
+  --muted-foreground: #66645f;
+  --accent: #9a8f7d;
+  --accent-foreground: #242424;
+  --destructive: #aa3d37;
+  --destructive-foreground: #ffffff;
+  --border: #d5d2ca;
+  --input: #d5d2ca;
+  --ring: #303030;
+}
+
+[data-theme="notion-light"] {
+  --background: #fbfbfa;
+  --foreground: #37352f;
+  --card: #ffffff;
+  --card-foreground: #37352f;
+  --popover: #ffffff;
+  --popover-foreground: #37352f;
+  --primary: #2f3437;
+  --primary-foreground: #ffffff;
+  --secondary: #ededeb;
+  --secondary-foreground: #37352f;
+  --muted: #f1f1ef;
+  --muted-foreground: #787774;
+  --accent: #d8d8d4;
+  --accent-foreground: #37352f;
+  --destructive: #c23b35;
+  --destructive-foreground: #ffffff;
+  --border: #deddda;
+  --input: #deddda;
+  --ring: #2f3437;
 }
 
 .admin-theme {
@@ -21,8 +175,8 @@
 
 @layer base {
   html, body, #root { height: 100%; }
-  body { @apply bg-linen text-clay antialiased; }
-  a { @apply text-amber hover:opacity-90; }
+  body { @apply bg-background text-foreground antialiased; }
+  a { @apply text-primary hover:opacity-90; }
   body.admin-theme {
     background:
       radial-gradient(circle at top left, rgba(47, 95, 145, 0.14), transparent 28%),
