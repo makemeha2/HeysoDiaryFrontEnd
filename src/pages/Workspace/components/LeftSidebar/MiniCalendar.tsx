@@ -1,6 +1,6 @@
+import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 type Props = {
   selectedDate: string;
@@ -8,48 +8,107 @@ type Props = {
   onSelectDate: (date: string) => void;
 };
 
+const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
 export default function MiniCalendar({ selectedDate, monthlyCounts, onSelectDate }: Props) {
   const selected = dayjs(selectedDate);
-  const start = selected.startOf('month').startOf('week');
-  const days = Array.from({ length: 42 }, (_, index) => start.add(index, 'day'));
-  const countMap = new Map(
-    monthlyCounts.map((item) => [dayjs(item.diaryDate ?? item.date).format('YYYY-MM-DD'), item.count ?? 1]),
+  const today = dayjs();
+  const [viewDate, setViewDate] = useState(() => selected.startOf('month'));
+
+  useEffect(() => {
+    setViewDate(selected.startOf('month'));
+  }, [selectedDate]);
+
+  const cells = useMemo(() => {
+    const firstDay = viewDate.startOf('month').day();
+    const daysInMonth = viewDate.daysInMonth();
+    const nextCells: Array<number | null> = [
+      ...Array.from({ length: firstDay }, () => null),
+      ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+    ];
+    while (nextCells.length % 7 !== 0) nextCells.push(null);
+    return nextCells;
+  }, [viewDate]);
+
+  const countMap = useMemo(
+    () =>
+      new Map(
+        monthlyCounts.map((item) => [dayjs(item.diaryDate ?? item.date).format('YYYY-MM-DD'), item.count ?? 1]),
+      ),
+    [monthlyCounts],
   );
 
+  const prevMonth = () => setViewDate((value) => value.subtract(1, 'month'));
+  const nextMonth = () => setViewDate((value) => value.add(1, 'month'));
+
   return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <Button variant="ghost" size="icon" onClick={() => onSelectDate(selected.subtract(1, 'month').format('YYYY-MM-DD'))}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-sm font-semibold">{selected.format('YYYY.MM')}</span>
-        <Button variant="ghost" size="icon" onClick={() => onSelectDate(selected.add(1, 'month').format('YYYY-MM-DD'))}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+    <div className="select-none">
+      <div className="mb-2 flex items-center justify-between px-0.5">
+        <button
+          type="button"
+          onClick={prevMonth}
+          className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="이전 달"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </button>
+        <span className="text-xs font-medium text-foreground">{viewDate.format('YYYY년 M월')}</span>
+        <button
+          type="button"
+          onClick={nextMonth}
+          className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="다음 달"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
       </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-muted-foreground">
-        {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
-          <span key={day}>{day}</span>
+
+      <div className="mb-1 grid grid-cols-7">
+        {dayNames.map((dayName, index) => (
+          <div
+            key={dayName}
+            className={[
+              'pb-1 text-center text-[10px] font-medium',
+              index === 0 ? 'text-destructive/70' : 'text-muted-foreground',
+            ].join(' ')}
+          >
+            {dayName}
+          </div>
         ))}
       </div>
-      <div className="mt-1 grid grid-cols-7 gap-1">
-        {days.map((date) => {
-          const key = date.format('YYYY-MM-DD');
-          const active = key === selectedDate;
-          const inMonth = date.month() === selected.month();
+
+      <div className="grid grid-cols-7 gap-y-0.5">
+        {cells.map((day, index) => {
+          if (day === null) return <div key={`empty-${index}`} />;
+
+          const date = viewDate.date(day);
+          const dateKey = date.format('YYYY-MM-DD');
+          const isSelected = dateKey === selectedDate;
+          const isToday = date.isSame(today, 'day');
+          const hasEntry = countMap.has(dateKey);
+          const isSunday = index % 7 === 0;
+
           return (
             <button
-              key={key}
+              key={dateKey}
               type="button"
-              onClick={() => onSelectDate(key)}
+              onClick={() => onSelectDate(dateKey)}
               className={[
-                'relative h-8 rounded-md text-xs transition hover:bg-muted',
-                active ? 'bg-primary text-primary-foreground' : 'text-foreground',
-                !inMonth ? 'opacity-35' : '',
+                'relative flex h-7 w-full flex-col items-center justify-center rounded text-[11px] transition-colors',
+                isSunday ? 'text-destructive/70' : 'text-foreground',
+                isSelected
+                  ? 'bg-primary font-semibold text-primary-foreground'
+                  : isToday
+                    ? 'bg-muted font-semibold ring-1 ring-primary/40'
+                    : 'hover:bg-muted',
               ].join(' ')}
+              aria-label={dateKey}
+              aria-pressed={isSelected}
             >
-              {date.date()}
-              {countMap.has(key) ? <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-current" /> : null}
+              {day}
+              {hasEntry && !isSelected ? (
+                <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary/60" />
+              ) : null}
             </button>
           );
         })}

@@ -1,14 +1,20 @@
-import { CloudSun } from 'lucide-react';
 import { mockWeather } from '../../lib/mockData';
 
 export default function WeatherWidget() {
+  const temperature = Number.parseInt(mockWeather.temperature, 10);
+
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <CloudSun className="h-4 w-4 text-primary" />
-        {mockWeather.label} {mockWeather.temperature}
+    <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-surface px-3 py-2.5">
+      <span className="text-2xl leading-none" role="img" aria-label={mockWeather.label}>
+        ☀️
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-sm font-semibold text-foreground">{Number.isNaN(temperature) ? mockWeather.temperature : `${temperature}°C`}</span>
+          <span className="truncate text-xs text-muted-foreground">{mockWeather.label}</span>
+        </div>
+        <div className="mt-0.5 text-[10px] text-muted-foreground">서울 · {mockWeather.detail}</div>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">{mockWeather.detail}</p>
     </div>
   );
 }

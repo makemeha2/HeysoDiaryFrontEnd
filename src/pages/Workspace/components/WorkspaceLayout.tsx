@@ -20,6 +20,7 @@ export default function WorkspaceLayout() {
     diaryId: number | null;
     apply: (content: string) => void;
   }>({ open: false, source: '', diaryId: null, apply: () => undefined });
+  const [sidebarWidth, setSidebarWidth] = useState(260);
 
   const monthKey = useMemo(() => dayjs(state.selectedDate).format('YYYY-MM'), [state.selectedDate]);
   const {
@@ -68,6 +69,9 @@ export default function WorkspaceLayout() {
       onSelectDate={selectDate}
       onSelectDiary={selectDiary}
       onToday={() => selectDate(today)}
+      width={sidebarWidth}
+      onWidthChange={setSidebarWidth}
+      isMobile={state.sidebarOpen}
     />
   );
 
