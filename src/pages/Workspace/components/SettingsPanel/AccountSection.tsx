@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { AlertTriangle, Check } from 'lucide-react';
 import { confirm, showError } from '@/lib/confirm';
 import {
   fetchWithdrawReauthStatus,
@@ -9,25 +8,29 @@ import {
   verifyWithdrawReauthEmailOtp,
   withdrawAccount,
 } from '../../lib/accountSecurityApi';
-// NOTE: JSX 모듈을 import — 타입 추론 제한. 향후 TSX 전환 후보.
 import { useAuthStore } from '@stores/authStore.js';
 
 export default function AccountSection({ active }: { active: boolean }) {
   const navigate = useNavigate();
   const clearAuth = useAuthStore((s: any) => s.clearAuth);
   const [verified, setVerified] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!active) return;
-    fetchWithdrawReauthStatus().then((status) => setVerified(status.verified)).catch(() => setVerified(false));
+    fetchWithdrawReauthStatus()
+      .then((status) => setVerified(status.verified))
+      .catch(() => setVerified(false));
   }, [active]);
 
   const sendOtp = async () => {
     setBusy(true);
     try {
       await sendWithdrawReauthEmailOtp();
+      setOtpSent(true);
       await showError({ title: '인증코드 발송', message: '이메일로 4자리 인증코드를 보냈습니다.' });
     } catch (error: any) {
       await showError({ title: '발송 실패', message: error.message });
@@ -69,18 +72,79 @@ export default function AccountSection({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-muted p-3 text-sm text-muted-foreground">
-        재인증 상태: {verified ? '완료' : '필요'}
-      </div>
-      {!verified ? (
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" disabled={busy} onClick={sendOtp}>인증코드 발송</Button>
-          <Input className="w-28" inputMode="numeric" maxLength={4} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))} />
-          <Button disabled={busy || otp.length !== 4} onClick={verifyOtp}>확인</Button>
+    <div className="space-y-6">
+      <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
+          <div>
+            <h4 className="mb-1 text-sm font-medium text-destructive">회원 탈퇴</h4>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              탈퇴 시 모든 일기 데이터가 영구적으로 삭제되며 복구할 수 없습니다.
+            </p>
+          </div>
         </div>
-      ) : null}
-      <Button variant="danger" disabled={busy || !verified} onClick={withdraw}>계정 삭제</Button>
+      </div>
+
+      <div className="space-y-4">
+        <label className="flex cursor-pointer items-start gap-2">
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(event) => setAgreed(event.target.checked)}
+            className="mt-1"
+          />
+          <span className="text-sm text-foreground">위 내용을 확인했으며, 모든 데이터 삭제에 동의합니다.</span>
+        </label>
+
+        {verified ? (
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4 text-green-500" />
+            <span className="text-sm text-green-600">재인증 완료</span>
+          </div>
+        ) : null}
+
+        {agreed && !verified && !otpSent ? (
+          <button
+            type="button"
+            onClick={sendOtp}
+            disabled={busy}
+            className="rounded-md bg-muted px-4 py-2 text-sm text-foreground transition-colors hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            이메일 인증 코드 받기
+          </button>
+        ) : null}
+
+        {agreed && !verified && otpSent ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
+              value={otp}
+              onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="4자리 코드"
+              className="w-32 rounded-md border border-border bg-muted px-3 py-2 text-sm outline-none transition-colors focus:border-primary/50"
+            />
+            <button
+              type="button"
+              onClick={verifyOtp}
+              disabled={busy || otp.length !== 4}
+              className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              인증 확인
+            </button>
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={withdraw}
+          disabled={busy || !agreed || !verified}
+          className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          회원 탈퇴
+        </button>
+      </div>
     </div>
   );
 }

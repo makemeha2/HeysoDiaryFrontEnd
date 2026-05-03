@@ -117,7 +117,7 @@ export default function WorkspaceLayout() {
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="min-w-0 flex-1 overflow-hidden">
             {state.viewMode === 'settings' ? (
-              <SettingsPanel />
+              <SettingsPanel onClose={() => patchState({ viewMode: 'diary' })} />
             ) : (
               <MainWorkspace
                 state={state}
@@ -133,13 +133,25 @@ export default function WorkspaceLayout() {
             )}
           </div>
           {state.viewMode === 'diary' ? (
+            <div className="hidden h-full md:flex">
+              <RightPanel
+                mode={state.rightPanelMode}
+                diaryId={currentDiaryId}
+                onClose={() => patchState({ rightPanelMode: 'hidden' })}
+              />
+            </div>
+          ) : null}
+        </div>
+
+        {state.viewMode === 'diary' && state.rightPanelMode !== 'hidden' ? (
+          <div className="flex h-[50vh] flex-col border-t border-border/60 bg-surface md:hidden">
             <RightPanel
-              open={state.rightPanelMode === 'ai-comment'}
+              mode={state.rightPanelMode}
               diaryId={currentDiaryId}
               onClose={() => patchState({ rightPanelMode: 'hidden' })}
             />
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
 
       <PolishModal

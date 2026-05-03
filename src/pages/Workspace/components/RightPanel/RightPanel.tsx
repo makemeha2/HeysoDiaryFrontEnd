@@ -1,34 +1,97 @@
-import { X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useCallback, useRef, useState } from 'react';
+import { Sparkles, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import AiCommentPanel from './AiCommentPanel';
 
+type RightPanelMode = 'hidden' | 'ai-comment';
+
 type Props = {
-  open: boolean;
+  mode: RightPanelMode;
   diaryId: number | null;
   onClose: () => void;
 };
 
-export default function RightPanel({ open, diaryId, onClose }: Props) {
-  if (!open) return null;
+const MODE_ICONS: Record<Exclude<RightPanelMode, 'hidden'>, React.ReactNode> = {
+  'ai-comment': <Sparkles className="h-3.5 w-3.5" />,
+};
+
+const MODE_LABELS: Record<Exclude<RightPanelMode, 'hidden'>, string> = {
+  'ai-comment': 'AI 코멘트',
+};
+
+export default function RightPanel({ mode, diaryId, onClose }: Props) {
+  const [panelWidth, setPanelWidth] = useState(320);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
+  const isVisible = mode !== 'hidden';
+
+  const onMouseDown = useCallback(
+    (event: React.MouseEvent) => {
+      isDragging.current = true;
+      startX.current = event.clientX;
+      startWidth.current = panelWidth;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        if (!isDragging.current) return;
+        const diff = startX.current - moveEvent.clientX;
+        const nextWidth = Math.max(280, Math.min(520, startWidth.current + diff));
+        setPanelWidth(nextWidth);
+      };
+
+      const onMouseUp = () => {
+        isDragging.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    },
+    [panelWidth]
+  );
 
   return (
-    <>
-      <aside className="hidden h-full w-80 shrink-0 border-l border-border bg-background lg:block">
-        <AiCommentPanel diaryId={diaryId} />
-      </aside>
-      <div className="fixed inset-0 z-40 bg-black/35 lg:hidden" onClick={onClose}>
-        <div
-          className="absolute inset-x-0 bottom-0 h-[50vh] rounded-t-lg border border-border bg-background"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className="absolute right-3 top-3 z-10">
-            <Button variant="ghost" size="icon" onClick={onClose} aria-label="닫기">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <AiCommentPanel diaryId={diaryId} />
-        </div>
+    <div
+      className={cn(
+        'flex h-full flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out',
+        isVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
+      )}
+      style={{ width: isVisible ? `${panelWidth}px` : '0px' }}
+    >
+      <div
+        onMouseDown={onMouseDown}
+        className="relative w-1 flex-shrink-0 cursor-col-resize bg-border/60 transition-colors hover:bg-primary/40"
+        role="separator"
+        aria-label="패널 크기 조절"
+      >
+        <div className="absolute inset-y-0 -left-1 -right-1" />
       </div>
-    </>
+
+      <aside className="flex min-w-0 flex-1 flex-col overflow-hidden border-l border-border/40 bg-surface">
+        <header className="flex flex-shrink-0 items-center justify-between border-b border-border/60 px-4 py-3">
+          <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+            {isVisible ? MODE_ICONS[mode] : null}
+            {isVisible ? MODE_LABELS[mode] : null}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="패널 닫기"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-hidden py-3">
+          {mode === 'ai-comment' ? <AiCommentPanel diaryId={diaryId} /> : null}
+        </div>
+      </aside>
+    </div>
   );
 }
