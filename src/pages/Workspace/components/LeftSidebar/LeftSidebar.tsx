@@ -3,8 +3,8 @@ import { BarChart3, BookOpen, FileText, PenSquare, Search, Settings } from 'luci
 import DiaryTab from './DiaryTab';
 import SearchTab from './SearchTab';
 import SummaryTab from './SummaryTab';
-import type { DiaryEntry } from '../../types/api.types';
-import type { WorkspaceState } from '../../types/workspace.types';
+import type { DiaryEntry } from '@workspace/types/api.types';
+import type { WorkspaceState } from '@workspace/types/workspace.types';
 
 type Props = {
   state: WorkspaceState;
@@ -25,7 +25,7 @@ const tabs = [
   { id: 'search', label: 'Search', icon: Search },
 ] as const;
 
-export default function LeftSidebar({
+const LeftSidebar = ({
   state,
   diaries,
   monthlyCounts,
@@ -36,7 +36,7 @@ export default function LeftSidebar({
   width,
   onWidthChange,
   isMobile = false,
-}: Props) {
+}: Props) => {
   const isDragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
@@ -170,4 +170,6 @@ export default function LeftSidebar({
       ) : null}
     </aside>
   );
-}
+};
+
+export default LeftSidebar;

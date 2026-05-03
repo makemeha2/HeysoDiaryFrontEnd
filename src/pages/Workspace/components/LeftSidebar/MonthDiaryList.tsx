@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
-import { mockMoodByDate } from '../../lib/mockData';
-import type { MoodId } from '../../lib/moodCatalog';
-import type { DiaryEntry } from '../../types/api.types';
+import { mockMoodByDate } from '@workspace/lib/mockData';
+import type { MoodId } from '@workspace/lib/moodCatalog';
+import type { DiaryEntry } from '@workspace/types/api.types';
 
 type Props = {
   selectedDate: string;
@@ -32,7 +32,7 @@ const formatShortDate = (date: string) => `${Number(date.slice(8, 10))}일`;
 
 const getDayOfWeek = (date: string) => ['일', '월', '화', '수', '목', '금', '토'][dayjs(date).day()];
 
-export default function MonthDiaryList({ selectedDate, selectedMood, diaries, selectedDiaryId, onSelectDiary }: Props) {
+const MonthDiaryList = ({ selectedDate, selectedMood, diaries, selectedDiaryId, onSelectDiary }: Props) => {
   const currentMonth = selectedDate.slice(0, 7);
   const [year, month] = currentMonth.split('-');
   const monthDiaries = diaries
@@ -87,4 +87,6 @@ export default function MonthDiaryList({ selectedDate, selectedMood, diaries, se
       </div>
     </div>
   );
-}
+};
+
+export default MonthDiaryList;

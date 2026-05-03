@@ -1,4 +1,4 @@
-import { authFetch } from '@lib/apiClient.js';
+import { authFetch } from '@lib/apiClient';
 
 const getErrorMessageFromResponse = (data) => {
   if (!data) return '';
@@ -25,4 +25,3 @@ export const requestDiaryAiPolish = async ({ diaryId = null, content, mode }) =>
 
   return res.data;
 };
-

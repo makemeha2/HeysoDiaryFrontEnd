@@ -1,8 +1,8 @@
 import MiniCalendar from './MiniCalendar';
 import MonthDiaryList from './MonthDiaryList';
 import WeatherWidget from './WeatherWidget';
-import type { MoodId } from '../../lib/moodCatalog';
-import type { DiaryEntry } from '../../types/api.types';
+import type { MoodId } from '@workspace/lib/moodCatalog';
+import type { DiaryEntry } from '@workspace/types/api.types';
 
 type Props = {
   selectedDate: string;
@@ -14,7 +14,7 @@ type Props = {
   onSelectDiary: (diary: DiaryEntry) => void;
 };
 
-export default function DiaryTab({
+const DiaryTab = ({
   selectedDate,
   selectedMood,
   diaries,
@@ -22,7 +22,7 @@ export default function DiaryTab({
   selectedDiaryId,
   onSelectDate,
   onSelectDiary,
-}: Props) {
+}: Props) => {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
       <section className="shrink-0" aria-label="달력">
@@ -51,4 +51,6 @@ export default function DiaryTab({
       </section>
     </div>
   );
-}
+};
+
+export default DiaryTab;

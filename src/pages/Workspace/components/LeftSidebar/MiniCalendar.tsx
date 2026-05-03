@@ -10,7 +10,7 @@ type Props = {
 
 const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function MiniCalendar({ selectedDate, monthlyCounts, onSelectDate }: Props) {
+const MiniCalendar = ({ selectedDate, monthlyCounts, onSelectDate }: Props) => {
   const selected = dayjs(selectedDate);
   const today = dayjs();
   const [viewDate, setViewDate] = useState(() => selected.startOf('month'));
@@ -115,4 +115,6 @@ export default function MiniCalendar({ selectedDate, monthlyCounts, onSelectDate
       </div>
     </div>
   );
-}
+};
+
+export default MiniCalendar;

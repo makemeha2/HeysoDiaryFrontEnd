@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import { mockMoodByDate } from '../../lib/mockData';
-import type { MoodId } from '../../lib/moodCatalog';
-import type { DiaryEntry } from '../../types/api.types';
+import { mockMoodByDate } from '@workspace/lib/mockData';
+import type { MoodId } from '@workspace/lib/moodCatalog';
+import type { DiaryEntry } from '@workspace/types/api.types';
 
 type Props = {
   diaries: DiaryEntry[];
@@ -34,7 +34,7 @@ function normalizeDate(diary: DiaryEntry) {
   return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
 }
 
-export default function SearchTab({ diaries, onSelectDiary }: Props) {
+const SearchTab = ({ diaries, onSelectDiary }: Props) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [searchType, setSearchType] = useState<SearchType>('title');
@@ -205,4 +205,6 @@ export default function SearchTab({ diaries, onSelectDiary }: Props) {
       ) : null}
     </div>
   );
-}
+};
+
+export default SearchTab;

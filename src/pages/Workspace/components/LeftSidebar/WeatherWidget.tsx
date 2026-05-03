@@ -1,6 +1,6 @@
-import { mockWeather } from '../../lib/mockData';
+import { mockWeather } from '@workspace/lib/mockData';
 
-export default function WeatherWidget() {
+const WeatherWidget = () => {
   const temperature = Number.parseInt(mockWeather.temperature, 10);
 
   return (
@@ -17,4 +17,6 @@ export default function WeatherWidget() {
       </div>
     </div>
   );
-}
+};
+
+export default WeatherWidget;

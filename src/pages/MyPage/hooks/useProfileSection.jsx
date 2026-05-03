@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { authFetch } from '@lib/apiClient.js';
+import { authFetch } from '@lib/apiClient';
 import { formatThumbnailPreviewDataUrl } from '@lib/imageFormatters.js';
 
 const INITIAL_PROFILE = {

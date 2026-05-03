@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 
 export type ThemeId =
   | 'warm-diary'
@@ -22,6 +22,10 @@ type ThemeContextValue = {
   setTheme: (theme: ThemeId) => void;
 };
 
+type ThemeProviderProps = {
+  children: ReactNode;
+};
+
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const readTheme = (): ThemeId => {
@@ -30,7 +34,7 @@ const readTheme = (): ThemeId => {
   return THEME_IDS.includes(stored as ThemeId) ? (stored as ThemeId) : DEFAULT_THEME;
 };
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export const ThemeProvider: FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setThemeState] = useState<ThemeId>(() => readTheme());
 
   useEffect(() => {
@@ -47,9 +51,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-}
+};
 
-export function useTheme() {
+export function useTheme(): ThemeContextValue {
   const value = useContext(ThemeContext);
   if (!value) throw new Error('useTheme must be used within ThemeProvider');
   return value;

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { authFetch, clearAuthData, getAuthData, setAuthData } from '../lib/apiClient.js';
+import { authFetch, clearAuthData, getAuthData, setAuthData } from '../lib/apiClient';
 
 export const useAuthStore = create((set, get) => ({
   auth: getAuthData(),

@@ -1,18 +1,52 @@
-import axios from 'axios';
+import axios, {
+  type AxiosRequestConfig,
+  type AxiosResponse,
+  type RawAxiosRequestHeaders,
+} from 'axios';
+
+export type AuthData = {
+  accessToken?: string | null;
+  jwtAccessToken?: string | null;
+  [key: string]: unknown;
+};
+
+export type AuthFetchOptions<TBody = unknown> = Omit<
+  AxiosRequestConfig,
+  'data' | 'headers' | 'method' | 'params' | 'signal' | 'url' | 'validateStatus'
+> & {
+  method?: AxiosRequestConfig['method'];
+  headers?: RawAxiosRequestHeaders;
+  body?: TBody;
+  data?: TBody;
+  params?: AxiosRequestConfig['params'];
+  signal?: AbortSignal;
+};
+
+export type AuthFetchResponse<TData = unknown> = {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  headers: AxiosResponse<TData>['headers'];
+  url: string;
+  data: TData;
+  json: () => Promise<TData>;
+  text: () => Promise<string>;
+  raw: AxiosResponse<TData>;
+};
 
 const baseUrl =
   import.meta.env.VITE_APP_ENV === 'PROD' ? '' : (import.meta.env.VITE_API_BASE_URL ?? '');
 
-export function getAuthData() {
+export function getAuthData(): AuthData | null {
   try {
     const raw = localStorage.getItem('auth');
-    return raw ? JSON.parse(raw) : null;
+    return raw ? (JSON.parse(raw) as AuthData) : null;
   } catch {
     return null;
   }
 }
 
-export function setAuthData(auth) {
+export function setAuthData(auth: AuthData | null): void {
   try {
     localStorage.setItem('auth', JSON.stringify(auth));
   } catch (err) {
@@ -20,11 +54,14 @@ export function setAuthData(auth) {
   }
 }
 
-export function clearAuthData() {
+export function clearAuthData(): void {
   localStorage.removeItem('auth');
 }
 
-export async function authFetch(url, options = {}) {
+export async function authFetch<TData = unknown, TBody = unknown>(
+  url: string,
+  options: AuthFetchOptions<TBody> = {},
+): Promise<AuthFetchResponse<TData>> {
   const {
     method = 'GET',
     headers = {},
@@ -38,7 +75,7 @@ export async function authFetch(url, options = {}) {
   const auth = getAuthData();
   const mergedHeaders = {
     ...headers,
-    ...(auth?.accessToken
+    ...(auth?.accessToken   // TODO : 확인한 하나만 쓰자. 불필요한 분기 및 방어처리임
       ? { Authorization: `Bearer ${auth.accessToken}` }
       : auth?.jwtAccessToken
         ? { Authorization: `Bearer ${auth.jwtAccessToken}` }
@@ -49,7 +86,7 @@ export async function authFetch(url, options = {}) {
     ? url
     : `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
 
-  const response = await axios({
+  const response = await axios<TData>({
     url: fullUrl,
     method,
     headers: mergedHeaders,
@@ -60,7 +97,7 @@ export async function authFetch(url, options = {}) {
     validateStatus: () => true, // allow manual ok check
   });
 
-  const parsedData = Array.isArray(response.data) ? response.data : response.data;
+  const parsedData = response.data;
 
   return {
     ok: response.status >= 200 && response.status < 300,

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { authFetch } from '@lib/apiClient.js';
+import { authFetch } from '@lib/apiClient';
 
 const INITIAL_AI_CONFIG = {
   userId: null,

@@ -2,9 +2,14 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Sparkles } from 'lucide-react';
 import MarkdownIt from 'markdown-it';
-import { authFetch } from '@lib/apiClient.js';
+import { authFetch } from '@lib/apiClient';
 
 const mdParser = new MarkdownIt({ breaks: true });
+
+type AiComment = {
+  contentMd?: string;
+  createdAt?: string;
+};
 
 export default function AiCommentPanel({ diaryId }: { diaryId: number | null }) {
   const queryClient = useQueryClient();
@@ -12,7 +17,7 @@ export default function AiCommentPanel({ diaryId }: { diaryId: number | null }) 
     queryKey: ['diaryAiComments', diaryId],
     enabled: !!diaryId,
     queryFn: async ({ signal }) => {
-      const res = await authFetch(`/api/diary/${diaryId}/ai-comments`, {
+      const res = await authFetch<AiComment[]>(`/api/diary/${diaryId}/ai-comments`, {
         method: 'GET',
         params: { limit: 1 },
         signal,
@@ -29,7 +34,7 @@ export default function AiCommentPanel({ diaryId }: { diaryId: number | null }) 
 
   const createCommentMutation = useMutation({
     mutationFn: async () => {
-      const res = await authFetch(`/api/diary/${diaryId}/ai-comment`, { method: 'POST' });
+      const res = await authFetch<AiComment>(`/api/diary/${diaryId}/ai-comment`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to create AI comment');
       return res.data;
     },
@@ -61,7 +66,7 @@ export default function AiCommentPanel({ diaryId }: { diaryId: number | null }) 
         <div className="rounded-lg border border-border/60 bg-surface p-4">
           <div
             className="prose prose-sm max-w-none text-xs leading-relaxed text-foreground prose-p:my-2 prose-p:text-foreground prose-ul:my-2 prose-li:my-0"
-            dangerouslySetInnerHTML={{ __html: mdParser.render(latestComment.contentMd) }}
+            dangerouslySetInnerHTML={{ __html: mdParser.render(latestComment.contentMd ?? '') }}
           />
         </div>
         <button

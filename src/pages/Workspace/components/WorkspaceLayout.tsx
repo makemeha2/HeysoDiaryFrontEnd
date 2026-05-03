@@ -1,25 +1,37 @@
 import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { useWorkspaceState } from '../hooks/useWorkspaceState';
 import useDiary from '../hooks/useDiary';
-import LeftSidebar from './LeftSidebar/LeftSidebar';
-import TopActionBar from './TopActionBar';
-import MainWorkspace from './MainWorkspace/MainWorkspace';
-import RightPanel from './RightPanel/RightPanel';
-import PolishModal from './PolishModal/PolishModal';
-import SettingsPanel from './SettingsPanel/SettingsPanel';
+import LeftSidebar from '@workspace/components/LeftSidebar/LeftSidebar';
+import TopActionBar from '@workspace/components/TopActionBar';
+import MainWorkspace from '@workspace/components/MainWorkspace/MainWorkspace';
+import RightPanel from '@workspace/components/RightPanel/RightPanel';
+import PolishModal from '@workspace/components/PolishModal/PolishModal';
+import SettingsPanel from '@workspace/components/SettingsPanel/SettingsPanel';
 import type { DiaryEntry } from '../types/api.types';
+import type { SaveDiaryPayload } from '../hooks/useDiary';
 
-export default function WorkspaceLayout() {
+type PolishState = {
+  open: boolean;
+  source: string;
+  diaryId: number | null;
+  apply: (content: string) => void;
+};
+
+const getDiaryId = (diary: DiaryEntry | null): number | null => diary?.diaryId ?? diary?.id ?? null;
+
+const emptyPolishState: PolishState = {
+  open: false,
+  source: '',
+  diaryId: null,
+  apply: () => undefined,
+};
+
+const WorkspaceLayout = () => {
   const { state, patchState, selectDate, today } = useWorkspaceState();
-  const [polishState, setPolishState] = useState<{
-    open: boolean;
-    source: string;
-    diaryId: number | null;
-    apply: (content: string) => void;
-  }>({ open: false, source: '', diaryId: null, apply: () => undefined });
+  const [polishState, setPolishState] = useState<PolishState>(emptyPolishState);
   const [sidebarWidth, setSidebarWidth] = useState(260);
 
   const monthKey = useMemo(() => dayjs(state.selectedDate).format('YYYY-MM'), [state.selectedDate]);
@@ -33,46 +45,101 @@ export default function WorkspaceLayout() {
   } = useDiary({
     selectedDateKey: state.selectedDate,
     monthKey,
-    onSaveSuccess: async (data: any, _variables: any, { refreshAfterSave }: any) => {
+    onSaveSuccess: async (data, _variables, { refreshAfterSave }) => {
       await refreshAfterSave(data?.diaryId);
       if (data?.diaryId) patchState({ selectedDiaryId: data.diaryId });
     },
-  }) as any;
+  });
 
   const currentDiary = useMemo<DiaryEntry | null>(() => {
     if (state.selectedDiaryId) {
-      return recentDiaries.find((diary: DiaryEntry) => (diary.diaryId ?? diary.id) === state.selectedDiaryId) ?? null;
+      return recentDiaries.find((diary) => getDiaryId(diary) === state.selectedDiaryId) ?? null;
     }
     return dailyDiaries[0] ?? null;
   }, [dailyDiaries, recentDiaries, state.selectedDiaryId]);
 
-  const currentDiaryId = currentDiary?.diaryId ?? currentDiary?.id ?? null;
-  const toggleAi = () =>
-    patchState({ rightPanelMode: state.rightPanelMode === 'ai-comment' ? 'hidden' : 'ai-comment' });
+  const currentDiaryId = getDiaryId(currentDiary);
 
-  const selectDiary = (diary: DiaryEntry) => {
-    const id = diary.diaryId ?? diary.id ?? null;
+  const closeSidebar = useCallback(() => {
+    patchState({ sidebarOpen: false });
+  }, [patchState]);
+
+  const toggleSidebar = useCallback(() => {
+    patchState({ sidebarOpen: !state.sidebarOpen });
+  }, [patchState, state.sidebarOpen]);
+
+  const toggleAiCommentPanel = useCallback(() => {
+    patchState({ rightPanelMode: state.rightPanelMode === 'ai-comment' ? 'hidden' : 'ai-comment' });
+  }, [patchState, state.rightPanelMode]);
+
+  const selectDiary = useCallback((diary: DiaryEntry) => {
     patchState({
-      selectedDiaryId: id,
+      selectedDiaryId: getDiaryId(diary),
       selectedDate: dayjs(diary.diaryDate ?? state.selectedDate).format('YYYY-MM-DD'),
       viewMode: 'diary',
       sidebarOpen: false,
     });
+  }, [patchState, state.selectedDate]);
+
+  const openPolishModal = useCallback(
+    (source: string, apply: (content: string) => void, diaryId: number | null) => {
+      setPolishState({ open: true, source, diaryId, apply });
+    },
+    [],
+  );
+
+  const openCurrentDiaryPolishModal = useCallback(() => {
+    openPolishModal(currentDiary?.contentMd ?? '', () => undefined, currentDiaryId);
+  }, [currentDiary?.contentMd, currentDiaryId, openPolishModal]);
+
+  const closePolishModal = useCallback(() => {
+    setPolishState((previousPolishState) => ({ ...previousPolishState, open: false }));
+  }, []);
+
+  const applyPolishedContent = useCallback((content: string) => {
+    polishState.apply(content);
+    setPolishState((previousPolishState) => ({ ...previousPolishState, open: false }));
+  }, [polishState]);
+
+  const closeRightPanel = useCallback(() => {
+    patchState({ rightPanelMode: 'hidden' });
+  }, [patchState]);
+
+  const closeSettingsPanel = useCallback(() => {
+    patchState({ viewMode: 'diary' });
+  }, [patchState]);
+
+  const openAiCommentPanel = useCallback(() => {
+    patchState({ rightPanelMode: 'ai-comment' });
+  }, [patchState]);
+
+  const handleSave = useCallback((payload: SaveDiaryPayload) => {
+    saveDiaryMutation.mutate(payload);
+  }, [saveDiaryMutation]);
+
+  const handleDelete = useCallback((diaryId: number) => {
+    deleteDiaryMutation.mutate({ diaryId });
+  }, [deleteDiaryMutation]);
+
+  const selectToday = useCallback(() => {
+    selectDate(today);
+  }, [selectDate, today]);
+
+  const leftSidebarProps = {
+    state,
+    diaries: recentDiaries,
+    monthlyCounts: monthlyDiaryCounts,
+    onPatchState: patchState,
+    onSelectDate: selectDate,
+    onSelectDiary: selectDiary,
+    onToday: selectToday,
+    width: sidebarWidth,
+    onWidthChange: setSidebarWidth,
+    isMobile: state.sidebarOpen,
   };
 
   const sidebar = (
-    <LeftSidebar
-      state={state}
-      diaries={recentDiaries}
-      monthlyCounts={monthlyDiaryCounts}
-      onPatchState={patchState}
-      onSelectDate={selectDate}
-      onSelectDiary={selectDiary}
-      onToday={() => selectDate(today)}
-      width={sidebarWidth}
-      onWidthChange={setSidebarWidth}
-      isMobile={state.sidebarOpen}
-    />
+    <LeftSidebar {...leftSidebarProps} />
   );
 
   return (
@@ -80,7 +147,7 @@ export default function WorkspaceLayout() {
       {state.sidebarOpen ? (
         <div
           className="fixed inset-0 z-40 bg-foreground/20 md:hidden"
-          onClick={() => patchState({ sidebarOpen: false })}
+          onClick={closeSidebar}
           aria-hidden="true"
         />
       ) : null}
@@ -94,7 +161,7 @@ export default function WorkspaceLayout() {
         {state.sidebarOpen ? (
           <button
             type="button"
-            onClick={() => patchState({ sidebarOpen: false })}
+            onClick={closeSidebar}
             className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:text-foreground md:hidden"
             aria-label="사이드바 닫기"
           >
@@ -108,27 +175,25 @@ export default function WorkspaceLayout() {
         <TopActionBar
           viewMode={state.viewMode}
           rightPanelMode={state.rightPanelMode}
-          onToggleSidebar={() => patchState({ sidebarOpen: !state.sidebarOpen })}
-          onRequestPolish={() =>
-            setPolishState({ open: true, source: currentDiary?.contentMd ?? '', diaryId: currentDiaryId, apply: () => undefined })
-          }
-          onToggleAi={toggleAi}
+          onToggleSidebar={toggleSidebar}
+          onRequestPolish={openCurrentDiaryPolishModal}
+          onToggleAi={toggleAiCommentPanel}
         />
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className="min-w-0 flex-1 overflow-hidden">
             {state.viewMode === 'settings' ? (
-              <SettingsPanel onClose={() => patchState({ viewMode: 'diary' })} />
+              <SettingsPanel onClose={closeSettingsPanel} />
             ) : (
               <MainWorkspace
                 state={state}
                 currentDiary={currentDiary}
                 myTags={Array.isArray(myTags) ? myTags : []}
-                isSaving={saveDiaryMutation.isPending}
+                isSaving={Boolean(saveDiaryMutation.isPending)}
                 onPatchState={patchState}
-                onSave={(payload) => saveDiaryMutation.mutate(payload)}
-                onDelete={(diaryId) => deleteDiaryMutation.mutate({ diaryId })}
-                onOpenAi={() => patchState({ rightPanelMode: 'ai-comment' })}
-                onOpenPolish={(source, apply, diaryId) => setPolishState({ open: true, source, diaryId, apply })}
+                onSave={handleSave}
+                onDelete={handleDelete}
+                onOpenAi={openAiCommentPanel}
+                onOpenPolish={openPolishModal}
               />
             )}
           </div>
@@ -137,7 +202,7 @@ export default function WorkspaceLayout() {
               <RightPanel
                 mode={state.rightPanelMode}
                 diaryId={currentDiaryId}
-                onClose={() => patchState({ rightPanelMode: 'hidden' })}
+                onClose={closeRightPanel}
               />
             </div>
           ) : null}
@@ -148,7 +213,7 @@ export default function WorkspaceLayout() {
             <RightPanel
               mode={state.rightPanelMode}
               diaryId={currentDiaryId}
-              onClose={() => patchState({ rightPanelMode: 'hidden' })}
+              onClose={closeRightPanel}
             />
           </div>
         ) : null}
@@ -158,13 +223,12 @@ export default function WorkspaceLayout() {
         open={polishState.open}
         source={polishState.source}
         diaryId={polishState.diaryId}
-        onClose={() => setPolishState((prev) => ({ ...prev, open: false }))}
-        onApply={(content) => {
-          polishState.apply(content);
-          setPolishState((prev) => ({ ...prev, open: false }));
-        }}
+        onClose={closePolishModal}
+        onApply={applyPolishedContent}
       />
       <Toaster position="bottom-right" />
     </div>
   );
-}
+};
+
+export default WorkspaceLayout;

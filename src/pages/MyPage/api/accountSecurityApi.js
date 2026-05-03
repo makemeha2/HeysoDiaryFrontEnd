@@ -1,4 +1,4 @@
-import { authFetch } from '@lib/apiClient.js';
+import { authFetch } from '@lib/apiClient';
 
 const getBackendMessage = (res) => {
   if (!res?.data) return null;

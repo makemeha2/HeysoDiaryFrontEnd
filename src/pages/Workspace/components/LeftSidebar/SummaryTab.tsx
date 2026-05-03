@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import dayjs from 'dayjs';
 import { BookOpen, Flame, TrendingUp, User } from 'lucide-react';
-import type { DiaryEntry } from '../../types/api.types';
+import type { DiaryEntry } from '@workspace/types/api.types';
 
 type Props = {
   diaries: DiaryEntry[];
@@ -18,7 +18,7 @@ function normalizeTags(tags: unknown): string[] {
   return [];
 }
 
-function StatCard({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) {
+const StatCard = ({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) => {
   return (
     <div className="flex items-center gap-2.5 rounded-lg border border-border/40 bg-muted/50 p-2.5">
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">{icon}</div>
@@ -28,9 +28,9 @@ function StatCard({ icon, label, value }: { icon: ReactNode; label: string; valu
       </div>
     </div>
   );
-}
+};
 
-function TagRanking({ title, tags }: { title: string; tags: TagCount[] }) {
+const TagRanking = ({ title, tags }: { title: string; tags: TagCount[] }) => {
   const maxCount = tags[0]?.count ?? 1;
 
   return (
@@ -54,9 +54,9 @@ function TagRanking({ title, tags }: { title: string; tags: TagCount[] }) {
       </div>
     </div>
   );
-}
+};
 
-export default function SummaryTab({ diaries }: Props) {
+const SummaryTab = ({ diaries }: Props) => {
   const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
   const { topTags, yearlyTags, years } = useMemo(() => {
     const allTagCounts = new Map<string, number>();
@@ -135,4 +135,6 @@ export default function SummaryTab({ diaries }: Props) {
       </div>
     </div>
   );
-}
+};
+
+export default SummaryTab;

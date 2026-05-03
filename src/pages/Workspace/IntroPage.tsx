@@ -1,7 +1,7 @@
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import type { ReactNode } from 'react';
 import { ArrowRight, BookOpen, CalendarDays, Sparkles, Wand2 } from 'lucide-react';
-import { authFetch } from '@lib/apiClient.js';
+import { authFetch, type AuthData } from '@lib/apiClient';
 import { useAuthStore } from '@stores/authStore.js';
 import { showError } from '@/lib/confirm';
 
@@ -75,7 +75,7 @@ export default function IntroPage() {
       return;
     }
 
-    const res = await authFetch('/api/auth/oauth/google', {
+    const res = await authFetch<AuthData>('/api/auth/oauth/google', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken }),

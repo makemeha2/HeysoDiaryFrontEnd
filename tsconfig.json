@@ -22,7 +22,8 @@
       "@lib/*": ["./src/lib/*"],
       "@assets/*": ["./src/assets/*"],
       "@hooks/*": ["./src/hooks/*"],
-      "@admin/*": ["./src/admin/*"]
+      "@admin/*": ["./src/admin/*"],
+      "@workspace/*": ["./src/pages/Workspace/*"]
     }
   },
   "include": ["src", "vite.config.js", "vite-env.d.ts"]
