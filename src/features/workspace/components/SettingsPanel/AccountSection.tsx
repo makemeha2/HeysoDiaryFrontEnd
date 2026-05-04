@@ -7,7 +7,7 @@ import {
   sendWithdrawReauthEmailOtp,
   verifyWithdrawReauthEmailOtp,
   withdrawAccount,
-} from '../../lib/accountSecurityApi';
+} from '../../api/accountSecurityApi';
 import { useAuthStore } from '@stores/authStore.js';
 
 export default function AccountSection({ active }: { active: boolean }) {

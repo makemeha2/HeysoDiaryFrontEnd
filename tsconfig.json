@@ -17,13 +17,13 @@
     "paths": {
       "@/*": ["./src/*"],
       "@pages/*": ["./src/pages/*"],
-      "@components/*": ["./src/pages/ShareComponents/*"],
+      "@components/*": ["./src/components/*"],
       "@stores/*": ["./src/stores/*"],
       "@lib/*": ["./src/lib/*"],
       "@assets/*": ["./src/assets/*"],
       "@hooks/*": ["./src/hooks/*"],
       "@admin/*": ["./src/admin/*"],
-      "@workspace/*": ["./src/pages/Workspace/*"]
+      "@features/*": ["./src/features/*"]
     }
   },
   "include": ["src", "vite.config.js", "vite-env.d.ts"]

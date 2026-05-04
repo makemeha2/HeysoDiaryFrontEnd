@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { authFetch } from '../../../lib/apiClient';
-import { useAuthStore } from '../../../stores/authStore.js';
+import { authFetch } from '@lib/apiClient';
+import { useAuthStore } from '@stores/authStore.js';
 import type { DiaryEntry } from '../types/api.types';
 
 export const DEFAULT_PAGE = 1;

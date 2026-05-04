@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import dayjs from 'dayjs';
 import { BookOpen, Flame, TrendingUp, User } from 'lucide-react';
-import type { DiaryEntry } from '@workspace/types/api.types';
+import type { DiaryEntry } from '@features/workspace/types/api.types';
 
 type Props = {
   diaries: DiaryEntry[];

@@ -1,6 +1,6 @@
 import { Coins, Menu, Sparkles, Wand2 } from 'lucide-react';
 import ThemeSelector from './ThemeSelector';
-import { mockTokenUsage } from '../lib/mockData';
+import { placeholderTokenUsage } from '../constants/workspacePlaceholders';
 
 type Props = {
   viewMode: 'diary' | 'settings';
@@ -41,7 +41,7 @@ function TokenDisplay() {
       <Coins className="h-3.5 w-3.5 text-primary" />
       <span className="text-[11px] text-muted-foreground">오늘의 토큰:</span>
       <span className="text-[11px] font-medium text-foreground">
-        {mockTokenUsage.used}/{mockTokenUsage.limit}
+        {placeholderTokenUsage.used}/{placeholderTokenUsage.limit}
       </span>
     </div>
   );

@@ -1,4 +1,4 @@
-import { moodCatalog, type MoodId } from '../../lib/moodCatalog';
+import { moodCatalog, type MoodId } from '../../constants/moodCatalog';
 
 type Props = {
   value: MoodId | null;

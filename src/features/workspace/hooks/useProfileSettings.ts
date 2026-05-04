@@ -102,7 +102,7 @@ export function useProfileSettings({
     if (!Array.isArray(data)) return [];
 
     return data
-      .map((option) => {
+      .map<MbtiOption | null>((option) => {
         if (!option?.codeId) return null;
         return {
           mbtiId: option.codeId,

@@ -6,7 +6,7 @@ import {
   type DiaryAiPolishErrorData,
   type DiaryAiPolishRequest,
   type DiaryAiPolishResponse,
-} from '../lib/diaryAiPolishApi';
+} from '../api/diaryAiPolishApi';
 
 export const DAILY_POLISH_LIMIT = 3;
 

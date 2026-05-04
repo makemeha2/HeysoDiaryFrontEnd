@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { toast } from 'sonner';
 
-import { authFetch } from '../../../lib/apiClient';
+import { authFetch } from '@lib/apiClient';
 
 const TOAST_LAST_SHOWN_KEY = 'diaryToast:lastShownDate';
 const TOAST_DISMISSED_KEY = 'diaryToast:dismissedDate';

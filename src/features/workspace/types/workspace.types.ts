@@ -1,4 +1,4 @@
-import type { MoodId } from '../lib/moodCatalog';
+import type { MoodId } from '../constants/moodCatalog';
 
 export type WorkspaceState = {
   selectedDate: string;

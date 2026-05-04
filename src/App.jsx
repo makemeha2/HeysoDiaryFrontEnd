@@ -1,7 +1,7 @@
 import { Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
 import AdminApp from './admin/routes/AdminApp.tsx';
-import Workspace from './pages/Workspace/Workspace.tsx';
+import Workspace from './features/workspace/Workspace.tsx';
 import NotFound from './pages/NotFound.tsx';
 
 const MainSiteApp = () => (

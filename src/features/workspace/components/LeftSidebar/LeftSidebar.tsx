@@ -3,8 +3,8 @@ import { BarChart3, BookOpen, FileText, PenSquare, Search, Settings } from 'luci
 import DiaryTab from './DiaryTab';
 import SearchTab from './SearchTab';
 import SummaryTab from './SummaryTab';
-import type { DiaryEntry } from '@workspace/types/api.types';
-import type { WorkspaceState } from '@workspace/types/workspace.types';
+import type { DiaryEntry } from '@features/workspace/types/api.types';
+import type { WorkspaceState } from '@features/workspace/types/workspace.types';
 
 type Props = {
   state: WorkspaceState;

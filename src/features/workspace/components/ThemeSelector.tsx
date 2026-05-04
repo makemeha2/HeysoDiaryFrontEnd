@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Palette } from 'lucide-react';
 import { useTheme, type ThemeId } from '@/contexts/ThemeContext';
-import { themeCatalog } from '../lib/themeCatalog';
+import { themeCatalog } from '../constants/themeCatalog';
 
 const themeTextColor: Record<ThemeId, string> = {
   'warm-diary': '#2C2420',

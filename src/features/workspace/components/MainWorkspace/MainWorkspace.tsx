@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Plus, Save, Tag, Trash2, X } from 'lucide-react';
 import { showError } from '@/lib/confirm';
 import { formatDate } from '@lib/dateFormatters.js';
-import { moodCatalog, type MoodId } from '../../lib/moodCatalog';
+import { moodCatalog, type MoodId } from '../../constants/moodCatalog';
 import type { DiaryEntry } from '../../types/api.types';
 import type { WorkspaceState } from '../../types/workspace.types';
 

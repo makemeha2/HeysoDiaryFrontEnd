@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { formatDate } from '@lib/dateFormatters.js';
-import { mockMoodByDate } from '../lib/mockData';
 import type { WorkspaceState } from '../types/workspace.types';
 
 export function useWorkspaceState() {
@@ -12,7 +11,7 @@ export function useWorkspaceState() {
     sidebarTab: 'diary',
     sidebarOpen: false,
     selectedDiaryId: null,
-    draftMood: mockMoodByDate[today] ?? null,
+    draftMood: null,
   }));
 
   const patchState = (patch: Partial<WorkspaceState>) => {
@@ -24,7 +23,7 @@ export function useWorkspaceState() {
       ...prev,
       selectedDate,
       selectedDiaryId: null,
-      draftMood: mockMoodByDate[selectedDate] ?? null,
+      draftMood: null,
       viewMode: 'diary',
     }));
   };

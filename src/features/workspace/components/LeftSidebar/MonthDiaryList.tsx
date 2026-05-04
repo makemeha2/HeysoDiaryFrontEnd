@@ -1,7 +1,6 @@
 import dayjs from 'dayjs';
-import { mockMoodByDate } from '@workspace/lib/mockData';
-import type { MoodId } from '@workspace/lib/moodCatalog';
-import type { DiaryEntry } from '@workspace/types/api.types';
+import type { MoodId } from '@features/workspace/constants/moodCatalog';
+import type { DiaryEntry } from '@features/workspace/types/api.types';
 
 type Props = {
   selectedDate: string;
@@ -25,7 +24,7 @@ const normalizeDate = (diary: DiaryEntry) => dayjs(diary.diaryDate ?? diary.crea
 const getDiaryMood = (diary: DiaryEntry, selectedDate: string, selectedMood: MoodId | null): MoodId => {
   const diaryDate = normalizeDate(diary);
   const directMood = (diary as DiaryEntry & { mood?: MoodId }).mood;
-  return directMood ?? mockMoodByDate[diaryDate] ?? (diaryDate === selectedDate ? selectedMood : null) ?? 'calm';
+  return directMood ?? (diaryDate === selectedDate ? selectedMood : null) ?? 'calm';
 };
 
 const formatShortDate = (date: string) => `${Number(date.slice(8, 10))}일`;

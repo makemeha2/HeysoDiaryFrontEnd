@@ -1,8 +1,8 @@
 import MiniCalendar from './MiniCalendar';
 import MonthDiaryList from './MonthDiaryList';
 import WeatherWidget from './WeatherWidget';
-import type { MoodId } from '@workspace/lib/moodCatalog';
-import type { DiaryEntry } from '@workspace/types/api.types';
+import type { MoodId } from '@features/workspace/constants/moodCatalog';
+import type { DiaryEntry } from '@features/workspace/types/api.types';
 
 type Props = {
   selectedDate: string;

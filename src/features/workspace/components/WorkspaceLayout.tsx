@@ -4,12 +4,12 @@ import { X } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { useWorkspaceState } from '../hooks/useWorkspaceState';
 import useDiary from '../hooks/useDiary';
-import LeftSidebar from '@workspace/components/LeftSidebar/LeftSidebar';
-import TopActionBar from '@workspace/components/TopActionBar';
-import MainWorkspace from '@workspace/components/MainWorkspace/MainWorkspace';
-import RightPanel from '@workspace/components/RightPanel/RightPanel';
-import PolishModal from '@workspace/components/PolishModal/PolishModal';
-import SettingsPanel from '@workspace/components/SettingsPanel/SettingsPanel';
+import LeftSidebar from '@features/workspace/components/LeftSidebar/LeftSidebar';
+import TopActionBar from '@features/workspace/components/TopActionBar';
+import MainWorkspace from '@features/workspace/components/MainWorkspace/MainWorkspace';
+import RightPanel from '@features/workspace/components/RightPanel/RightPanel';
+import PolishModal from '@features/workspace/components/PolishModal/PolishModal';
+import SettingsPanel from '@features/workspace/components/SettingsPanel/SettingsPanel';
 import type { DiaryEntry } from '../types/api.types';
 import type { SaveDiaryPayload } from '../hooks/useDiary';
 

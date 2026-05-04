@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import { mockMoodByDate } from '@workspace/lib/mockData';
-import type { MoodId } from '@workspace/lib/moodCatalog';
-import type { DiaryEntry } from '@workspace/types/api.types';
+import type { MoodId } from '@features/workspace/constants/moodCatalog';
+import type { DiaryEntry } from '@features/workspace/types/api.types';
 
 type Props = {
   diaries: DiaryEntry[];
@@ -149,7 +148,7 @@ const SearchTab = ({ diaries, onSelectDiary }: Props) => {
             <p className="mb-2 text-[10px] text-muted-foreground">{results.length}개 결과</p>
             {paginatedResults.map((diary) => {
               const diaryDate = normalizeDate(diary);
-              const mood = moodEmoji[((diary as DiaryEntry & { mood?: MoodId }).mood ?? mockMoodByDate[diaryDate] ?? 'calm') as MoodId];
+              const mood = moodEmoji[((diary as DiaryEntry & { mood?: MoodId }).mood ?? 'calm') as MoodId];
 
               return (
                 <button
