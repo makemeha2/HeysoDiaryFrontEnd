@@ -7,7 +7,8 @@
       "Bash(mv lib/diaryAiPolishApi.ts api/)",
       "Bash(mv lib/moodCatalog.ts constants/)",
       "Bash(mv lib/themeCatalog.ts constants/)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(Remove-Item -Path \"C:\\\\Projects\\\\HeysoDiary\\\\HeysoDiaryFrontEnd\\\\src\\\\contexts\\\\ThemeContext.tsx\" -Force)"
     ]
   }
 }

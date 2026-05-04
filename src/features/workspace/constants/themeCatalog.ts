@@ -1,4 +1,4 @@
-import type { ThemeId } from '@/contexts/ThemeContext';
+import type { ThemeId } from '@stores/themeStore';
 
 export const themeCatalog: Array<{ id: ThemeId; label: string; swatch: string }> = [
   { id: 'warm-diary', label: 'Warm Diary', swatch: '#FAF7F2' },

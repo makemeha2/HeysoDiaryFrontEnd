@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Palette } from 'lucide-react';
-import { useTheme, type ThemeId } from '@/contexts/ThemeContext';
+import { useThemeStore, type ThemeId } from '@stores/themeStore';
 import { themeCatalog } from '../constants/themeCatalog';
 
 const themeTextColor: Record<ThemeId, string> = {
@@ -12,7 +12,8 @@ const themeTextColor: Record<ThemeId, string> = {
 };
 
 const ThemeSelector = () => {
-  const { theme, setTheme } = useTheme();
+  const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
