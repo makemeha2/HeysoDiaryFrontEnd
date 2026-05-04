@@ -28,7 +28,7 @@ type ConfirmContextValue = {
 const ConfirmContext = createContext<ConfirmContextValue | null>(null);
 let externalApi: ConfirmContextValue | null = null;
 
-export function ConfirmProvider({ children }: { children: ReactNode }) {
+export const ConfirmProvider = ({ children }: { children: ReactNode }) => {
   const [pending, setPending] = useState<PendingDialog | null>(null);
 
   const close = useCallback(
@@ -83,7 +83,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       </Dialog.Root>
     </ConfirmContext.Provider>
   );
-}
+};
 
 export function useConfirm() {
   const value = useContext(ConfirmContext);

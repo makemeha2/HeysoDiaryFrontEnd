@@ -19,7 +19,7 @@ const MODE_LABELS: Record<Exclude<RightPanelMode, 'hidden'>, string> = {
   'ai-comment': 'AI 코멘트',
 };
 
-export default function RightPanel({ mode, diaryId, onClose }: Props) {
+const RightPanel = ({ mode, diaryId, onClose }: Props) => {
   const [panelWidth, setPanelWidth] = useState(320);
   const isDragging = useRef(false);
   const startX = useRef(0);
@@ -94,4 +94,6 @@ export default function RightPanel({ mode, diaryId, onClose }: Props) {
       </aside>
     </div>
   );
-}
+};
+
+export default RightPanel;

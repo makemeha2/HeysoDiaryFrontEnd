@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-export default function NotFound() {
+const NotFound = () => {
   return (
     <main className="grid min-h-screen place-items-center bg-background px-5 text-foreground">
       <div className="max-w-md text-center">
@@ -18,4 +18,6 @@ export default function NotFound() {
       </div>
     </main>
   );
-}
+};
+
+export default NotFound;

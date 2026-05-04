@@ -364,7 +364,7 @@ function InlineTagInput({
   );
 }
 
-export default function MainWorkspace({
+const MainWorkspace = ({
   state,
   currentDiary,
   myTags,
@@ -374,7 +374,7 @@ export default function MainWorkspace({
   onDelete,
   onOpenAi,
   onOpenPolish,
-}: Props) {
+}: Props) => {
   const currentDiaryId = currentDiary?.diaryId ?? currentDiary?.id ?? null;
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -572,4 +572,6 @@ export default function MainWorkspace({
       </div>
     </div>
   );
-}
+};
+
+export default MainWorkspace;

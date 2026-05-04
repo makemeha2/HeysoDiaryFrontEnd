@@ -1,6 +1,6 @@
 import { Download } from 'lucide-react';
 
-export default function SecuritySection() {
+const SecuritySection = () => {
   return (
     <div className="space-y-6">
       <div>
@@ -24,4 +24,6 @@ export default function SecuritySection() {
       </div>
     </div>
   );
-}
+};
+
+export default SecuritySection;

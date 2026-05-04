@@ -8,7 +8,7 @@ type Props = {
   onOpenPolish: () => void;
 };
 
-export default function BottomActionBar({ isSaving, onSave, onOpenAi, onOpenPolish }: Props) {
+const BottomActionBar = ({ isSaving, onSave, onOpenAi, onOpenPolish }: Props) => {
   return (
     <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-background/95 py-3 backdrop-blur">
       <Button variant="outline" onClick={onOpenAi}>
@@ -25,4 +25,6 @@ export default function BottomActionBar({ isSaving, onSave, onOpenAi, onOpenPoli
       </Button>
     </div>
   );
-}
+};
+
+export default BottomActionBar;

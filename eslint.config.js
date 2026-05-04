@@ -33,6 +33,7 @@ export default [
   },
   {
     files: ['**/*.{ts,tsx}'],
+    ignores: ['src/admin/**'],
     ...js.configs.recommended,
     languageOptions: {
       ecmaVersion: 2020,
@@ -47,13 +48,11 @@ export default [
     plugins: {
       '@typescript-eslint': tsPlugin,
       'react-hooks': reactHooks,
-      'react-refresh': reactRefresh,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      ...reactRefresh.configs.vite.rules,
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_' }],
     },
   },
 ]

@@ -26,7 +26,7 @@ const queryClient = new QueryClient({
 
 export const AppProviders = ({ children }: { children: ReactNode }) => (
   <BrowserRouter>
-    <GoogleOAuthProvider clientId={clientId}>
+    <GoogleOAuthProvider clientId={clientId ?? ''}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <ConfirmProvider>

@@ -6,7 +6,8 @@
       "Bash(mv lib/accountSecurityApi.ts api/)",
       "Bash(mv lib/diaryAiPolishApi.ts api/)",
       "Bash(mv lib/moodCatalog.ts constants/)",
-      "Bash(mv lib/themeCatalog.ts constants/)"
+      "Bash(mv lib/themeCatalog.ts constants/)",
+      "Bash(xargs grep *)"
     ]
   }
 }

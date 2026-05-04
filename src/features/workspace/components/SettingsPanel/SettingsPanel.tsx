@@ -19,7 +19,7 @@ type Props = {
   onClose: () => void;
 };
 
-export default function SettingsPanel({ onClose }: Props) {
+const SettingsPanel = ({ onClose }: Props) => {
   const [active, setActive] = useState<SectionId>('profile');
   const activeLabel = sections.find((section) => section.id === active)?.label ?? '설정';
 
@@ -90,4 +90,6 @@ export default function SettingsPanel({ onClose }: Props) {
       </div>
     </section>
   );
-}
+};
+
+export default SettingsPanel;

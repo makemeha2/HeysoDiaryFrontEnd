@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 export type ThemeId =
   | 'warm-diary'
@@ -34,7 +34,7 @@ const readTheme = (): ThemeId => {
   return THEME_IDS.includes(stored as ThemeId) ? (stored as ThemeId) : DEFAULT_THEME;
 };
 
-export const ThemeProvider: FC<ThemeProviderProps> = ({ children }) => {
+export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   const [theme, setThemeState] = useState<ThemeId>(() => readTheme());
 
   useEffect(() => {

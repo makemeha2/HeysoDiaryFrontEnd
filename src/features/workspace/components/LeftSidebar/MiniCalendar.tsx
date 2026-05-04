@@ -16,7 +16,7 @@ const MiniCalendar = ({ selectedDate, monthlyCounts, onSelectDate }: Props) => {
   const [viewDate, setViewDate] = useState(() => selected.startOf('month'));
 
   useEffect(() => {
-    setViewDate(selected.startOf('month'));
+    setViewDate(dayjs(selectedDate).startOf('month'));
   }, [selectedDate]);
 
   const cells = useMemo(() => {

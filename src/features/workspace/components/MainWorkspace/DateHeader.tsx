@@ -11,7 +11,7 @@ type Props = {
   onDelete: () => void;
 };
 
-export default function DateHeader({ selectedDate, isNew, canDelete, onNewDiary, onDelete }: Props) {
+const DateHeader = ({ selectedDate, isNew, canDelete, onNewDiary, onDelete }: Props) => {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
@@ -34,4 +34,6 @@ export default function DateHeader({ selectedDate, isNew, canDelete, onNewDiary,
       </div>
     </div>
   );
-}
+};
+
+export default DateHeader;

@@ -11,7 +11,7 @@ type AiComment = {
   createdAt?: string;
 };
 
-export default function AiCommentPanel({ diaryId }: { diaryId: number | null }) {
+const AiCommentPanel = ({ diaryId }: { diaryId: number | null }) => {
   const queryClient = useQueryClient();
   const commentsQuery = useQuery({
     queryKey: ['diaryAiComments', diaryId],
@@ -117,4 +117,6 @@ export default function AiCommentPanel({ diaryId }: { diaryId: number | null }) 
       </button>
     </div>
   );
-}
+};
+
+export default AiCommentPanel;

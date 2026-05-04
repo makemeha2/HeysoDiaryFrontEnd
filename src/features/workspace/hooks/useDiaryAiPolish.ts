@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
 import {
@@ -55,10 +55,10 @@ const useDiaryAiPolish = () => {
     mutationFn: requestDiaryAiPolish,
   });
 
-  const clearPolishResult = () => {
+  const clearPolishResult = useCallback(() => {
     setPolishedContent('');
     setPolishError('');
-  };
+  }, []);
 
   const requestPolish = async ({ diaryId = null, content, mode }: DiaryAiPolishRequest) => {
     setPolishError('');

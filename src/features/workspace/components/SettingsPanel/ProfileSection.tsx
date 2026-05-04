@@ -22,7 +22,7 @@ const fallbackMbtiOptions = [
   'ESFP',
 ].map((mbti) => ({ mbtiId: mbti, mbtiNm: mbti }));
 
-export default function ProfileSection({ active }: { active: boolean }) {
+const ProfileSection = ({ active }: { active: boolean }) => {
   const alert = ({ title, description }: { title: string; description?: string }) => showError({ title, message: description });
   const { profile, setProfile, mbtiOptions, handleThumbnailChange, saveProfile, isSavingProfile, isLoadingProfile, isLoadingMbti } =
     useProfileSettings({ alert, activeSection: active ? 'profile' : '' });
@@ -90,4 +90,6 @@ export default function ProfileSection({ active }: { active: boolean }) {
       </button>
     </div>
   );
-}
+};
+
+export default ProfileSection;

@@ -89,7 +89,7 @@ export const defaultTagInputFilter: TagInputFilter = (items, inputValue, maxItem
   return items.filter((item) => normalizeText(item).includes(query)).slice(0, maxItems);
 };
 
-export default function AutocompleteCommitInput({
+const TagInput = ({
   items,
   onCommit,
   placeholder = '입력...',
@@ -100,7 +100,7 @@ export default function AutocompleteCommitInput({
   allowDuplicates = false,
   disabled = false,
   className = '',
-}: TagInputProps) {
+}: TagInputProps) => {
   const [value, setValue] = useState('');
   const [isComposing, setIsComposing] = useState(false);
 
@@ -237,4 +237,6 @@ export default function AutocompleteCommitInput({
       </ul>
     </div>
   );
-}
+};
+
+export default TagInput;

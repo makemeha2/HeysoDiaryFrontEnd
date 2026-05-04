@@ -10,7 +10,7 @@ import {
 } from '../../api/accountSecurityApi';
 import { useAuthStore, type AuthStore } from '@stores/authStore';
 
-export default function AccountSection({ active }: { active: boolean }) {
+const AccountSection = ({ active }: { active: boolean }) => {
   const navigate = useNavigate();
   const clearAuth = useAuthStore((s: AuthStore) => s.clearAuth);
   const [verified, setVerified] = useState(false);
@@ -147,4 +147,6 @@ export default function AccountSection({ active }: { active: boolean }) {
       </div>
     </div>
   );
-}
+};
+
+export default AccountSection;

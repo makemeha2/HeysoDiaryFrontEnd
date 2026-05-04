@@ -27,7 +27,7 @@ const MODE_INFO: Record<PolishUiMode, { label: string; description: string; apiM
   },
 };
 
-export default function PolishModal({ open, diaryId, source, onClose, onApply }: Props) {
+const PolishModal = ({ open, diaryId, source, onClose, onApply }: Props) => {
   const [mode, setMode] = useState<PolishUiMode>('strict');
   const [showTooltip, setShowTooltip] = useState<PolishUiMode | null>(null);
   const { polishedContent, polishError, isPolishing, usageText, requestPolish, clearPolishResult } = useDiaryAiPolish();
@@ -41,7 +41,7 @@ export default function PolishModal({ open, diaryId, source, onClose, onApply }:
     setMode('strict');
     setShowTooltip(null);
     clearPolishResult();
-  }, [open]);
+  }, [clearPolishResult, open]);
 
   if (!open) return null;
 
@@ -248,4 +248,6 @@ export default function PolishModal({ open, diaryId, source, onClose, onApply }:
       </section>
     </div>
   );
-}
+};
+
+export default PolishModal;

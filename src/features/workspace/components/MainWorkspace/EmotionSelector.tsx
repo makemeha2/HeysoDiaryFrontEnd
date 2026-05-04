@@ -5,7 +5,7 @@ type Props = {
   onChange: (mood: MoodId) => void;
 };
 
-export default function EmotionSelector({ value, onChange }: Props) {
+const EmotionSelector = ({ value, onChange }: Props) => {
   return (
     <div className="flex flex-wrap gap-2">
       {moodCatalog.map((mood) => (
@@ -23,4 +23,6 @@ export default function EmotionSelector({ value, onChange }: Props) {
       ))}
     </div>
   );
-}
+};
+
+export default EmotionSelector;

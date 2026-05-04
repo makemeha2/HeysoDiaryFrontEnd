@@ -47,13 +47,13 @@ function TokenDisplay() {
   );
 }
 
-export default function TopActionBar({
+const TopActionBar = ({
   viewMode,
   rightPanelMode,
   onToggleSidebar,
   onRequestPolish,
   onToggleAi,
-}: Props) {
+}: Props) => {
   return (
     <header className="flex h-11 shrink-0 items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur-sm">
       <div className="flex items-center gap-2">
@@ -91,4 +91,6 @@ export default function TopActionBar({
       )}
     </header>
   );
-}
+};
+
+export default TopActionBar;

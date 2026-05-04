@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Textarea, type TextareaProps } from '@/components/ui/textarea';
 
-export default function AutoResizeTextarea(props: TextareaProps) {
+const AutoResizeTextarea = (props: TextareaProps) => {
   const ref = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -11,4 +11,6 @@ export default function AutoResizeTextarea(props: TextareaProps) {
   }, [props.value]);
 
   return <Textarea ref={ref} {...props} />;
-}
+};
+
+export default AutoResizeTextarea;

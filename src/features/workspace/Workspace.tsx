@@ -3,7 +3,7 @@ import IntroPage from './IntroPage';
 import WorkspaceLayout from './components/WorkspaceLayout';
 import { useAuthStore, type AuthStore } from '@stores/authStore';
 
-function WorkspaceBootLoading() {
+const WorkspaceBootLoading = () => {
   return (
     <div className="grid min-h-screen place-items-center bg-background text-muted-foreground">
       <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm shadow-sm">
@@ -11,9 +11,9 @@ function WorkspaceBootLoading() {
       </div>
     </div>
   );
-}
+};
 
-export default function Workspace() {
+const Workspace = () => {
   const auth = useAuthStore((s: AuthStore) => s.auth);
   const authChecked = useAuthStore((s: AuthStore) => s.authChecked);
   const validateAuth = useAuthStore((s: AuthStore) => s.validateAuth);
@@ -28,4 +28,6 @@ export default function Workspace() {
   if (!authChecked) return <WorkspaceBootLoading />;
   if (!auth) return <IntroPage />;
   return <WorkspaceLayout />;
-}
+};
+
+export default Workspace;

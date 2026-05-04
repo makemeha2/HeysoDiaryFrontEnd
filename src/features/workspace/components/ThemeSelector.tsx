@@ -11,7 +11,7 @@ const themeTextColor: Record<ThemeId, string> = {
   'dark-diary': '#EDE8E0',
 };
 
-export default function ThemeSelector() {
+const ThemeSelector = () => {
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -77,4 +77,6 @@ export default function ThemeSelector() {
       ) : null}
     </div>
   );
-}
+};
+
+export default ThemeSelector;

@@ -37,14 +37,14 @@ type LoginTriggerProps = {
   onError: () => void;
 };
 
-function LoginTrigger({
+const LoginTrigger = ({
   children,
   className,
   googleSize = 'large',
   googleWidth,
   onSuccess,
   onError,
-}: LoginTriggerProps) {
+}: LoginTriggerProps) => {
   return (
     <div className="relative inline-flex overflow-hidden rounded-lg">
       <button type="button" tabIndex={-1} className={`pointer-events-none ${className}`}>
@@ -62,9 +62,9 @@ function LoginTrigger({
       </div>
     </div>
   );
-}
+};
 
-export default function IntroPage() {
+const IntroPage = () => {
   const setAuth = useAuthStore((state: AuthStore) => state.setAuth);
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
@@ -175,4 +175,6 @@ export default function IntroPage() {
       </footer>
     </div>
   );
-}
+};
+
+export default IntroPage;

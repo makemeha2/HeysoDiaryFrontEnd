@@ -54,7 +54,7 @@ function ToggleGroup<T extends string>({ options, value, onChange }: ToggleGroup
   );
 }
 
-export default function DiaryPrefsSection({ active }: { active: boolean }) {
+const DiaryPrefsSection = ({ active }: { active: boolean }) => {
   const alert = ({ title, description }: { title: string; description?: string }) => showError({ title, message: description });
   const { aiConfig, setAiConfig, saveAiConfig, isSavingAiConfig, isLoadingAiConfig } = useAiFeedbackSettings({
     alert,
@@ -160,4 +160,6 @@ export default function DiaryPrefsSection({ active }: { active: boolean }) {
       </button>
     </div>
   );
-}
+};
+
+export default DiaryPrefsSection;
