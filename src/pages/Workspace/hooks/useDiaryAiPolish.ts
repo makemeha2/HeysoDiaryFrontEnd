@@ -1,32 +1,19 @@
 import { useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
-import { requestDiaryAiPolish } from '../../Diary/api/diaryAiPolishApi.js';
+import {
+  requestDiaryAiPolish,
+  type DiaryAiPolishErrorData,
+  type DiaryAiPolishRequest,
+  type DiaryAiPolishResponse,
+} from '../lib/diaryAiPolishApi';
 
 export const DAILY_POLISH_LIMIT = 3;
 
-type PolishMode = 'shorten' | 'smooth' | 'warm' | 'clear' | string;
-
-type PolishRequest = {
-  diaryId?: number | null;
-  content: string;
-  mode: PolishMode;
-};
-
-type PolishResponse = {
-  polishedContent?: string;
-  remainingCount?: number;
-};
-
 type PolishError = Error & {
   status?: number;
-  data?: {
-    message?: string;
-    error?: string;
-  };
+  data?: DiaryAiPolishErrorData;
 };
-
-const requestPolishMutationFn = requestDiaryAiPolish as (payload: PolishRequest) => Promise<PolishResponse>;
 
 const getPolishErrorDescription = (error: PolishError) => {
   const status = error?.status;
@@ -64,8 +51,8 @@ const useDiaryAiPolish = () => {
   const [polishError, setPolishError] = useState('');
   const [remainingCount, setRemainingCount] = useState<number | null>(null);
 
-  const polishMutation = useMutation<PolishResponse, PolishError, PolishRequest>({
-    mutationFn: requestPolishMutationFn,
+  const polishMutation = useMutation<DiaryAiPolishResponse, PolishError, DiaryAiPolishRequest>({
+    mutationFn: requestDiaryAiPolish,
   });
 
   const clearPolishResult = () => {
@@ -73,7 +60,7 @@ const useDiaryAiPolish = () => {
     setPolishError('');
   };
 
-  const requestPolish = async ({ diaryId = null, content, mode }: PolishRequest) => {
+  const requestPolish = async ({ diaryId = null, content, mode }: DiaryAiPolishRequest) => {
     setPolishError('');
     setPolishedContent('');
 

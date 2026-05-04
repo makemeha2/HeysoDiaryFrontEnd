@@ -1,7 +1,7 @@
 import { Upload, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { showError } from '@/lib/confirm';
-import { useProfileSettings } from '../../hooks/useProfileSettings';
+import { useProfileSettings, type MbtiOption } from '../../hooks/useProfileSettings';
 
 const fallbackMbtiOptions = [
   'INTJ',
@@ -25,7 +25,7 @@ const fallbackMbtiOptions = [
 export default function ProfileSection({ active }: { active: boolean }) {
   const alert = ({ title, description }: { title: string; description?: string }) => showError({ title, message: description });
   const { profile, setProfile, mbtiOptions, handleThumbnailChange, saveProfile, isSavingProfile, isLoadingProfile, isLoadingMbti } =
-    useProfileSettings({ alert, activeSection: active ? 'profile' : '' }) as any;
+    useProfileSettings({ alert, activeSection: active ? 'profile' : '' });
   const options = Array.isArray(mbtiOptions) && mbtiOptions.length > 0 ? mbtiOptions : fallbackMbtiOptions;
 
   return (
@@ -53,7 +53,7 @@ export default function ProfileSection({ active }: { active: boolean }) {
         <input
           type="text"
           value={profile.nickname}
-          onChange={(event) => setProfile((prev: any) => ({ ...prev, nickname: event.target.value }))}
+          onChange={(event) => setProfile((prev) => ({ ...prev, nickname: event.target.value }))}
           className="w-full max-w-sm rounded-md border border-border bg-muted px-3 py-2 text-sm outline-none transition-colors focus:border-primary/50"
         />
       </div>
@@ -61,11 +61,11 @@ export default function ProfileSection({ active }: { active: boolean }) {
       <div>
         <label className="mb-2 block text-sm font-medium text-foreground">MBTI</label>
         <div className="grid max-w-sm grid-cols-4 gap-2">
-          {options.map((option: any) => (
+          {options.map((option: MbtiOption) => (
             <button
               key={option.mbtiId}
               type="button"
-              onClick={() => setProfile((prev: any) => ({ ...prev, mbti: option.mbtiId }))}
+              onClick={() => setProfile((prev) => ({ ...prev, mbti: option.mbtiId }))}
               disabled={isLoadingMbti}
               className={cn(
                 'rounded-md border py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',

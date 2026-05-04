@@ -1,6 +1,16 @@
 import { cn } from '@/lib/utils';
 import { showError } from '@/lib/confirm';
-import { useAiFeedbackSettings } from '../../hooks/useAiFeedbackSettings';
+import {
+  useAiFeedbackSettings,
+  type AiFeedbackSettings,
+  type FeedbackStyleCd,
+  type FixedLang,
+  type IntensityCd,
+  type LangModeCd,
+  type LengthCd,
+  type QuestionCd,
+  type SpeechToneCd,
+} from '../../hooks/useAiFeedbackSettings';
 
 type Option<T extends string> = {
   value: T;
@@ -49,10 +59,10 @@ export default function DiaryPrefsSection({ active }: { active: boolean }) {
   const { aiConfig, setAiConfig, saveAiConfig, isSavingAiConfig, isLoadingAiConfig } = useAiFeedbackSettings({
     alert,
     activeSection: active ? 'diary' : '',
-  }) as any;
+  });
 
-  const updateConfig = (key: string, value: string) => {
-    setAiConfig((prev: any) => ({ ...prev, [key]: value }));
+  const updateConfig = <K extends keyof AiFeedbackSettings>(key: K, value: AiFeedbackSettings[K]) => {
+    setAiConfig((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
@@ -64,7 +74,7 @@ export default function DiaryPrefsSection({ active }: { active: boolean }) {
             { value: 'CASUAL', label: '편하게' },
           ]}
           value={aiConfig.speechToneCd}
-          onChange={(value) => updateConfig('speechToneCd', value)}
+          onChange={(value: SpeechToneCd) => updateConfig('speechToneCd', value)}
         />
       </SettingRow>
 
@@ -76,7 +86,7 @@ export default function DiaryPrefsSection({ active }: { active: boolean }) {
             { value: 'SOLUTION', label: '해결' },
           ]}
           value={aiConfig.feedbackStyleCd}
-          onChange={(value) => updateConfig('feedbackStyleCd', value)}
+          onChange={(value: FeedbackStyleCd) => updateConfig('feedbackStyleCd', value)}
         />
       </SettingRow>
 
@@ -88,7 +98,7 @@ export default function DiaryPrefsSection({ active }: { active: boolean }) {
             { value: 'DIRECT', label: '직설적' },
           ]}
           value={aiConfig.intensityCd}
-          onChange={(value) => updateConfig('intensityCd', value)}
+          onChange={(value: IntensityCd) => updateConfig('intensityCd', value)}
         />
       </SettingRow>
 
@@ -99,7 +109,7 @@ export default function DiaryPrefsSection({ active }: { active: boolean }) {
             { value: 'ASK', label: '있음' },
           ]}
           value={aiConfig.questionCd}
-          onChange={(value) => updateConfig('questionCd', value)}
+          onChange={(value: QuestionCd) => updateConfig('questionCd', value)}
         />
       </SettingRow>
 
@@ -111,7 +121,7 @@ export default function DiaryPrefsSection({ active }: { active: boolean }) {
             { value: 'LONG', label: '자세히' },
           ]}
           value={aiConfig.lengthCd}
-          onChange={(value) => updateConfig('lengthCd', value)}
+          onChange={(value: LengthCd) => updateConfig('lengthCd', value)}
         />
       </SettingRow>
 
@@ -122,7 +132,7 @@ export default function DiaryPrefsSection({ active }: { active: boolean }) {
             { value: 'FIXED', label: '고정 언어' },
           ]}
           value={aiConfig.langModeCd}
-          onChange={(value) => updateConfig('langModeCd', value)}
+          onChange={(value: LangModeCd) => updateConfig('langModeCd', value)}
         />
       </SettingRow>
 
@@ -130,7 +140,7 @@ export default function DiaryPrefsSection({ active }: { active: boolean }) {
         <SettingRow label="고정 언어 선택">
           <select
             value={aiConfig.fixedLang}
-            onChange={(event) => updateConfig('fixedLang', event.target.value)}
+            onChange={(event) => updateConfig('fixedLang', event.target.value as FixedLang)}
             className="rounded-md border border-border bg-muted px-3 py-1.5 text-sm outline-none transition-colors focus:border-primary/50"
           >
             <option value="ko">한국어</option>
