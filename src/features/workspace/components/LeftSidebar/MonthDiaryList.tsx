@@ -11,6 +11,7 @@ type Props = {
 };
 
 const moodEmoji: Record<MoodId, { emoji: string; label: string }> = {
+  none: { emoji: '⬜', label: '선택안함' },
   calm: { emoji: '☁️', label: '차분' },
   happy: { emoji: '😊', label: '기쁨' },
   tired: { emoji: '😴', label: '피곤' },

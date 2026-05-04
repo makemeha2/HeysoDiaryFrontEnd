@@ -14,6 +14,7 @@ type SearchType = 'tag' | 'title' | 'content';
 const itemsPerPage = 30;
 
 const moodEmoji: Record<MoodId, string> = {
+  none: '⬜',
   calm: '☁️',
   happy: '😊',
   tired: '😴',

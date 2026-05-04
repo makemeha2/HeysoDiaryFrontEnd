@@ -21,6 +21,7 @@ type Props = {
 type SaveStatus = 'idle' | 'saving' | 'saved';
 
 const moodEmoji: Record<MoodId, string> = {
+  none: '⬜',
   calm: '☁️',
   happy: '😊',
   tired: '😴',

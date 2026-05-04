@@ -1,6 +1,7 @@
-export type MoodId = 'calm' | 'happy' | 'tired' | 'sad' | 'anxious' | 'proud';
+export type MoodId = 'none' | 'calm' | 'happy' | 'tired' | 'sad' | 'anxious' | 'proud';
 
 export const moodCatalog: Array<{ id: MoodId; label: string; tone: string }> = [
+  { id: 'none', label: '선택안함', tone: 'bg-zinc-100 text-zinc-700 border-zinc-200' },
   { id: 'calm', label: '차분', tone: 'bg-sky-100 text-sky-800 border-sky-200' },
   { id: 'happy', label: '기쁨', tone: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
   { id: 'tired', label: '피곤', tone: 'bg-stone-100 text-stone-700 border-stone-200' },
