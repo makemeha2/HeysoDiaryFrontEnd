@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { formatDate } from '@lib/dateFormatters.js';
+import { formatDate } from '@lib/dateFormatters';
 import type { WorkspaceState } from '../types/workspace.types';
 
 export function useWorkspaceState() {

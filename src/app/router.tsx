@@ -1,10 +1,8 @@
-import { Route, Routes, useLocation } from 'react-router-dom';
-import './App.css';
-import AdminApp from './admin/routes/AdminApp.tsx';
-import Workspace from './features/workspace/Workspace.tsx';
-import NotFound from './pages/NotFound.tsx';
+import { Route, Routes } from 'react-router-dom';
+import Workspace from '@features/workspace/Workspace';
+import NotFound from '@pages/NotFound';
 
-const MainSiteApp = () => (
+export const MainRouter = () => (
   <Routes>
     <Route index element={<Workspace />} />
     <Route path="/login" element={<NotFound />} />
@@ -17,13 +15,3 @@ const MainSiteApp = () => (
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
-
-const App = () => {
-  const location = useLocation();
-  if (location.pathname.startsWith('/admin')) {
-    return <AdminApp />;
-  }
-  return <MainSiteApp />;
-};
-
-export default App;

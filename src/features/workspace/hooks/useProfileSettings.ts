@@ -10,7 +10,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { authFetch } from '@lib/apiClient';
-import { formatThumbnailPreviewDataUrl } from '@lib/imageFormatters.js';
+import { formatThumbnailPreviewDataUrl } from '@lib/imageFormatters';
 
 export type ProfileSettings = {
   userId: number | null;

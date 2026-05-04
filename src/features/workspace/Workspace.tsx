@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import IntroPage from './IntroPage';
 import WorkspaceLayout from './components/WorkspaceLayout';
-// NOTE: JSX 모듈을 import — 타입 추론 제한. 향후 TSX 전환 후보.
-import { useAuthStore } from '@stores/authStore.js';
+import { useAuthStore, type AuthStore } from '@stores/authStore';
 
 function WorkspaceBootLoading() {
   return (
@@ -15,9 +14,9 @@ function WorkspaceBootLoading() {
 }
 
 export default function Workspace() {
-  const auth = useAuthStore((s: any) => s.auth);
-  const authChecked = useAuthStore((s: any) => s.authChecked);
-  const validateAuth = useAuthStore((s: any) => s.validateAuth);
+  const auth = useAuthStore((s: AuthStore) => s.auth);
+  const authChecked = useAuthStore((s: AuthStore) => s.authChecked);
+  const validateAuth = useAuthStore((s: AuthStore) => s.validateAuth);
   const validatedRef = useRef(false);
 
   useEffect(() => {

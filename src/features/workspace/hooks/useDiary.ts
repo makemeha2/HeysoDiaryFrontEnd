@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { authFetch } from '@lib/apiClient';
-import { useAuthStore } from '@stores/authStore.js';
+import { useAuthStore, type AuthStore } from '@stores/authStore';
 import type { DiaryEntry } from '../types/api.types';
 
 export const DEFAULT_PAGE = 1;
@@ -60,11 +60,6 @@ type DiaryTagsResponse = {
   tags?: unknown;
 };
 
-type AuthState = {
-  auth: unknown;
-  authChecked: boolean;
-};
-
 const toDiaryEntries = (value: unknown): DiaryEntry[] => (Array.isArray(value) ? (value as DiaryEntry[]) : []);
 
 const toStringArray = (value: unknown): string[] => (Array.isArray(value) ? value.map(String) : []);
@@ -116,8 +111,8 @@ const useDiary = ({
 }: UseDiaryOptions = {}) => {
   const queryClient = useQueryClient();
 
-  const auth = useAuthStore((s: AuthState) => s.auth);
-  const authChecked = useAuthStore((s: AuthState) => s.authChecked);
+  const auth = useAuthStore((s: AuthStore) => s.auth);
+  const authChecked = useAuthStore((s: AuthStore) => s.authChecked);
   const isSignedIn = authChecked && !!auth;
 
   const diariesQuery = useQuery<DiaryEntry[]>({

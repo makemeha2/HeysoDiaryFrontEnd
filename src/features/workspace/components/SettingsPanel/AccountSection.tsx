@@ -8,11 +8,11 @@ import {
   verifyWithdrawReauthEmailOtp,
   withdrawAccount,
 } from '../../api/accountSecurityApi';
-import { useAuthStore } from '@stores/authStore.js';
+import { useAuthStore, type AuthStore } from '@stores/authStore';
 
 export default function AccountSection({ active }: { active: boolean }) {
   const navigate = useNavigate();
-  const clearAuth = useAuthStore((s: any) => s.clearAuth);
+  const clearAuth = useAuthStore((s: AuthStore) => s.clearAuth);
   const [verified, setVerified] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [otpSent, setOtpSent] = useState(false);

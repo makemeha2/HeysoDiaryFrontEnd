@@ -2,7 +2,7 @@ import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import type { ReactNode } from 'react';
 import { ArrowRight, BookOpen, CalendarDays, Sparkles, Wand2 } from 'lucide-react';
 import { authFetch, type AuthData } from '@lib/apiClient';
-import { useAuthStore } from '@stores/authStore.js';
+import { useAuthStore, type AuthStore } from '@stores/authStore';
 import { showError } from '@/lib/confirm';
 
 const FEATURES = [
@@ -65,7 +65,7 @@ function LoginTrigger({
 }
 
 export default function IntroPage() {
-  const setAuth = useAuthStore((state: any) => state.setAuth);
+  const setAuth = useAuthStore((state: AuthStore) => state.setAuth);
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     const idToken = credentialResponse.credential;

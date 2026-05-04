@@ -1,12 +1,26 @@
 import { create } from 'zustand';
-import { authFetch, clearAuthData, getAuthData, setAuthData } from '../lib/apiClient';
+import {
+  authFetch,
+  clearAuthData,
+  getAuthData,
+  setAuthData,
+  type AuthData,
+} from '@lib/apiClient';
 
-export const useAuthStore = create((set, get) => ({
+export interface AuthStore {
+  auth: AuthData | null;
+  authChecked: boolean;
+  setAuth: (auth: AuthData) => void;
+  clearAuth: () => void;
+  validateAuth: () => Promise<void>;
+}
+
+export const useAuthStore = create<AuthStore>((set, get) => ({
   auth: getAuthData(),
   authChecked: false,
 
   // 인증을 받아 auth토큰을 저장하고, 인증체크여부를 true로 변경
-  setAuth: (auth) => {
+  setAuth: (auth: AuthData) => {
     setAuthData(auth);
     set({ auth, authChecked: true });
   },
@@ -44,5 +58,5 @@ export const useAuthStore = create((set, get) => ({
       clearAuthData();
       set({ auth: null, authChecked: true });
     }
-  }
+  },
 }));
