@@ -3,13 +3,12 @@ import { BarChart3, BookOpen, FileText, PenSquare, Search, Settings } from 'luci
 import DiaryTab from './DiaryTab';
 import SearchTab from './SearchTab';
 import SummaryTab from './SummaryTab';
+import { useRecentDiaries } from '@features/workspace/hooks/useDiary';
 import type { DiaryEntry } from '@features/workspace/types/api.types';
 import type { WorkspaceState } from '@features/workspace/types/workspace.types';
 
 type Props = {
   state: WorkspaceState;
-  diaries: DiaryEntry[];
-  monthlyCounts: Array<{ diaryDate?: string; date?: string; count?: number }>;
   onPatchState: (patch: Partial<WorkspaceState>) => void;
   onSelectDate: (date: string) => void;
   onSelectDiary: (diary: DiaryEntry) => void;
@@ -27,8 +26,6 @@ const tabs = [
 
 const LeftSidebar = ({
   state,
-  diaries,
-  monthlyCounts,
   onPatchState,
   onSelectDate,
   onSelectDiary,
@@ -37,6 +34,7 @@ const LeftSidebar = ({
   onWidthChange,
   isMobile = false,
 }: Props) => {
+  const { recentDiaries } = useRecentDiaries();
   const isDragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
@@ -133,16 +131,15 @@ const LeftSidebar = ({
             <DiaryTab
               selectedDate={state.selectedDate}
               selectedMood={state.draftMood}
-              diaries={diaries}
-              monthlyCounts={monthlyCounts}
+              diaries={recentDiaries}
               selectedDiaryId={state.selectedDiaryId}
               onSelectDate={onSelectDate}
               onSelectDiary={onSelectDiary}
             />
           ) : state.sidebarTab === 'summary' ? (
-            <SummaryTab diaries={diaries} />
+            <SummaryTab diaries={recentDiaries} />
           ) : (
-            <SearchTab diaries={diaries} onSelectDiary={onSelectDiary} />
+            <SearchTab diaries={recentDiaries} onSelectDiary={onSelectDiary} />
           )}
         </div>
 

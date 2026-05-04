@@ -1,4 +1,4 @@
-import { Coins, Menu, Sparkles, Wand2 } from 'lucide-react';
+import { Coins, Menu, Sparkles } from 'lucide-react';
 import ThemeSelector from './ThemeSelector';
 import { placeholderTokenUsage } from '../constants/workspacePlaceholders';
 
@@ -6,7 +6,6 @@ type Props = {
   viewMode: 'diary' | 'settings';
   rightPanelMode: 'hidden' | 'ai-comment';
   onToggleSidebar: () => void;
-  onRequestPolish: () => void;
   onToggleAi: () => void;
 };
 
@@ -51,7 +50,6 @@ const TopActionBar = ({
   viewMode,
   rightPanelMode,
   onToggleSidebar,
-  onRequestPolish,
   onToggleAi,
 }: Props) => {
   return (
@@ -74,7 +72,6 @@ const TopActionBar = ({
         <div className="flex items-center gap-1">
           <TokenDisplay />
           <div className="mx-1 h-4 w-px bg-border/60" />
-          <ActionButton icon={<Wand2 className="h-3.5 w-3.5" />} label="글 다듬기" onClick={onRequestPolish} />
           <ActionButton
             icon={<Sparkles className="h-3.5 w-3.5" />}
             label="AI 코멘트"

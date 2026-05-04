@@ -67,6 +67,9 @@ const toStringArray = (value: unknown): string[] => (Array.isArray(value) ? valu
 const toMonthlyDiaryCounts = (value: unknown): MonthlyDiaryCount[] =>
   Array.isArray(value) ? (value as MonthlyDiaryCount[]) : [];
 
+export const getDiaryId = (diary: DiaryEntry | null): number | null =>
+  diary?.diaryId ?? diary?.id ?? null;
+
 const getDiaryIdFromPayload = (payload: DeleteDiaryPayload): number | null => {
   if (typeof payload === 'number') return payload;
   return payload?.diaryId ?? null;
@@ -81,40 +84,16 @@ const getCreatedDiaryId = (data: unknown): number | null => {
   return null;
 };
 
-/**
- * Diary 도메인 전용 훅
- *
- * 목표
- * - "Hook Factory(훅을 반환하는 훅)" 패턴을 피한다.
- * - 화면에서 필요한 데이터/액션을 한 번에 꺼내 쓸 수 있게 한다.
- *
- * 사용 예)
- * const {
- *   isSignedIn,
- *   diaries,
- *   diariesQuery,
- *   dailyDiaries,
- *   dailyDiariesQuery,
- *   monthlyDiaryCounts,
- *   monthlyDiaryCountsQuery,
- *   removeDiaryFromCache,
- * } = useDiary({ page, size, selectedDateKey, monthKey })
- */
-const useDiary = ({
-  page = DEFAULT_PAGE,
-  size = DEFAULT_SIZE,
-  selectedDateKey = '',
-  monthKey = '',
-  diaryId = null,
-  onSaveSuccess,
-  onSaveError,
-}: UseDiaryOptions = {}) => {
-  const queryClient = useQueryClient();
-
+const useDiaryAuth = () => {
   const auth = useAuthStore((s: AuthStore) => s.auth);
   const authChecked = useAuthStore((s: AuthStore) => s.authChecked);
   const isSignedIn = authChecked && !!auth;
 
+  return { authChecked, isSignedIn };
+};
+
+export const useDiaryEntries = (page = DEFAULT_PAGE, size = DEFAULT_SIZE) => {
+  const { authChecked, isSignedIn } = useDiaryAuth();
   const diariesQuery = useQuery<DiaryEntry[]>({
     queryKey: ['diaryEntries', page, size],
     enabled: isSignedIn,
@@ -126,6 +105,23 @@ const useDiary = ({
     },
   });
 
+  const diaries = useMemo(() => diariesQuery.data ?? [], [diariesQuery.data]);
+
+  return { authChecked, isSignedIn, diariesQuery, diaries };
+};
+
+export const useRecentDiaries = (page = DEFAULT_PAGE, size = DEFAULT_SIZE) => {
+  const { authChecked, isSignedIn, diariesQuery, diaries } = useDiaryEntries(page, size);
+  const recentDiaries = useMemo(() => {
+    // 최신순 정렬: diaryId(숫자) 기반 정렬이 가장 안정적
+    return [...diaries].sort((a, b) => (b?.diaryId ?? 0) - (a?.diaryId ?? 0));
+  }, [diaries]);
+
+  return { authChecked, isSignedIn, diariesQuery, diaries, recentDiaries };
+};
+
+export const useDailyDiaries = (selectedDateKey = '') => {
+  const { authChecked, isSignedIn } = useDiaryAuth();
   const dailyDiariesQuery = useQuery<DiaryEntry[]>({
     queryKey: ['diaryDaily', selectedDateKey],
     enabled: isSignedIn && !!selectedDateKey,
@@ -136,6 +132,13 @@ const useDiary = ({
     },
   });
 
+  const dailyDiaries = dailyDiariesQuery.data ?? [];
+
+  return { authChecked, isSignedIn, dailyDiariesQuery, dailyDiaries };
+};
+
+export const useMyTags = () => {
+  const { authChecked, isSignedIn } = useDiaryAuth();
   const myTagsQuery = useQuery<string[]>({
     queryKey: ['diaryMyTags'],
     enabled: isSignedIn,
@@ -147,7 +150,13 @@ const useDiary = ({
     },
   });
 
-  // 캘린더용: 월별 날짜별 작성 개수
+  const myTags = myTagsQuery.data ?? [];
+
+  return { authChecked, isSignedIn, myTagsQuery, myTags };
+};
+
+export const useMonthlyDiaryCounts = (monthKey = '') => {
+  const { authChecked, isSignedIn } = useDiaryAuth();
   const monthlyDiaryCountsQuery = useQuery<MonthlyDiaryCount[]>({
     queryKey: ['monthlyDiaryCounts', monthKey],
     enabled: isSignedIn && !!monthKey,
@@ -158,7 +167,13 @@ const useDiary = ({
     },
   });
 
-  // 다이어리 상세
+  const monthlyDiaryCounts = monthlyDiaryCountsQuery.data ?? [];
+
+  return { authChecked, isSignedIn, monthlyDiaryCountsQuery, monthlyDiaryCounts };
+};
+
+export const useDiaryDetail = (diaryId: number | null = null) => {
+  const { authChecked, isSignedIn } = useDiaryAuth();
   const diaryDetailQuery = useQuery<DiaryEntry>({
     queryKey: ['diaryDetail', diaryId],
     enabled: isSignedIn && !!diaryId,
@@ -169,6 +184,21 @@ const useDiary = ({
       return res.data;
     },
   });
+
+  const diaryDetail = diaryDetailQuery.data ?? null;
+
+  return { authChecked, isSignedIn, diaryDetailQuery, diaryDetail };
+};
+
+export const useDiaryMutations = ({
+  page = DEFAULT_PAGE,
+  size = DEFAULT_SIZE,
+  monthKey = '',
+  diaryId = null,
+  onSaveSuccess,
+  onSaveError,
+}: Pick<UseDiaryOptions, 'page' | 'size' | 'monthKey' | 'diaryId' | 'onSaveSuccess' | 'onSaveError'> = {}) => {
+  const queryClient = useQueryClient();
 
   // 저장 이후 화면에서 필요한 캐시 갱신을 한 곳에 모읍니다.
   const refreshAfterSave = async (savedDiaryId?: number | null) => {
@@ -189,7 +219,6 @@ const useDiary = ({
 
   const refreshAfterDelete = async (deletedDiaryId?: number | null) => {
     if (!deletedDiaryId) return;
-    // removeDiaryFromCache(deletedDiaryId);
     await Promise.all([
       queryClient.refetchQueries({ queryKey: ['diaryEntries', page, size] }),
       queryClient.invalidateQueries({ queryKey: ['diaryDaily'] }),
@@ -240,25 +269,6 @@ const useDiary = ({
     },
   });
 
-  // 화면에서 자주 쓰는 파생 데이터
-  const diaries = useMemo(() => diariesQuery.data ?? [], [diariesQuery.data]);
-  const dailyDiaries = dailyDiariesQuery.data ?? [];
-  const myTags = myTagsQuery.data ?? [];
-  const monthlyDiaryCounts = monthlyDiaryCountsQuery.data ?? [];
-  const diaryDetail = diaryDetailQuery.data ?? null;
-
-  const recentDiaries = useMemo(() => {
-    // 최신순 정렬: diaryId(숫자) 기반 정렬이 가장 안정적
-    return [...diaries].sort((a, b) => (b?.diaryId ?? 0) - (a?.diaryId ?? 0));
-  }, [diaries]);
-
-  // const removeDiaryFromCache = (diaryId) => {
-  //   if (!diaryId) return;
-  //   queryClient.setQueryData(['diaryEntries', page, size], (prev = []) =>
-  //     prev.filter((d) => (d?.diaryId ?? d?.id) !== diaryId),
-  //   );
-  // };
-
   // 삭제
   const deleteDiaryMutation = useMutation<{ diaryId: number }, Error, DeleteDiaryPayload>({
     mutationFn: async (payload) => {
@@ -273,6 +283,58 @@ const useDiary = ({
       await refreshAfterDelete(data?.diaryId);
     },
   });
+
+  return { saveDiaryMutation, deleteDiaryMutation, refreshAfterSave };
+};
+
+/**
+ * Diary 도메인 전용 훅
+ *
+ * 목표
+ * - "Hook Factory(훅을 반환하는 훅)" 패턴을 피한다.
+ * - 화면에서 필요한 데이터/액션을 한 번에 꺼내 쓸 수 있게 한다.
+ *
+ * 사용 예)
+ * const {
+ *   isSignedIn,
+ *   diaries,
+ *   diariesQuery,
+ *   dailyDiaries,
+ *   dailyDiariesQuery,
+ *   monthlyDiaryCounts,
+ *   monthlyDiaryCountsQuery,
+ *   removeDiaryFromCache,
+ * } = useDiary({ page, size, selectedDateKey, monthKey })
+ */
+const useDiary = ({
+  page = DEFAULT_PAGE,
+  size = DEFAULT_SIZE,
+  selectedDateKey = '',
+  monthKey = '',
+  diaryId = null,
+  onSaveSuccess,
+  onSaveError,
+}: UseDiaryOptions = {}) => {
+  const { authChecked, isSignedIn, diariesQuery, diaries, recentDiaries } = useRecentDiaries(page, size);
+  const { dailyDiariesQuery, dailyDiaries } = useDailyDiaries(selectedDateKey);
+  const { myTagsQuery, myTags } = useMyTags();
+  const { monthlyDiaryCountsQuery, monthlyDiaryCounts } = useMonthlyDiaryCounts(monthKey);
+  const { diaryDetailQuery, diaryDetail } = useDiaryDetail(diaryId);
+  const { saveDiaryMutation, deleteDiaryMutation, refreshAfterSave } = useDiaryMutations({
+    page,
+    size,
+    monthKey,
+    diaryId,
+    onSaveSuccess,
+    onSaveError,
+  });
+
+  // const removeDiaryFromCache = (diaryId) => {
+  //   if (!diaryId) return;
+  //   queryClient.setQueryData(['diaryEntries', page, size], (prev = []) =>
+  //     prev.filter((d) => (d?.diaryId ?? d?.id) !== diaryId),
+  //   );
+  // };
 
   return {
     // auth

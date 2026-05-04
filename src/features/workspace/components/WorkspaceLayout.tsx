@@ -1,64 +1,32 @@
 import dayjs from 'dayjs';
-import { useCallback, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { Toaster } from 'sonner';
 import { useWorkspaceState } from '../hooks/useWorkspaceState';
-import useDiary from '../hooks/useDiary';
+import { useWorkspaceDiary } from '../hooks/useWorkspaceDiary';
+import { usePolishModal } from '../hooks/usePolishModal';
 import LeftSidebar from '@features/workspace/components/LeftSidebar/LeftSidebar';
+import MobileSidebarShell from '@features/workspace/components/MobileSidebarShell';
 import TopActionBar from '@features/workspace/components/TopActionBar';
 import MainWorkspace from '@features/workspace/components/MainWorkspace/MainWorkspace';
 import RightPanel from '@features/workspace/components/RightPanel/RightPanel';
 import PolishModal from '@features/workspace/components/PolishModal/PolishModal';
 import SettingsPanel from '@features/workspace/components/SettingsPanel/SettingsPanel';
 import type { DiaryEntry } from '../types/api.types';
-import type { SaveDiaryPayload } from '../hooks/useDiary';
-
-type PolishState = {
-  open: boolean;
-  source: string;
-  diaryId: number | null;
-  apply: (content: string) => void;
-};
-
-const getDiaryId = (diary: DiaryEntry | null): number | null => diary?.diaryId ?? diary?.id ?? null;
-
-const emptyPolishState: PolishState = {
-  open: false,
-  source: '',
-  diaryId: null,
-  apply: () => undefined,
-};
+import { getDiaryId } from '../hooks/useDiary';
 
 const WorkspaceLayout = () => {
   const { state, patchState, selectDate, today } = useWorkspaceState();
-  const [polishState, setPolishState] = useState<PolishState>(emptyPolishState);
   const [sidebarWidth, setSidebarWidth] = useState(260);
 
-  const monthKey = useMemo(() => dayjs(state.selectedDate).format('YYYY-MM'), [state.selectedDate]);
   const {
-    recentDiaries,
-    dailyDiaries,
     myTags,
-    monthlyDiaryCounts,
-    saveDiaryMutation,
-    deleteDiaryMutation,
-  } = useDiary({
-    selectedDateKey: state.selectedDate,
-    monthKey,
-    onSaveSuccess: async (data, _variables, { refreshAfterSave }) => {
-      await refreshAfterSave(data?.diaryId);
-      if (data?.diaryId) patchState({ selectedDiaryId: data.diaryId });
-    },
-  });
+    currentDiary,
+    isSaving,
+    save,
+    remove,
+  } = useWorkspaceDiary(state, patchState);
 
-  const currentDiary = useMemo<DiaryEntry | null>(() => {
-    if (state.selectedDiaryId) {
-      return recentDiaries.find((diary) => getDiaryId(diary) === state.selectedDiaryId) ?? null;
-    }
-    return dailyDiaries[0] ?? null;
-  }, [dailyDiaries, recentDiaries, state.selectedDiaryId]);
-
-  const currentDiaryId = getDiaryId(currentDiary);
+  const { polishState, openPolish, closePolish, applyPolished } = usePolishModal();
 
   const closeSidebar = useCallback(() => {
     patchState({ sidebarOpen: false });
@@ -81,26 +49,6 @@ const WorkspaceLayout = () => {
     });
   }, [patchState, state.selectedDate]);
 
-  const openPolishModal = useCallback(
-    (source: string, apply: (content: string) => void, diaryId: number | null) => {
-      setPolishState({ open: true, source, diaryId, apply });
-    },
-    [],
-  );
-
-  const openCurrentDiaryPolishModal = useCallback(() => {
-    openPolishModal(currentDiary?.contentMd ?? '', () => undefined, currentDiaryId);
-  }, [currentDiary?.contentMd, currentDiaryId, openPolishModal]);
-
-  const closePolishModal = useCallback(() => {
-    setPolishState((previousPolishState) => ({ ...previousPolishState, open: false }));
-  }, []);
-
-  const applyPolishedContent = useCallback((content: string) => {
-    polishState.apply(content);
-    setPolishState((previousPolishState) => ({ ...previousPolishState, open: false }));
-  }, [polishState]);
-
   const closeRightPanel = useCallback(() => {
     patchState({ rightPanelMode: 'hidden' });
   }, [patchState]);
@@ -113,73 +61,33 @@ const WorkspaceLayout = () => {
     patchState({ rightPanelMode: 'ai-comment' });
   }, [patchState]);
 
-  const handleSave = useCallback((payload: SaveDiaryPayload) => {
-    saveDiaryMutation.mutate(payload);
-  }, [saveDiaryMutation]);
-
-  const handleDelete = useCallback((diaryId: number) => {
-    deleteDiaryMutation.mutate({ diaryId });
-  }, [deleteDiaryMutation]);
-
   const selectToday = useCallback(() => {
     selectDate(today);
   }, [selectDate, today]);
 
-  const leftSidebarProps = {
-    state,
-    diaries: recentDiaries,
-    monthlyCounts: monthlyDiaryCounts,
-    onPatchState: patchState,
-    onSelectDate: selectDate,
-    onSelectDiary: selectDiary,
-    onToday: selectToday,
-    width: sidebarWidth,
-    onWidthChange: setSidebarWidth,
-    isMobile: state.sidebarOpen,
-  };
-
-  const sidebar = (
-    <LeftSidebar {...leftSidebarProps} />
-  );
-
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-      {state.sidebarOpen ? (
-        <div
-          className="fixed inset-0 z-40 bg-foreground/20 md:hidden"
-          onClick={closeSidebar}
-          aria-hidden="true"
+      <MobileSidebarShell open={state.sidebarOpen} onClose={closeSidebar}>
+        <LeftSidebar
+          state={state}
+          onPatchState={patchState}
+          onSelectDate={selectDate}
+          onSelectDiary={selectDiary}
+          onToday={selectToday}
+          width={sidebarWidth}
+          onWidthChange={setSidebarWidth}
+          isMobile={state.sidebarOpen}
         />
-      ) : null}
-
-      <div
-        className={[
-          'fixed z-50 h-full transition-transform duration-300 ease-in-out md:relative md:z-auto md:translate-x-0',
-          state.sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-        ].join(' ')}
-      >
-        {state.sidebarOpen ? (
-          <button
-            type="button"
-            onClick={closeSidebar}
-            className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:text-foreground md:hidden"
-            aria-label="사이드바 닫기"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        ) : null}
-        {sidebar}
-      </div>
+      </MobileSidebarShell>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopActionBar
           viewMode={state.viewMode}
           rightPanelMode={state.rightPanelMode}
           onToggleSidebar={toggleSidebar}
-          onRequestPolish={openCurrentDiaryPolishModal}
           onToggleAi={toggleAiCommentPanel}
         />
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
           <div className="min-w-0 flex-1 overflow-hidden">
             {state.viewMode === 'settings' ? (
               <SettingsPanel onClose={closeSettingsPanel} />
@@ -188,43 +96,31 @@ const WorkspaceLayout = () => {
                 state={state}
                 currentDiary={currentDiary}
                 myTags={Array.isArray(myTags) ? myTags : []}
-                isSaving={Boolean(saveDiaryMutation.isPending)}
+                isSaving={isSaving}
                 onPatchState={patchState}
-                onSave={handleSave}
-                onDelete={handleDelete}
+                onSave={save}
+                onDelete={remove}
                 onOpenAi={openAiCommentPanel}
-                onOpenPolish={openPolishModal}
+                onOpenPolish={openPolish}
               />
             )}
           </div>
           {state.viewMode === 'diary' ? (
-            <div className="hidden h-full md:flex">
-              <RightPanel
-                mode={state.rightPanelMode}
-                diaryId={currentDiaryId}
-                onClose={closeRightPanel}
-              />
-            </div>
-          ) : null}
-        </div>
-
-        {state.viewMode === 'diary' && state.rightPanelMode !== 'hidden' ? (
-          <div className="flex h-[50vh] flex-col border-t border-border/60 bg-surface md:hidden">
             <RightPanel
               mode={state.rightPanelMode}
-              diaryId={currentDiaryId}
+              diaryId={getDiaryId(currentDiary)}
               onClose={closeRightPanel}
             />
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       <PolishModal
         open={polishState.open}
         source={polishState.source}
         diaryId={polishState.diaryId}
-        onClose={closePolishModal}
-        onApply={applyPolishedContent}
+        onClose={closePolish}
+        onApply={applyPolished}
       />
       <Toaster position="bottom-right" />
     </div>

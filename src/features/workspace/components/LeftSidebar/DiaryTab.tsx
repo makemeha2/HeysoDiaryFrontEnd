@@ -8,7 +8,6 @@ type Props = {
   selectedDate: string;
   selectedMood: MoodId | null;
   diaries: DiaryEntry[];
-  monthlyCounts: Array<{ diaryDate?: string; date?: string; count?: number }>;
   selectedDiaryId: number | null;
   onSelectDate: (date: string) => void;
   onSelectDiary: (diary: DiaryEntry) => void;
@@ -18,7 +17,6 @@ const DiaryTab = ({
   selectedDate,
   selectedMood,
   diaries,
-  monthlyCounts,
   selectedDiaryId,
   onSelectDate,
   onSelectDiary,
@@ -26,7 +24,7 @@ const DiaryTab = ({
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
       <section className="shrink-0" aria-label="달력">
-        <MiniCalendar selectedDate={selectedDate} monthlyCounts={monthlyCounts} onSelectDate={onSelectDate} />
+        <MiniCalendar selectedDate={selectedDate} onSelectDate={onSelectDate} />
       </section>
 
       <div className="h-px shrink-0 bg-sidebar-border/60" />

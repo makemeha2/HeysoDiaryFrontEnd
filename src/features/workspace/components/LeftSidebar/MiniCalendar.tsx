@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useMonthlyDiaryCounts } from '@features/workspace/hooks/useDiary';
 
 type Props = {
   selectedDate: string;
-  monthlyCounts: Array<{ diaryDate?: string; date?: string; count?: number }>;
   onSelectDate: (date: string) => void;
 };
 
 const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
 
-const MiniCalendar = ({ selectedDate, monthlyCounts, onSelectDate }: Props) => {
+const MiniCalendar = ({ selectedDate, onSelectDate }: Props) => {
   const selected = dayjs(selectedDate);
   const today = dayjs();
   const [viewDate, setViewDate] = useState(() => selected.startOf('month'));
+  const viewMonthKey = useMemo(() => viewDate.format('YYYY-MM'), [viewDate]);
+  const { monthlyDiaryCounts } = useMonthlyDiaryCounts(viewMonthKey);
 
   useEffect(() => {
     setViewDate(dayjs(selectedDate).startOf('month'));
@@ -33,9 +35,9 @@ const MiniCalendar = ({ selectedDate, monthlyCounts, onSelectDate }: Props) => {
   const countMap = useMemo(
     () =>
       new Map(
-        monthlyCounts.map((item) => [dayjs(item.diaryDate ?? item.date).format('YYYY-MM-DD'), item.count ?? 1]),
+        monthlyDiaryCounts.map((item) => [dayjs(item.diaryDate ?? item.date).format('YYYY-MM-DD'), item.count ?? 1]),
       ),
-    [monthlyCounts],
+    [monthlyDiaryCounts],
   );
 
   const prevMonth = () => setViewDate((value) => value.subtract(1, 'month'));
