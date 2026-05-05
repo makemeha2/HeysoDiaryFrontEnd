@@ -30,7 +30,7 @@ const Workspace = () => {
 
   // apiClient의 401 핸들러를 store 액션과 연결한다.
   useEffect(() => {
-    registerSessionExpiredHandler(() => markSessionExpired());
+    registerSessionExpiredHandler(({ authError }) => markSessionExpired(authError));
     return () => registerSessionExpiredHandler(null);
   }, [markSessionExpired]);
 

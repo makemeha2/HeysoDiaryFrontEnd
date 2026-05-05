@@ -9,10 +9,12 @@ export type AuthData = {
   [key: string]: unknown;
 };
 
+export type AuthErrorReason = 'expired' | 'invalid' | 'revoked' | 'inactive' | 'unknown';
+
 // 401 발생 시 호출될 핸들러를 외부에서 등록한다.
 // - 인증 미부착 요청(public 엔드포인트)에는 호출하지 않는다.
 // - validate 엔드포인트는 그 자체가 토큰 체크용이므로 핸들러를 건너뛴다.
-type SessionExpiredHandler = (info: { url: string; status: number }) => void;
+type SessionExpiredHandler = (info: { url: string; status: number; authError: AuthErrorReason }) => void;
 let sessionExpiredHandler: SessionExpiredHandler | null = null;
 
 export function registerSessionExpiredHandler(handler: SessionExpiredHandler | null): void {
@@ -67,6 +69,14 @@ export function clearAuthData(): void {
   localStorage.removeItem('auth');
 }
 
+const normalizeAuthError = (value: unknown): AuthErrorReason => {
+  if (typeof value !== 'string') return 'unknown';
+  if (value === 'expired' || value === 'invalid' || value === 'revoked' || value === 'inactive') {
+    return value;
+  }
+  return 'unknown';
+};
+
 export async function authFetch<TData = unknown, TBody = unknown>(
   url: string,
   options: AuthFetchOptions<TBody> = {},
@@ -114,7 +124,11 @@ export async function authFetch<TData = unknown, TBody = unknown>(
     sessionExpiredHandler
   ) {
     try {
-      sessionExpiredHandler({ url: fullUrl, status: response.status });
+      sessionExpiredHandler({
+        url: fullUrl,
+        status: response.status,
+        authError: normalizeAuthError(response.headers['x-auth-error']),
+      });
     } catch (err) {
       console.error('sessionExpiredHandler threw', err);
     }

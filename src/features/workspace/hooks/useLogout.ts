@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { googleLogout } from '@react-oauth/google';
 import { confirm } from '@/lib/confirm';
+import { authFetch } from '@lib/apiClient';
 import { useAuthStore, type AuthStore } from '@stores/authStore';
 
 export function useLogout() {
@@ -14,6 +15,11 @@ export function useLogout() {
       confirmLabel: '로그아웃',
     });
     if (!ok) return;
+    try {
+      await authFetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // 서버 로그아웃 실패와 무관하게 로컬 세션은 정리한다.
+    }
     try {
       googleLogout();
     } catch {
