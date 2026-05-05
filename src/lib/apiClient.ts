@@ -6,9 +6,18 @@ import axios, {
 
 export type AuthData = {
   accessToken?: string | null;
-  jwtAccessToken?: string | null;
   [key: string]: unknown;
 };
+
+// 401 발생 시 호출될 핸들러를 외부에서 등록한다.
+// - 인증 미부착 요청(public 엔드포인트)에는 호출하지 않는다.
+// - validate 엔드포인트는 그 자체가 토큰 체크용이므로 핸들러를 건너뛴다.
+type SessionExpiredHandler = (info: { url: string; status: number }) => void;
+let sessionExpiredHandler: SessionExpiredHandler | null = null;
+
+export function registerSessionExpiredHandler(handler: SessionExpiredHandler | null): void {
+  sessionExpiredHandler = handler;
+}
 
 export type AuthFetchOptions<TBody = unknown> = Omit<
   AxiosRequestConfig,
@@ -73,13 +82,10 @@ export async function authFetch<TData = unknown, TBody = unknown>(
   } = options;
 
   const auth = getAuthData();
+  const hasAuthHeader = Boolean(auth?.accessToken);
   const mergedHeaders = {
     ...headers,
-    ...(auth?.accessToken   // TODO : 확인한 하나만 쓰자. 불필요한 분기 및 방어처리임
-      ? { Authorization: `Bearer ${auth.accessToken}` }
-      : auth?.jwtAccessToken
-        ? { Authorization: `Bearer ${auth.jwtAccessToken}` }
-        : {}),
+    ...(hasAuthHeader ? { Authorization: `Bearer ${auth?.accessToken}` } : {}),
   };
 
   const fullUrl = /^(http|https):\/\//i.test(url)
@@ -98,6 +104,21 @@ export async function authFetch<TData = unknown, TBody = unknown>(
   });
 
   const parsedData = response.data;
+
+  // 토큰을 부착해 보낸 요청이 401을 받으면 세션이 만료된 것으로 간주한다.
+  // /api/auth/validate 는 토큰 자체의 유효성을 검사하는 엔드포인트라 별도 처리.
+  if (
+    response.status === 401 &&
+    hasAuthHeader &&
+    !fullUrl.includes('/api/auth/validate') &&
+    sessionExpiredHandler
+  ) {
+    try {
+      sessionExpiredHandler({ url: fullUrl, status: response.status });
+    } catch (err) {
+      console.error('sessionExpiredHandler threw', err);
+    }
+  }
 
   return {
     ok: response.status >= 200 && response.status < 300,

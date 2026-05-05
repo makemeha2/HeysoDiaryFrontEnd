@@ -1,6 +1,7 @@
-import { Coins, Menu, Sparkles } from 'lucide-react';
+import { Coins, LogOut, Menu, Sparkles } from 'lucide-react';
 import ThemeSelector from './ThemeSelector';
 import { placeholderTokenUsage } from '../constants/workspacePlaceholders';
+import { useLogout } from '../hooks/useLogout';
 
 type Props = {
   viewMode: 'diary' | 'settings';
@@ -52,6 +53,8 @@ const TopActionBar = ({
   onToggleSidebar,
   onToggleAi,
 }: Props) => {
+  const { logout } = useLogout();
+
   return (
     <header className="flex h-11 shrink-0 items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur-sm">
       <div className="flex items-center gap-2">
@@ -80,10 +83,22 @@ const TopActionBar = ({
           />
           <div className="mx-0.5 h-4 w-px bg-border/60" />
           <ThemeSelector />
+          <div className="mx-0.5 h-4 w-px bg-border/60" />
+          <ActionButton
+            icon={<LogOut className="h-3.5 w-3.5" />}
+            label="로그아웃"
+            onClick={logout}
+          />
         </div>
       ) : (
-        <div className="flex items-center">
+        <div className="flex items-center gap-1">
           <ThemeSelector />
+          <div className="mx-0.5 h-4 w-px bg-border/60" />
+          <ActionButton
+            icon={<LogOut className="h-3.5 w-3.5" />}
+            label="로그아웃"
+            onClick={logout}
+          />
         </div>
       )}
     </header>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Check } from 'lucide-react';
+import { AlertTriangle, Check, LogOut } from 'lucide-react';
 import { confirm, showError } from '@/lib/confirm';
 import {
   fetchWithdrawReauthStatus,
@@ -9,6 +9,7 @@ import {
   withdrawAccount,
 } from '../../api/accountSecurityApi';
 import { useAuthStore, type AuthStore } from '@stores/authStore';
+import { useLogout } from '../../hooks/useLogout';
 
 const getErrorMessage = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error && error.message.trim().length > 0) {
@@ -21,6 +22,7 @@ const getErrorMessage = (error: unknown, fallbackMessage: string) => {
 const AccountSection = ({ active }: { active: boolean }) => {
   const navigate = useNavigate();
   const clearAuth = useAuthStore((s: AuthStore) => s.clearAuth);
+  const { logout } = useLogout();
   const [verified, setVerified] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -81,6 +83,26 @@ const AccountSection = ({ active }: { active: boolean }) => {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-lg border border-border bg-muted/30 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h4 className="mb-1 text-sm font-medium text-foreground">로그아웃</h4>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              현재 기기에서 로그아웃합니다. 작성 중이던 일기는 임시 저장되어 다시 로그인 시 복원할 수 있습니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            disabled={busy}
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <LogOut className="h-4 w-4" />
+            로그아웃
+          </button>
+        </div>
+      </div>
+
       <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />

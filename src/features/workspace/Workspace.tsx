@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import IntroPage from './IntroPage';
 import WorkspaceLayout from './components/WorkspaceLayout';
+import SessionExpiredDialog from './components/SessionExpiredDialog';
 import { useAuthStore, type AuthStore } from '@stores/authStore';
+import { registerSessionExpiredHandler } from '@lib/apiClient';
 
 const WorkspaceBootLoading = () => {
   return (
@@ -17,6 +19,7 @@ const Workspace = () => {
   const auth = useAuthStore((s: AuthStore) => s.auth);
   const authChecked = useAuthStore((s: AuthStore) => s.authChecked);
   const validateAuth = useAuthStore((s: AuthStore) => s.validateAuth);
+  const markSessionExpired = useAuthStore((s: AuthStore) => s.markSessionExpired);
   const validatedRef = useRef(false);
 
   useEffect(() => {
@@ -25,9 +28,19 @@ const Workspace = () => {
     validateAuth();
   }, [validateAuth]);
 
+  // apiClient의 401 핸들러를 store 액션과 연결한다.
+  useEffect(() => {
+    registerSessionExpiredHandler(() => markSessionExpired());
+    return () => registerSessionExpiredHandler(null);
+  }, [markSessionExpired]);
+
   if (!authChecked) return <WorkspaceBootLoading />;
-  if (!auth) return <IntroPage />;
-  return <WorkspaceLayout />;
+  return (
+    <>
+      {auth ? <WorkspaceLayout /> : <IntroPage />}
+      <SessionExpiredDialog />
+    </>
+  );
 };
 
 export default Workspace;

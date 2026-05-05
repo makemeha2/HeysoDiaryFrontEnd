@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { showError } from '@/lib/confirm';
+import { confirm, showError } from '@/lib/confirm';
 import { formatDate } from '@lib/dateFormatters';
 import type { DiaryEntry } from '../../types/api.types';
 import type { WorkspaceState } from '../../types/workspace.types';
@@ -10,6 +10,51 @@ import BottomActionBar from './BottomActionBar';
 import DatePicker from './DatePicker';
 import EmotionSelector from './EmotionSelector';
 import InlineTagInput from './InlineTagInput';
+
+// 작성 중인 일기를 sessionStorage에 임시 저장하기 위한 키와 타입.
+// 세션 만료, 새로고침, 탭 이동 등으로 입력이 사라지는 것을 막는다.
+const DRAFT_STORAGE_KEY = 'diary-draft:v1';
+const DRAFT_DEBOUNCE_MS = 500;
+
+type DraftSnapshot = {
+  diaryId: number | null;
+  date: string;
+  title: string;
+  content: string;
+  tags: string[];
+  savedAt: number;
+};
+
+const readDraft = (): DraftSnapshot | null => {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as DraftSnapshot) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeDraft = (draft: DraftSnapshot): void => {
+  try {
+    sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  } catch {
+    // 용량 초과 등 저장 실패 시 사용자 작업을 막지 않는다.
+  }
+};
+
+const clearDraft = (): void => {
+  try {
+    sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+  } catch {
+    // 무시
+  }
+};
+
+const matchesContext = (
+  draft: DraftSnapshot | null,
+  diaryId: number | null,
+  date: string,
+): boolean => Boolean(draft && draft.diaryId === diaryId && draft.date === date);
 
 type Props = {
   state: WorkspaceState;
@@ -43,19 +88,78 @@ const MainWorkspace = ({
   onOpenPolish,
 }: Props) => {
   const currentDiaryId = currentDiary?.diaryId ?? currentDiary?.id ?? null;
+  const currentDateStr = formatDate(state.selectedDate);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // restore 다이얼로그가 같은 컨텍스트에서 두 번 뜨지 않도록 마지막 처리 컨텍스트 키를 기록한다.
+  const handledDraftRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setTitle(currentDiary?.title ?? '');
-    setContent(currentDiary?.contentMd ?? '');
-    setTags(normalizeTags(currentDiary?.tags));
+    const baseTitle = currentDiary?.title ?? '';
+    const baseContent = currentDiary?.contentMd ?? '';
+    const baseTags = normalizeTags(currentDiary?.tags);
+    setTitle(baseTitle);
+    setContent(baseContent);
+    setTags(baseTags);
     setSaveStatus('idle');
     setShowDeleteConfirm(false);
-  }, [currentDiaryId, currentDiary?.title, currentDiary?.contentMd, currentDiary?.tags]);
+
+    // 임시 저장된 draft가 현재 컨텍스트(동일 일기 ID + 날짜)와 일치하고
+    // 서버 데이터와 다르면 복원 여부를 사용자에게 확인한다.
+    const contextKey = `${currentDiaryId ?? 'new'}::${currentDateStr}`;
+    if (handledDraftRef.current === contextKey) return;
+
+    const draft = readDraft();
+    if (!matchesContext(draft, currentDiaryId, currentDateStr)) return;
+    if (!draft) return;
+    const sameAsServer =
+      draft.title === baseTitle &&
+      draft.content === baseContent &&
+      JSON.stringify(draft.tags) === JSON.stringify(baseTags);
+    if (sameAsServer) {
+      clearDraft();
+      return;
+    }
+
+    handledDraftRef.current = contextKey;
+    void (async () => {
+      const ok = await confirm({
+        title: '임시 저장된 내용이 있습니다',
+        message: '이전에 작성하던 일기를 복원하시겠어요? 취소하면 임시 저장본이 삭제됩니다.',
+        confirmLabel: '복원',
+        cancelLabel: '버리기',
+      });
+      if (ok) {
+        setTitle(draft.title);
+        setContent(draft.content);
+        setTags(draft.tags);
+      } else {
+        clearDraft();
+      }
+    })();
+  }, [currentDiaryId, currentDateStr, currentDiary?.title, currentDiary?.contentMd, currentDiary?.tags]);
+
+  // 입력이 바뀔 때마다 디바운스해서 sessionStorage에 임시 저장한다.
+  // 빈 입력은 저장하지 않아 불필요한 복원 프롬프트를 막는다.
+  useEffect(() => {
+    if (saveStatus === 'saving') return;
+    const empty = !title.trim() && !content.trim() && tags.length === 0;
+    if (empty) return;
+    const handle = window.setTimeout(() => {
+      writeDraft({
+        diaryId: currentDiaryId,
+        date: currentDateStr,
+        title,
+        content,
+        tags,
+        savedAt: Date.now(),
+      });
+    }, DRAFT_DEBOUNCE_MS);
+    return () => window.clearTimeout(handle);
+  }, [title, content, tags, currentDiaryId, currentDateStr, saveStatus]);
 
   useEffect(() => {
     if (isSaving) {
@@ -66,9 +170,12 @@ const MainWorkspace = ({
 
     // 저장 상태 머신: idle -> saving -> saved -> idle 순서로 버튼 피드백을 정리한다.
     setSaveStatus('saved');
+    // 서버 저장이 성공한 시점에 임시 저장본을 정리한다.
+    clearDraft();
+    handledDraftRef.current = `${currentDiaryId ?? 'new'}::${currentDateStr}`;
     const timeout = window.setTimeout(() => setSaveStatus('idle'), 2000);
     return () => window.clearTimeout(timeout);
-  }, [isSaving, saveStatus]);
+  }, [isSaving, saveStatus, currentDiaryId, currentDateStr]);
 
   const isNew = !currentDiaryId;
   const selectedMood = useMemo<MoodId | null>(() => state.draftMood, [state.draftMood]);
