@@ -10,6 +10,14 @@ import {
 } from '../../api/accountSecurityApi';
 import { useAuthStore, type AuthStore } from '@stores/authStore';
 
+const getErrorMessage = (error: unknown, fallbackMessage: string) => {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return fallbackMessage;
+};
+
 const AccountSection = ({ active }: { active: boolean }) => {
   const navigate = useNavigate();
   const clearAuth = useAuthStore((s: AuthStore) => s.clearAuth);
@@ -32,8 +40,8 @@ const AccountSection = ({ active }: { active: boolean }) => {
       await sendWithdrawReauthEmailOtp();
       setOtpSent(true);
       await showError({ title: '인증코드 발송', message: '이메일로 4자리 인증코드를 보냈습니다.' });
-    } catch (error: any) {
-      await showError({ title: '발송 실패', message: error.message });
+    } catch (error: unknown) {
+      await showError({ title: '발송 실패', message: getErrorMessage(error, '인증코드 발송에 실패했습니다.') });
     } finally {
       setBusy(false);
     }
@@ -44,8 +52,8 @@ const AccountSection = ({ active }: { active: boolean }) => {
     try {
       await verifyWithdrawReauthEmailOtp(otp);
       setVerified(true);
-    } catch (error: any) {
-      await showError({ title: '인증 실패', message: error.message });
+    } catch (error: unknown) {
+      await showError({ title: '인증 실패', message: getErrorMessage(error, '인증코드 확인에 실패했습니다.') });
     } finally {
       setBusy(false);
     }
@@ -64,8 +72,8 @@ const AccountSection = ({ active }: { active: boolean }) => {
       await withdrawAccount({ purpose: 'ACCOUNT_DELETE' });
       clearAuth();
       navigate('/', { replace: true });
-    } catch (error: any) {
-      await showError({ title: '탈퇴 실패', message: error.message });
+    } catch (error: unknown) {
+      await showError({ title: '탈퇴 실패', message: getErrorMessage(error, '회원탈퇴에 실패했습니다.') });
     } finally {
       setBusy(false);
     }
