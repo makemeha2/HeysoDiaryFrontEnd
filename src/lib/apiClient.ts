@@ -45,13 +45,44 @@ export type AuthFetchResponse<TData = unknown> = {
   raw: AxiosResponse<TData>;
 };
 
-const baseUrl =
-  import.meta.env.VITE_APP_ENV === 'PROD' ? '' : (import.meta.env.VITE_API_BASE_URL ?? '');
+const resolveBaseUrl = (): string => {
+  if (import.meta.env.VITE_APP_ENV === 'PROD') return '';
+
+  const configured = import.meta.env.VITE_API_BASE_URL ?? '';
+  if (!configured || typeof window === 'undefined') return configured;
+
+  try {
+    const apiUrl = new URL(configured);
+    const pageHost = window.location.hostname;
+    const loopbackHosts = new Set(['localhost', '127.0.0.1']);
+    if (loopbackHosts.has(apiUrl.hostname) && loopbackHosts.has(pageHost)) {
+      apiUrl.hostname = pageHost;
+      return apiUrl.toString().replace(/\/$/, '');
+    }
+  } catch {
+    return configured;
+  }
+
+  return configured;
+};
+
+const baseUrl = resolveBaseUrl();
+
+const CSRF_COOKIE_NAME = 'heyso_csrf_token';
+const CSRF_HEADER_NAME = 'X-CSRF-Token';
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export function getAuthData(): AuthData | null {
   try {
     const raw = localStorage.getItem('auth');
-    return raw ? (JSON.parse(raw) as AuthData) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AuthData;
+    if (parsed.accessToken) {
+      const { accessToken: _accessToken, ...safeAuth } = parsed;
+      localStorage.setItem('auth', JSON.stringify(safeAuth));
+      return safeAuth;
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -59,7 +90,12 @@ export function getAuthData(): AuthData | null {
 
 export function setAuthData(auth: AuthData | null): void {
   try {
-    localStorage.setItem('auth', JSON.stringify(auth));
+    if (!auth) {
+      localStorage.removeItem('auth');
+      return;
+    }
+    const { accessToken: _accessToken, ...safeAuth } = auth ?? {};
+    localStorage.setItem('auth', JSON.stringify(safeAuth));
   } catch (err) {
     console.error('Failed to persist auth data', err);
   }
@@ -77,6 +113,21 @@ const normalizeAuthError = (value: unknown): AuthErrorReason => {
   return 'unknown';
 };
 
+const readCookie = (name: string): string | null => {
+  const cookies = document.cookie ? document.cookie.split('; ') : [];
+  for (const cookie of cookies) {
+    const [key, ...valueParts] = cookie.split('=');
+    if (key === name) {
+      return decodeURIComponent(valueParts.join('='));
+    }
+  }
+  return null;
+};
+
+const shouldAttachCsrf = (method: AxiosRequestConfig['method']): boolean => {
+  return UNSAFE_METHODS.has(String(method ?? 'GET').toUpperCase());
+};
+
 export async function authFetch<TData = unknown, TBody = unknown>(
   url: string,
   options: AuthFetchOptions<TBody> = {},
@@ -92,10 +143,10 @@ export async function authFetch<TData = unknown, TBody = unknown>(
   } = options;
 
   const auth = getAuthData();
-  const hasAuthHeader = Boolean(auth?.accessToken);
+  const csrfToken = readCookie(CSRF_COOKIE_NAME);
   const mergedHeaders = {
     ...headers,
-    ...(hasAuthHeader ? { Authorization: `Bearer ${auth?.accessToken}` } : {}),
+    ...(csrfToken && shouldAttachCsrf(method) ? { [CSRF_HEADER_NAME]: csrfToken } : {}),
   };
 
   const fullUrl = /^(http|https):\/\//i.test(url)
@@ -109,6 +160,7 @@ export async function authFetch<TData = unknown, TBody = unknown>(
     params,
     data: body ?? data,
     signal,
+    withCredentials: true,
     ...rest,
     validateStatus: () => true, // allow manual ok check
   });
@@ -119,7 +171,7 @@ export async function authFetch<TData = unknown, TBody = unknown>(
   // /api/auth/validate 는 토큰 자체의 유효성을 검사하는 엔드포인트라 별도 처리.
   if (
     response.status === 401 &&
-    hasAuthHeader &&
+    (Boolean(auth) || Boolean(csrfToken)) &&
     !fullUrl.includes('/api/auth/validate') &&
     sessionExpiredHandler
   ) {
