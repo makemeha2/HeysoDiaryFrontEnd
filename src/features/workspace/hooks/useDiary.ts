@@ -252,7 +252,7 @@ export const useDiaryMutations = ({
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('Failed to create diary');
-      const data = await res.json();
+      const data = res.data;
       const createdId = getCreatedDiaryId(data);
       return { diaryId: createdId };
     },

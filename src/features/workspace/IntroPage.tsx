@@ -1,7 +1,7 @@
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import type { ReactNode } from 'react';
 import { ArrowRight, BookOpen, CalendarDays, Sparkles, Wand2 } from 'lucide-react';
-import { authFetch, type AuthData } from '@lib/apiClient';
+import { authFetch, hasReadableCsrfCookie, type AuthData } from '@lib/apiClient';
 import { useAuthStore, type AuthStore } from '@stores/authStore';
 import { showError } from '@/lib/confirm';
 
@@ -66,6 +66,7 @@ const LoginTrigger = ({
 
 const IntroPage = () => {
   const setAuth = useAuthStore((state: AuthStore) => state.setAuth);
+  const clearAuth = useAuthStore((state: AuthStore) => state.clearAuth);
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     const idToken = credentialResponse.credential;
@@ -83,6 +84,22 @@ const IntroPage = () => {
 
     if (!res.ok) {
       await showError({ title: '로그인 실패', message: 'Google 로그인 처리 중 문제가 발생했습니다.' });
+      return;
+    }
+
+    if (!hasReadableCsrfCookie()) {
+      clearAuth();
+      if (import.meta.env.DEV) {
+        console.warn('[auth] login response succeeded but auth cookies were not stored', {
+          requestUrl: res.url,
+          pageOrigin: window.location.origin,
+          apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+        });
+      }
+      await showError({
+        title: '로그인 실패',
+        message: '인증 쿠키를 저장하지 못했습니다. 개발 서버 주소와 백엔드 쿠키 설정을 확인해 주세요.',
+      });
       return;
     }
 

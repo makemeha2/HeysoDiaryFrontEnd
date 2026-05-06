@@ -28,7 +28,6 @@ export type AuthFetchOptions<TBody = unknown> = Omit<
   method?: AxiosRequestConfig['method'];
   headers?: RawAxiosRequestHeaders;
   body?: TBody;
-  data?: TBody;
   params?: AxiosRequestConfig['params'];
   signal?: AbortSignal;
 };
@@ -36,13 +35,9 @@ export type AuthFetchOptions<TBody = unknown> = Omit<
 export type AuthFetchResponse<TData = unknown> = {
   ok: boolean;
   status: number;
-  statusText: string;
-  headers: AxiosResponse<TData>['headers'];
   url: string;
+  headers: AxiosResponse<TData>['headers'];
   data: TData;
-  json: () => Promise<TData>;
-  text: () => Promise<string>;
-  raw: AxiosResponse<TData>;
 };
 
 const resolveBaseUrl = (): string => {
@@ -53,11 +48,9 @@ const resolveBaseUrl = (): string => {
 
   try {
     const apiUrl = new URL(configured);
-    const pageHost = window.location.hostname;
     const loopbackHosts = new Set(['localhost', '127.0.0.1']);
-    if (loopbackHosts.has(apiUrl.hostname) && loopbackHosts.has(pageHost)) {
-      apiUrl.hostname = pageHost;
-      return apiUrl.toString().replace(/\/$/, '');
+    if (import.meta.env.DEV && loopbackHosts.has(apiUrl.hostname)) {
+      return '';
     }
   } catch {
     return configured;
@@ -124,8 +117,24 @@ const readCookie = (name: string): string | null => {
   return null;
 };
 
+export const hasReadableCsrfCookie = (): boolean => {
+  return Boolean(readCookie(CSRF_COOKIE_NAME));
+};
+
 const shouldAttachCsrf = (method: AxiosRequestConfig['method']): boolean => {
   return UNSAFE_METHODS.has(String(method ?? 'GET').toUpperCase());
+};
+
+const logDevAuthFailure = (info: {
+  url: string;
+  status: number;
+  authError: AuthErrorReason;
+  hasLocalAuth: boolean;
+  hasCsrfCookie: boolean;
+}) => {
+  if (!import.meta.env.DEV) return;
+
+  console.warn('[authFetch] authentication failed', info);
 };
 
 export async function authFetch<TData = unknown, TBody = unknown>(
@@ -136,7 +145,6 @@ export async function authFetch<TData = unknown, TBody = unknown>(
     method = 'GET',
     headers = {},
     body,
-    data,
     params,
     signal,
     ...rest
@@ -158,7 +166,7 @@ export async function authFetch<TData = unknown, TBody = unknown>(
     method,
     headers: mergedHeaders,
     params,
-    data: body ?? data,
+    data: body,
     signal,
     withCredentials: true,
     ...rest,
@@ -175,27 +183,27 @@ export async function authFetch<TData = unknown, TBody = unknown>(
     !fullUrl.includes('/api/auth/validate') &&
     sessionExpiredHandler
   ) {
-    try {
-      sessionExpiredHandler({
-        url: fullUrl,
-        status: response.status,
-        authError: normalizeAuthError(response.headers['x-auth-error']),
-      });
-    } catch (err) {
-      console.error('sessionExpiredHandler threw', err);
-    }
+    const authError = normalizeAuthError(response.headers['x-auth-error']);
+    logDevAuthFailure({
+      url: fullUrl,
+      status: response.status,
+      authError,
+      hasLocalAuth: Boolean(auth),
+      hasCsrfCookie: Boolean(csrfToken),
+    });
+
+    sessionExpiredHandler({
+      url: fullUrl,
+      status: response.status,
+      authError,
+    });
   }
 
   return {
     ok: response.status >= 200 && response.status < 300,
     status: response.status,
-    statusText: response.statusText,
-    headers: response.headers,
     url: response.config?.url || fullUrl,
+    headers: response.headers,
     data: parsedData,
-    json: async () => parsedData,
-    text: async () =>
-      typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
-    raw: response,
   };
 }

@@ -140,7 +140,11 @@ export function useProfileSettings({
 
       if (!res.ok) throw new Error('Failed to load thumbnail');
 
-      const contentType = res.headers?.['content-type'] || 'image/jpeg';
+      // axios 헤더 값은 union(string | number | true | string[] | AxiosHeaders)이라 string으로 좁혀준다.
+      const rawContentType = res.headers?.['content-type'];
+      const contentType = typeof rawContentType === 'string' && rawContentType
+        ? rawContentType
+        : 'image/jpeg';
       return formatThumbnailPreviewDataUrl(res.data, contentType);
     },
   });
