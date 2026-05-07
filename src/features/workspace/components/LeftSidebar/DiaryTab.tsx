@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import MiniCalendar from './MiniCalendar';
 import MonthDiaryList from './MonthDiaryList';
 import WeatherWidget from './WeatherWidget';
@@ -21,10 +22,20 @@ const DiaryTab = ({
   onSelectDate,
   onSelectDiary,
 }: Props) => {
+  const [visibleMonth, setVisibleMonth] = useState(() => selectedDate.slice(0, 7));
+
+  useEffect(() => {
+    setVisibleMonth(selectedDate.slice(0, 7));
+  }, [selectedDate]);
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
       <section className="shrink-0" aria-label="달력">
-        <MiniCalendar selectedDate={selectedDate} onSelectDate={onSelectDate} />
+        <MiniCalendar
+          selectedDate={selectedDate}
+          onSelectDate={onSelectDate}
+          onViewMonthChange={setVisibleMonth}
+        />
       </section>
 
       <div className="h-px shrink-0 bg-sidebar-border/60" />
@@ -32,6 +43,7 @@ const DiaryTab = ({
       <section className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="이번 달 일기">
         <MonthDiaryList
           selectedDate={selectedDate}
+          visibleMonth={visibleMonth}
           selectedMood={selectedMood}
           diaries={diaries}
           selectedDiaryId={selectedDiaryId}

@@ -6,11 +6,12 @@ import { useMonthlyDiaryCounts } from '@features/workspace/hooks/useDiary';
 type Props = {
   selectedDate: string;
   onSelectDate: (date: string) => void;
+  onViewMonthChange?: (monthKey: string) => void;
 };
 
 const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
 
-const MiniCalendar = ({ selectedDate, onSelectDate }: Props) => {
+const MiniCalendar = ({ selectedDate, onSelectDate, onViewMonthChange }: Props) => {
   const selected = dayjs(selectedDate);
   const today = dayjs();
   const [viewDate, setViewDate] = useState(() => selected.startOf('month'));
@@ -20,6 +21,10 @@ const MiniCalendar = ({ selectedDate, onSelectDate }: Props) => {
   useEffect(() => {
     setViewDate(dayjs(selectedDate).startOf('month'));
   }, [selectedDate]);
+
+  useEffect(() => {
+    onViewMonthChange?.(viewMonthKey);
+  }, [onViewMonthChange, viewMonthKey]);
 
   const cells = useMemo(() => {
     const firstDay = viewDate.startOf('month').day();

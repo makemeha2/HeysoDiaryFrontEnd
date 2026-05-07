@@ -4,6 +4,7 @@ import type { DiaryEntry } from '@features/workspace/types/api.types';
 
 type Props = {
   selectedDate: string;
+  visibleMonth: string;
   selectedMood: MoodId | null;
   diaries: DiaryEntry[];
   selectedDiaryId: number | null;
@@ -31,11 +32,10 @@ const formatShortDate = (date: string) => `${Number(date.slice(8, 10))}일`;
 
 const getDayOfWeek = (date: string) => ['일', '월', '화', '수', '목', '금', '토'][dayjs(date).day()];
 
-const MonthDiaryList = ({ selectedDate, selectedMood, diaries, selectedDiaryId, onSelectDiary }: Props) => {
-  const currentMonth = selectedDate.slice(0, 7);
-  const [year, month] = currentMonth.split('-');
+const MonthDiaryList = ({ selectedDate, visibleMonth, selectedMood, diaries, selectedDiaryId, onSelectDiary }: Props) => {
+  const [year, month] = visibleMonth.split('-');
   const monthDiaries = diaries
-    .filter((diary) => normalizeDate(diary).startsWith(currentMonth))
+    .filter((diary) => normalizeDate(diary).startsWith(visibleMonth))
     .sort((left, right) => normalizeDate(right).localeCompare(normalizeDate(left)));
 
   return (
