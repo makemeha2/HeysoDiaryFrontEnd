@@ -8,6 +8,164 @@
   --color-amber: #d39b5e;
   --color-blush: #e0b4a4;
   --color-moss: #7a8b6f;
+
+  --font-sans: var(--font-inter), 'Inter', system-ui, sans-serif;
+  --font-serif: var(--font-lora), 'Lora', Georgia, serif;
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --radius: 0.5rem;
+}
+
+:root,
+[data-theme="warm-diary"] {
+  --background: oklch(0.936 0.016 75);
+  --surface: oklch(0.926 0.013 82);
+  --foreground: oklch(0.205 0.022 44);
+  --card: oklch(0.976 0.009 82);
+  --card-foreground: oklch(0.205 0.022 44);
+  --popover: oklch(0.96 0.013 79);
+  --popover-foreground: oklch(0.205 0.022 44);
+  --primary: oklch(0.574 0.108 44);
+  --primary-foreground: oklch(0.98 0.003 44);
+  --secondary: oklch(0.91 0.015 79);
+  --secondary-foreground: oklch(0.28 0.025 44);
+  --muted: oklch(0.91 0.015 79);
+  --muted-foreground: oklch(0.52 0.025 50);
+  --accent: oklch(0.73 0.082 66);
+  --accent-foreground: oklch(0.98 0.003 44);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.86 0.018 75);
+  --input: oklch(0.86 0.018 75);
+  --ring: oklch(0.574 0.108 44);
+  --sidebar-bg: oklch(0.985 0.006 82);
+  --sidebar-foreground: oklch(0.205 0.022 44);
+  --sidebar-border: oklch(0.91 0.012 79);
+}
+
+[data-theme="notion-light"] {
+  --background: oklch(1 0 0);
+  --surface: oklch(0.973 0.002 90);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(0.985 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.568 0.18 256);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.65 0.002 90);
+  --accent: oklch(0.568 0.18 256);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.92 0.002 90);
+  --input: oklch(0.92 0.002 90);
+  --ring: oklch(0.568 0.18 256);
+  --sidebar-bg: oklch(0.973 0.002 90);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-border: oklch(0.92 0.002 90);
+}
+
+[data-theme="calm-blue"] {
+  --background: oklch(0.964 0.01 232);
+  --surface: oklch(0.942 0.017 234);
+  --foreground: oklch(0.222 0.045 236);
+  --card: oklch(0.964 0.01 232);
+  --card-foreground: oklch(0.222 0.045 236);
+  --popover: oklch(0.955 0.013 232);
+  --popover-foreground: oklch(0.222 0.045 236);
+  --primary: oklch(0.556 0.126 243);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.93 0.02 234);
+  --secondary-foreground: oklch(0.222 0.045 236);
+  --muted: oklch(0.93 0.02 234);
+  --muted-foreground: oklch(0.545 0.057 234);
+  --accent: oklch(0.556 0.126 243);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.862 0.027 234);
+  --input: oklch(0.862 0.027 234);
+  --ring: oklch(0.556 0.126 243);
+  --sidebar-bg: oklch(0.942 0.017 234);
+  --sidebar-foreground: oklch(0.222 0.045 236);
+  --sidebar-border: oklch(0.862 0.027 234);
+}
+
+[data-theme="soft-green"] {
+  --background: oklch(0.968 0.01 148);
+  --surface: oklch(0.945 0.018 146);
+  --foreground: oklch(0.218 0.04 149);
+  --card: oklch(0.968 0.01 148);
+  --card-foreground: oklch(0.218 0.04 149);
+  --popover: oklch(0.96 0.013 148);
+  --popover-foreground: oklch(0.218 0.04 149);
+  --primary: oklch(0.516 0.1 150);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.93 0.022 148);
+  --secondary-foreground: oklch(0.218 0.04 149);
+  --muted: oklch(0.93 0.022 148);
+  --muted-foreground: oklch(0.527 0.058 149);
+  --accent: oklch(0.516 0.1 150);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.865 0.027 148);
+  --input: oklch(0.865 0.027 148);
+  --ring: oklch(0.516 0.1 150);
+  --sidebar-bg: oklch(0.945 0.018 146);
+  --sidebar-foreground: oklch(0.218 0.04 149);
+  --sidebar-border: oklch(0.865 0.027 148);
+}
+
+[data-theme="dark-diary"] {
+  --background: oklch(0.165 0.01 50);
+  --surface: oklch(0.19 0.015 56);
+  --foreground: oklch(0.934 0.011 79);
+  --card: oklch(0.165 0.01 50);
+  --card-foreground: oklch(0.934 0.011 79);
+  --popover: oklch(0.195 0.015 56);
+  --popover-foreground: oklch(0.934 0.011 79);
+  --primary: oklch(0.644 0.11 49);
+  --primary-foreground: oklch(0.165 0.01 50);
+  --secondary: oklch(0.23 0.016 54);
+  --secondary-foreground: oklch(0.934 0.011 79);
+  --muted: oklch(0.23 0.016 54);
+  --muted-foreground: oklch(0.496 0.018 55);
+  --accent: oklch(0.644 0.11 49);
+  --accent-foreground: oklch(0.165 0.01 50);
+  --destructive: oklch(0.45 0.18 27);
+  --destructive-foreground: oklch(0.934 0 0);
+  --border: oklch(0.27 0.016 58);
+  --input: oklch(0.27 0.016 58);
+  --ring: oklch(0.644 0.11 49);
+  --sidebar-bg: oklch(0.178 0.012 56);
+  --sidebar-foreground: oklch(0.934 0.011 79);
+  --sidebar-border: oklch(0.27 0.016 58);
 }
 
 .admin-theme {
@@ -21,8 +179,8 @@
 
 @layer base {
   html, body, #root { height: 100%; }
-  body { @apply bg-linen text-clay antialiased; }
-  a { @apply text-amber hover:opacity-90; }
+  body { @apply bg-background text-foreground antialiased; }
+  a { @apply text-primary hover:opacity-90; }
   body.admin-theme {
     background:
       radial-gradient(circle at top left, rgba(47, 95, 145, 0.14), transparent 28%),
