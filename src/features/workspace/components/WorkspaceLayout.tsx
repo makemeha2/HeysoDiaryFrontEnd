@@ -67,6 +67,19 @@ const WorkspaceLayout = () => {
     selectDate(today);
   }, [selectDate, today]);
 
+  const resetHome = useCallback(() => {
+    patchState({
+      selectedDate: today,
+      viewMode: 'diary',
+      rightPanelMode: 'hidden',
+      sidebarTab: 'diary',
+      sidebarOpen: false,
+      selectedDiaryId: null,
+      draftMood: null,
+      pendingDateAutoSelect: null,
+    });
+  }, [patchState, today]);
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
       <MobileSidebarShell open={state.sidebarOpen} onClose={closeSidebar}>
@@ -76,6 +89,7 @@ const WorkspaceLayout = () => {
           onSelectDate={selectDate}
           onSelectDiary={selectDiary}
           onToday={selectToday}
+          onResetHome={resetHome}
           width={sidebarWidth}
           onWidthChange={setSidebarWidth}
           isMobile={state.sidebarOpen}

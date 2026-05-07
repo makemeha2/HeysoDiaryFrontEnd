@@ -13,6 +13,7 @@ type Props = {
   onSelectDate: (date: string) => void;
   onSelectDiary: (diary: DiaryEntry) => void;
   onToday: () => void;
+  onResetHome: () => void;
   width: number;
   onWidthChange: (width: number) => void;
   isMobile?: boolean;
@@ -30,6 +31,7 @@ const LeftSidebar = ({
   onSelectDate,
   onSelectDiary,
   onToday,
+  onResetHome,
   width,
   onWidthChange,
   isMobile = false,
@@ -85,11 +87,18 @@ const LeftSidebar = ({
       aria-label="사이드바"
     >
       <div className="flex h-full flex-1 flex-col overflow-hidden border-r border-sidebar-border">
-        <div className="flex shrink-0 items-center gap-2 border-b border-sidebar-border/60 px-4 py-4">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary">
-            <BookOpen className="h-3.5 w-3.5 text-primary-foreground" />
-          </div>
-          <span className="font-serif text-sm font-semibold tracking-tight text-foreground">HeysoDiary</span>
+        <div className="flex shrink-0 items-center border-b border-sidebar-border/60 px-4 py-4">
+          <button
+            type="button"
+            onClick={onResetHome}
+            className="flex items-center gap-2 rounded-md transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar-bg"
+            aria-label="메인 상태로 돌아가기"
+          >
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary cursor-pointer">
+              <BookOpen className="h-3.5 w-3.5 text-primary-foreground" />
+            </div>
+            <span className="font-serif text-sm font-semibold tracking-tight text-foreground cursor-pointer">HeysoDiary</span>
+          </button>
         </div>
 
         <div className="shrink-0 px-3 pb-2 pt-3">

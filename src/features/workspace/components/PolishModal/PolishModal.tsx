@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { diffSentences } from 'diff';
 import { Check, HelpCircle, Loader2, RefreshCw, Wand2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useDiaryAiPolish from '../../hooks/useDiaryAiPolish';
@@ -35,6 +36,7 @@ const PolishModal = ({ open, diaryId, source, onClose, onApply }: Props) => {
   const tooShort = normalizedSource.length > 0 && normalizedSource.length < 50;
   const canRequest = normalizedSource.length >= 50 && !isPolishing;
   const hasResult = polishedContent.trim().length > 0;
+  const polishedDiff = useMemo(() => diffSentences(source, polishedContent), [polishedContent, source]);
 
   useEffect(() => {
     if (!open) return;
@@ -136,7 +138,24 @@ const PolishModal = ({ open, diaryId, source, onClose, onApply }: Props) => {
               ) : null}
 
               {hasResult ? (
-                <p className="whitespace-pre-line font-serif text-sm leading-relaxed text-foreground">{polishedContent}</p>
+                <p className="whitespace-pre-wrap font-serif text-sm leading-relaxed text-foreground">
+                  {polishedDiff.map((part, index) => {
+                    if (part.removed) return null;
+
+                    return (
+                      <span
+                        key={`${index}-${part.value}`}
+                        className={
+                          part.added
+                            ? 'box-decoration-clone rounded-sm bg-yellow-100 px-0.5 dark:bg-yellow-900/30'
+                            : undefined
+                        }
+                      >
+                        {part.value}
+                      </span>
+                    );
+                  })}
+                </p>
               ) : null}
             </div>
           </section>
