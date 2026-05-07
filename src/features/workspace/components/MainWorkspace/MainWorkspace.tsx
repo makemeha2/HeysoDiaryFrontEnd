@@ -199,7 +199,7 @@ const MainWorkspace = ({
     setContent('');
     setTags([]);
     setShowDeleteConfirm(false);
-    onPatchState({ selectedDiaryId: null });
+    onPatchState({ selectedDiaryId: null, draftMood: 'none' });
   };
 
   const save = async () => {

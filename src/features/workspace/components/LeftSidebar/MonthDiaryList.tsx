@@ -54,7 +54,7 @@ const MonthDiaryList = ({ selectedDate, selectedMood, diaries, selectedDiaryId, 
           monthDiaries.map((diary) => {
             const id = diary.diaryId ?? diary.id ?? null;
             const diaryDate = normalizeDate(diary);
-            const active = selectedDiaryId === id || diaryDate === selectedDate;
+            const active = selectedDiaryId !== null && selectedDiaryId === id;
             const mood = moodEmoji[getDiaryMood(diary, selectedDate, selectedMood)];
 
             return (

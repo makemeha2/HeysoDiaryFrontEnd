@@ -234,8 +234,8 @@ export const useDiaryMutations = ({
   // 저장(생성/수정)
   const saveDiaryMutation = useMutation<SaveDiaryResult, Error, SaveDiaryPayload>({
     mutationFn: async (payload) => {
-      const isUpdate = !!(payload?.diaryId ?? diaryId);
-      const targetId = payload?.diaryId ?? diaryId;
+      const targetId = payload && 'diaryId' in payload ? payload.diaryId : diaryId;
+      const isUpdate = !!targetId;
 
       if (isUpdate && targetId) {
         const res = await authFetch<Record<string, unknown>>(`/api/diary/${targetId}/edit`, {

@@ -1,13 +1,11 @@
 import { useCallback, useMemo } from 'react';
 import dayjs from 'dayjs';
 import {
-  useDailyDiaries,
   useDiaryDetail,
   useDiaryMutations,
   useMyTags,
   type SaveDiaryPayload,
 } from './useDiary';
-import type { DiaryEntry } from '../types/api.types';
 import type { WorkspaceState } from '../types/workspace.types';
 
 export function useWorkspaceDiary(
@@ -16,7 +14,6 @@ export function useWorkspaceDiary(
 ) {
   const monthKey = useMemo(() => dayjs(state.selectedDate).format('YYYY-MM'), [state.selectedDate]);
 
-  const { dailyDiaries } = useDailyDiaries(state.selectedDate);
   const { diaryDetail } = useDiaryDetail(state.selectedDiaryId);
   const { myTags } = useMyTags();
   const { saveDiaryMutation, deleteDiaryMutation } = useDiaryMutations({
@@ -28,12 +25,12 @@ export function useWorkspaceDiary(
     },
   });
 
-  const currentDiary = useMemo<DiaryEntry | null>(() => {
+  const currentDiary = useMemo(() => {
     if (state.selectedDiaryId) {
       return diaryDetail;
     }
-    return dailyDiaries[0] ?? null;
-  }, [dailyDiaries, diaryDetail, state.selectedDiaryId]);
+    return null;
+  }, [diaryDetail, state.selectedDiaryId]);
 
   const save = useCallback(
     (payload: SaveDiaryPayload) => {
