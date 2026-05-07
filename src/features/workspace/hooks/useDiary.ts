@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { authFetch } from '@lib/apiClient';
 import { useAuthStore, type AuthStore } from '@stores/authStore';
+import type { MoodId } from '../constants/moodCatalog';
 import type { DiaryEntry } from '../types/api.types';
 
 export const DEFAULT_PAGE = 1;
@@ -19,6 +20,7 @@ export type SaveDiaryPayload = {
   title?: string;
   contentMd?: string;
   diaryDate?: string;
+  moodId?: MoodId;
   tags?: string[];
 };
 

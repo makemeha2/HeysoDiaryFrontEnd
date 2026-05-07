@@ -44,6 +44,7 @@ const WorkspaceLayout = () => {
     patchState({
       selectedDiaryId: getDiaryId(diary),
       selectedDate: dayjs(diary.diaryDate ?? state.selectedDate).format('YYYY-MM-DD'),
+      draftMood: diary.moodId ?? 'none',
       viewMode: 'diary',
       sidebarOpen: false,
     });

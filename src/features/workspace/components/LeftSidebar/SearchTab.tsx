@@ -149,7 +149,7 @@ const SearchTab = ({ diaries, onSelectDiary }: Props) => {
             <p className="mb-2 text-[10px] text-muted-foreground">{results.length}개 결과</p>
             {paginatedResults.map((diary) => {
               const diaryDate = normalizeDate(diary);
-              const mood = moodEmoji[((diary as DiaryEntry & { mood?: MoodId }).mood ?? 'calm') as MoodId];
+              const mood = moodEmoji[diary.moodId ?? 'none'];
 
               return (
                 <button

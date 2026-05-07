@@ -24,8 +24,7 @@ const normalizeDate = (diary: DiaryEntry) => dayjs(diary.diaryDate ?? diary.crea
 
 const getDiaryMood = (diary: DiaryEntry, selectedDate: string, selectedMood: MoodId | null): MoodId => {
   const diaryDate = normalizeDate(diary);
-  const directMood = (diary as DiaryEntry & { mood?: MoodId }).mood;
-  return directMood ?? (diaryDate === selectedDate ? selectedMood : null) ?? 'calm';
+  return diary.moodId ?? (diaryDate === selectedDate ? selectedMood : null) ?? 'none';
 };
 
 const formatShortDate = (date: string) => `${Number(date.slice(8, 10))}일`;

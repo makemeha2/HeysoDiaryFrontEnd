@@ -21,6 +21,7 @@ type DraftSnapshot = {
   date: string;
   title: string;
   content: string;
+  moodId: MoodId;
   tags: string[];
   savedAt: number;
 };
@@ -62,7 +63,7 @@ type Props = {
   myTags: string[];
   isSaving: boolean;
   onPatchState: (patch: Partial<WorkspaceState>) => void;
-  onSave: (payload: { diaryId: number | null; title: string; contentMd: string; diaryDate: string; tags: string[] }) => void;
+  onSave: (payload: { diaryId: number | null; title: string; contentMd: string; diaryDate: string; moodId: MoodId; tags: string[] }) => void;
   onDelete: (diaryId: number) => void;
   onOpenAi: () => void;
   onOpenPolish: (content: string, apply: (content: string) => void, diaryId: number | null) => void;
@@ -96,10 +97,12 @@ const MainWorkspace = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   // restore 다이얼로그가 같은 컨텍스트에서 두 번 뜨지 않도록 마지막 처리 컨텍스트 키를 기록한다.
   const handledDraftRef = useRef<string | null>(null);
+  const selectedMood = useMemo<MoodId>(() => state.draftMood ?? currentDiary?.moodId ?? 'none', [currentDiary?.moodId, state.draftMood]);
 
   useEffect(() => {
     const baseTitle = currentDiary?.title ?? '';
     const baseContent = currentDiary?.contentMd ?? '';
+    const baseMood = currentDiary?.moodId ?? 'none';
     const baseTags = normalizeTags(currentDiary?.tags);
     setTitle(baseTitle);
     setContent(baseContent);
@@ -118,6 +121,7 @@ const MainWorkspace = ({
     const sameAsServer =
       draft.title === baseTitle &&
       draft.content === baseContent &&
+      draft.moodId === baseMood &&
       JSON.stringify(draft.tags) === JSON.stringify(baseTags);
     if (sameAsServer) {
       clearDraft();
@@ -135,12 +139,13 @@ const MainWorkspace = ({
       if (ok) {
         setTitle(draft.title);
         setContent(draft.content);
+        onPatchState({ draftMood: draft.moodId ?? 'none' });
         setTags(draft.tags);
       } else {
         clearDraft();
       }
     })();
-  }, [currentDiaryId, currentDateStr, currentDiary?.title, currentDiary?.contentMd, currentDiary?.tags]);
+  }, [currentDiaryId, currentDateStr, currentDiary?.title, currentDiary?.contentMd, currentDiary?.moodId, currentDiary?.tags]);
 
   // 입력이 바뀔 때마다 디바운스해서 sessionStorage에 임시 저장한다.
   // 빈 입력은 저장하지 않아 불필요한 복원 프롬프트를 막는다.
@@ -154,12 +159,13 @@ const MainWorkspace = ({
         date: currentDateStr,
         title,
         content,
+        moodId: selectedMood ?? 'none',
         tags,
         savedAt: Date.now(),
       });
     }, DRAFT_DEBOUNCE_MS);
     return () => window.clearTimeout(handle);
-  }, [title, content, tags, currentDiaryId, currentDateStr, saveStatus]);
+  }, [title, content, selectedMood, tags, currentDiaryId, currentDateStr, saveStatus]);
 
   useEffect(() => {
     if (isSaving) {
@@ -178,7 +184,6 @@ const MainWorkspace = ({
   }, [isSaving, saveStatus, currentDiaryId, currentDateStr]);
 
   const isNew = !currentDiaryId;
-  const selectedMood = useMemo<MoodId | null>(() => state.draftMood, [state.draftMood]);
   const entryDates = useMemo(() => {
     const next = new Set<string>();
     if (currentDiary?.diaryDate) next.add(formatDate(currentDiary.diaryDate));
@@ -208,6 +213,7 @@ const MainWorkspace = ({
       title: title.trim() || 'Untitled',
       contentMd: content.trim(),
       diaryDate: formatDate(state.selectedDate),
+      moodId: selectedMood,
       tags,
     });
   };
