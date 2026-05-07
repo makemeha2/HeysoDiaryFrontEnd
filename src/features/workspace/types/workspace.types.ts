@@ -8,4 +8,5 @@ export type WorkspaceState = {
   sidebarOpen: boolean;
   selectedDiaryId: number | null;
   draftMood: MoodId | null;
+  pendingDateAutoSelect: string | null;
 };

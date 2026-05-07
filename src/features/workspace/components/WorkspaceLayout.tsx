@@ -47,6 +47,7 @@ const WorkspaceLayout = () => {
       draftMood: diary.moodId ?? 'none',
       viewMode: 'diary',
       sidebarOpen: false,
+      pendingDateAutoSelect: null,
     });
   }, [patchState, state.selectedDate]);
 

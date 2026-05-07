@@ -145,7 +145,15 @@ const MainWorkspace = ({
         clearDraft();
       }
     })();
-  }, [currentDiaryId, currentDateStr, currentDiary?.title, currentDiary?.contentMd, currentDiary?.moodId, currentDiary?.tags]);
+  }, [
+    currentDiaryId,
+    currentDateStr,
+    currentDiary?.title,
+    currentDiary?.contentMd,
+    currentDiary?.moodId,
+    currentDiary?.tags,
+    onPatchState,
+  ]);
 
   // 입력이 바뀔 때마다 디바운스해서 sessionStorage에 임시 저장한다.
   // 빈 입력은 저장하지 않아 불필요한 복원 프롬프트를 막는다.
@@ -191,7 +199,7 @@ const MainWorkspace = ({
   }, [currentDiary?.diaryDate]);
 
   const selectDate = (selectedDate: string) => {
-    onPatchState({ selectedDate, selectedDiaryId: null, viewMode: 'diary' });
+    onPatchState({ selectedDate, selectedDiaryId: null, viewMode: 'diary', pendingDateAutoSelect: selectedDate });
   };
 
   const resetForNewDiary = () => {
@@ -199,7 +207,7 @@ const MainWorkspace = ({
     setContent('');
     setTags([]);
     setShowDeleteConfirm(false);
-    onPatchState({ selectedDiaryId: null, draftMood: 'none' });
+    onPatchState({ selectedDiaryId: null, draftMood: 'none', pendingDateAutoSelect: null });
   };
 
   const save = async () => {
