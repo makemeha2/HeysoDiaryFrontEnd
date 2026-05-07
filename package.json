@@ -37,11 +37,15 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
-    "@eslint/js": "^9.36.0",
+    "@eslint/js": "^8.57.1",
     "@tailwindcss/postcss": "^4.1.16",
     "@tailwindcss/typography": "^0.5.19",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^20.19.0",
     "@types/react": "^18.3.10",
     "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.1",
+    "@typescript-eslint/parser": "^8.59.1",
     "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.21",
     "eslint": "^8.57.1",
@@ -52,6 +56,7 @@
     "prettier": "^3.7.4",
     "prettier-eslint": "^16.3.0",
     "tailwindcss": "^4.1.16",
+    "typescript-eslint": "^8.59.2",
     "vite": "^7.1.7",
     "vite-tsconfig-paths": "^6.1.1"
   }

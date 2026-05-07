@@ -17,9 +17,7 @@ import {
   USER_ROLE_LABEL,
   USER_ROLE_OPTIONS,
   USER_STATUS_FILTER_OPTIONS,
-  USER_STATUS_LABEL,
-  canResetOrDeleteUser,
-  isWithdrawnUser,
+  USER_STATUS_LABEL
 } from './types/userMng';
 
 const AdminUserMngPageContent = () => {

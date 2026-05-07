@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(mkdir -p api constants)",
+      "Bash(mv lib/accountSecurityApi.ts api/)",
+      "Bash(mv lib/diaryAiPolishApi.ts api/)",
+      "Bash(mv lib/moodCatalog.ts constants/)",
+      "Bash(mv lib/themeCatalog.ts constants/)",
+      "Bash(xargs grep *)",
+      "Bash(Remove-Item -Path \"C:\\\\Projects\\\\HeysoDiary\\\\HeysoDiaryFrontEnd\\\\src\\\\contexts\\\\ThemeContext.tsx\" -Force)",
+      "Bash(npx tsc *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(grep -E \"src[/\\\\\\\\\\\\\\\\]features[/\\\\\\\\\\\\\\\\]workspace\")"
     ]
   }
 }

@@ -1,0 +1,11 @@
+export type MoodId = 'none' | 'calm' | 'happy' | 'tired' | 'sad' | 'anxious' | 'proud';
+
+export const moodCatalog: Array<{ id: MoodId; label: string; tone: string; emoji: string }> = [
+  { id: 'none', label: '선택안함', tone: 'bg-zinc-100 text-zinc-700 border-zinc-200', emoji: '⬜' },
+  { id: 'calm', label: '차분', tone: 'bg-sky-100 text-sky-800 border-sky-200', emoji: '☁️' },
+  { id: 'happy', label: '기쁨', tone: 'bg-yellow-100 text-yellow-800 border-yellow-200', emoji: '😊' },
+  { id: 'tired', label: '피곤', tone: 'bg-stone-100 text-stone-700 border-stone-200', emoji: '😴' },
+  { id: 'sad', label: '슬픔', tone: 'bg-blue-100 text-blue-800 border-blue-200', emoji: '😢' },
+  { id: 'anxious', label: '불안', tone: 'bg-rose-100 text-rose-800 border-rose-200', emoji: '😟' },
+  { id: 'proud', label: '뿌듯', tone: 'bg-emerald-100 text-emerald-800 border-emerald-200', emoji: '🌟' },
+];
