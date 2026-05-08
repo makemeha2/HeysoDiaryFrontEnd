@@ -1,4 +1,5 @@
 import { Check, Save, Trash2 } from 'lucide-react';
+import { confirm } from '@/lib/confirm';
 
 type Props = {
   saveStatus: 'idle' | 'saving' | 'saved';
@@ -26,26 +27,29 @@ const BottomActionBar = ({
   onOpenPolish,
   isQuotaExhausted,
 }: Props) => {
-  const handleQuotaExhausted = () => {
-    const shouldViewAd = window.confirm(
-      '오늘의 AI 사용 횟수를 모두 사용했어요. 광고를 시청하면 추가 사용이 가능합니다.',
-    );
-    if (shouldViewAd) {
-      console.info('ad-view-todo');
+  const handleQuotaExhausted = async () => {
+    const confirmed = await confirm({
+      title: '오늘의 AI 사용 횟수를 모두 사용했어요. 광고를 시청하면 추가 사용이 가능합니다.',
+      confirmLabel: '광고 보기',
+      cancelLabel: '닫기',
+    });
+
+    if (confirmed) {
+      // TODO: 광고 시청 흐름 연결
     }
   };
 
-  const handleOpenAi = () => {
+  const handleOpenAi = async () => {
     if (isQuotaExhausted) {
-      handleQuotaExhausted();
+      await handleQuotaExhausted();
       return;
     }
     onOpenAi();
   };
 
-  const handleOpenPolish = () => {
+  const handleOpenPolish = async () => {
     if (isQuotaExhausted) {
-      handleQuotaExhausted();
+      await handleQuotaExhausted();
       return;
     }
     onOpenPolish();
