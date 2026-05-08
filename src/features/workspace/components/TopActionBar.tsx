@@ -1,6 +1,6 @@
 import { Coins, LogOut, Menu, Sparkles } from 'lucide-react';
 import ThemeSelector from './ThemeSelector';
-import { placeholderTokenUsage } from '../constants/workspacePlaceholders';
+import { useAiQuota } from '../hooks/useAiQuota';
 import { useLogout } from '../hooks/useLogout';
 
 type Props = {
@@ -36,13 +36,14 @@ function ActionButton({ icon, label, active, onClick }: ActionButtonProps) {
 }
 
 function TokenDisplay() {
+  const { usedCount, dailyLimit, isLoading } = useAiQuota();
+  const displayText = isLoading ? '-/-' : `${usedCount}/${dailyLimit}`;
+
   return (
     <div className="flex items-center gap-1.5 rounded-md bg-muted/50 px-2 py-1">
       <Coins className="h-3.5 w-3.5 text-primary" />
       <span className="text-[11px] text-muted-foreground">오늘의 토큰:</span>
-      <span className="text-[11px] font-medium text-foreground">
-        {placeholderTokenUsage.used}/{placeholderTokenUsage.limit}
-      </span>
+      <span className="text-[11px] font-medium text-foreground">{displayText}</span>
     </div>
   );
 }

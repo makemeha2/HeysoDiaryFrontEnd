@@ -10,6 +10,7 @@ type Props = {
   onCancelDelete: () => void;
   onOpenAi: () => void;
   onOpenPolish: () => void;
+  isQuotaExhausted: boolean;
 };
 
 // 하단 작업 바 — AI/다듬기/삭제/저장 액션을 한 줄에 고정
@@ -23,21 +24,47 @@ const BottomActionBar = ({
   onCancelDelete,
   onOpenAi,
   onOpenPolish,
+  isQuotaExhausted,
 }: Props) => {
+  const handleQuotaExhausted = () => {
+    const shouldViewAd = window.confirm(
+      '오늘의 AI 사용 횟수를 모두 사용했어요. 광고를 시청하면 추가 사용이 가능합니다.',
+    );
+    if (shouldViewAd) {
+      console.info('ad-view-todo');
+    }
+  };
+
+  const handleOpenAi = () => {
+    if (isQuotaExhausted) {
+      handleQuotaExhausted();
+      return;
+    }
+    onOpenAi();
+  };
+
+  const handleOpenPolish = () => {
+    if (isQuotaExhausted) {
+      handleQuotaExhausted();
+      return;
+    }
+    onOpenPolish();
+  };
+
   return (
     <div className="shrink-0 border-t border-border/60 bg-background/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-8 py-3">
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={onOpenAi}
+            onClick={handleOpenAi}
             className="rounded px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
           >
             AI 코멘트
           </button>
           <button
             type="button"
-            onClick={onOpenPolish}
+            onClick={handleOpenPolish}
             className="rounded px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
           >
             글 다듬기

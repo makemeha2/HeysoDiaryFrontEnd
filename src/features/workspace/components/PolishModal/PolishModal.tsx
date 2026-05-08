@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { diffSentences } from 'diff';
 import { Check, HelpCircle, Loader2, RefreshCw, Wand2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import useAiQuota from '../../hooks/useAiQuota';
 import useDiaryAiPolish from '../../hooks/useDiaryAiPolish';
 
 type Props = {
@@ -31,7 +32,9 @@ const MODE_INFO: Record<PolishUiMode, { label: string; description: string; apiM
 const PolishModal = ({ open, diaryId, source, onClose, onApply }: Props) => {
   const [mode, setMode] = useState<PolishUiMode>('strict');
   const [showTooltip, setShowTooltip] = useState<PolishUiMode | null>(null);
-  const { polishedContent, polishError, isPolishing, usageText, requestPolish, clearPolishResult } = useDiaryAiPolish();
+  const { polishedContent, polishError, isPolishing, requestPolish, clearPolishResult } = useDiaryAiPolish();
+  const { usedCount, dailyLimit, isLoading: isQuotaLoading } = useAiQuota();
+  const usageText = isQuotaLoading ? '사용량 확인 중' : `오늘 ${usedCount}/${dailyLimit}회 사용`;
   const normalizedSource = source.trim();
   const tooShort = normalizedSource.length > 0 && normalizedSource.length < 50;
   const canRequest = normalizedSource.length >= 50 && !isPolishing;

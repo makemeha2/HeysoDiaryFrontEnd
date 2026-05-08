@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useCallback, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 import {
   requestDiaryAiPolish,
@@ -7,8 +8,7 @@ import {
   type DiaryAiPolishRequest,
   type DiaryAiPolishResponse,
 } from '../api/diaryAiPolishApi';
-
-export const DAILY_POLISH_LIMIT = 3;
+import { AI_QUOTA_QUERY_KEY } from './useAiQuota';
 
 type PolishError = Error & {
   status?: number;
@@ -24,7 +24,7 @@ const getPolishErrorDescription = (error: PolishError) => {
     '';
 
   if (status === 429) {
-    return '오늘 글다듬기 사용 횟수를 모두 사용했어요. 내일 다시 시도해 주세요.';
+    return serverMessage || '오늘의 AI 사용 횟수를 모두 사용했어요. 광고를 시청하면 추가 사용이 가능합니다.';
   }
 
   if (status === 400) {
@@ -47,12 +47,15 @@ const getPolishErrorDescription = (error: PolishError) => {
 };
 
 const useDiaryAiPolish = () => {
+  const queryClient = useQueryClient();
   const [polishedContent, setPolishedContent] = useState('');
   const [polishError, setPolishError] = useState('');
-  const [remainingCount, setRemainingCount] = useState<number | null>(null);
 
   const polishMutation = useMutation<DiaryAiPolishResponse, PolishError, DiaryAiPolishRequest>({
     mutationFn: requestDiaryAiPolish,
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: AI_QUOTA_QUERY_KEY });
+    },
   });
 
   const clearPolishResult = useCallback(() => {
@@ -80,46 +83,32 @@ const useDiaryAiPolish = () => {
       }
 
       setPolishedContent(nextPolishedContent);
-
-      if (typeof data?.remainingCount === 'number') {
-        setRemainingCount(data.remainingCount);
-      }
     } catch (error) {
       const polishError = error as PolishError;
+      const description = getPolishErrorDescription(polishError);
+      setPolishError(description);
+
       if (polishError?.status === 429) {
-        setRemainingCount(0);
+        const dailyLimit = polishError.data?.dailyLimit;
+        const remainingCount = polishError.data?.remainingCount;
+        const quotaText =
+          typeof dailyLimit === 'number' && typeof remainingCount === 'number'
+            ? ` (남은 횟수 ${remainingCount}/${dailyLimit})`
+            : '';
+        toast.error(`${description}${quotaText}`);
       }
-      setPolishError(getPolishErrorDescription(polishError));
     }
   };
 
   const resetPolish = () => {
     setPolishedContent('');
     setPolishError('');
-    setRemainingCount(null);
   };
-
-  const usedCount = useMemo(() => {
-    if (typeof remainingCount !== 'number') return null;
-    return Math.max(0, DAILY_POLISH_LIMIT - remainingCount);
-  }, [remainingCount]);
-
-  const usageText = useMemo(() => {
-    if (typeof usedCount !== 'number') {
-      return '사용량 확인 전';
-    }
-    return `${usedCount}/${DAILY_POLISH_LIMIT} 사용`;
-  }, [usedCount]);
-
-  const isDailyPolishLimitReached = remainingCount === 0;
 
   return {
     polishedContent,
     polishError,
-    remainingCount,
-    isDailyPolishLimitReached,
     isPolishing: polishMutation.isPending,
-    usageText,
     requestPolish,
     resetPolish,
     clearPolishResult,
