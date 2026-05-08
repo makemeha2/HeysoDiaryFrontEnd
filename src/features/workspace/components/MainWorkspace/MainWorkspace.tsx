@@ -6,6 +6,7 @@ import type { DiaryEntry } from '../../types/api.types';
 import type { WorkspaceState } from '../../types/workspace.types';
 import type { MoodId } from '../../constants/moodCatalog';
 import AutoResizeTextarea from './AutoResizeTextarea';
+import { useAiQuota } from '../../hooks/useAiQuota';
 import BottomActionBar from './BottomActionBar';
 import DatePicker from './DatePicker';
 import EmotionSelector from './EmotionSelector';
@@ -95,6 +96,7 @@ const MainWorkspace = ({
   const [tags, setTags] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { isQuotaExhausted } = useAiQuota();
   // restore 다이얼로그가 같은 컨텍스트에서 두 번 뜨지 않도록 마지막 처리 컨텍스트 키를 기록한다.
   const handledDraftRef = useRef<string | null>(null);
   const selectedMood = useMemo<MoodId>(() => state.draftMood ?? currentDiary?.moodId ?? 'none', [currentDiary?.moodId, state.draftMood]);
@@ -285,6 +287,7 @@ const MainWorkspace = ({
         onCancelDelete={() => setShowDeleteConfirm(false)}
         onOpenAi={onOpenAi}
         onOpenPolish={() => onOpenPolish(content, setContent, currentDiaryId)}
+        isQuotaExhausted={isQuotaExhausted}
       />
     </div>
   );

@@ -2,13 +2,42 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Sparkles } from 'lucide-react';
 import MarkdownIt from 'markdown-it';
+import { toast } from 'sonner';
 import { authFetch } from '@lib/apiClient';
+import { AI_QUOTA_QUERY_KEY } from '../../hooks/useAiQuota';
 
 const mdParser = new MarkdownIt({ breaks: true });
 
 type AiComment = {
   contentMd?: string;
   createdAt?: string;
+  remainingCount?: number;
+  dailyLimit?: number;
+};
+
+type AiCommentErrorData = {
+  message?: string;
+  error?: string;
+  remainingCount?: number;
+  dailyLimit?: number;
+};
+
+type AiCommentError = Error & {
+  status?: number;
+  data?: AiCommentErrorData;
+};
+
+const getAiCommentErrorMessage = (error: AiCommentError) => {
+  const serverMessage =
+    (typeof error?.data?.message === 'string' && error.data.message) ||
+    (typeof error?.data?.error === 'string' && error.data.error) ||
+    '';
+
+  if (error.status === 429) {
+    return serverMessage || '오늘의 AI 사용 횟수를 모두 사용했어요. 광고를 시청하면 추가 사용이 가능합니다.';
+  }
+
+  return 'AI 코멘트를 불러오거나 생성하지 못했습니다.';
 };
 
 const AiCommentPanel = ({ diaryId }: { diaryId: number | null }) => {
@@ -32,14 +61,39 @@ const AiCommentPanel = ({ diaryId }: { diaryId: number | null }) => {
     return [...list].sort((a, b) => new Date(b?.createdAt ?? 0).getTime() - new Date(a?.createdAt ?? 0).getTime())[0] ?? null;
   }, [commentsQuery.data]);
 
-  const createCommentMutation = useMutation({
+  const createCommentMutation = useMutation<AiComment, AiCommentError>({
     mutationFn: async () => {
-      const res = await authFetch<AiComment>(`/api/diary/${diaryId}/ai-comment`, { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to create AI comment');
-      return res.data;
+      const res = await authFetch<AiComment | AiCommentErrorData>(`/api/diary/${diaryId}/ai-comment`, { method: 'POST' });
+      if (!res.ok) {
+        const data = res.data as AiCommentErrorData;
+        const message =
+          (typeof data?.message === 'string' && data.message) ||
+          (typeof data?.error === 'string' && data.error) ||
+          'Failed to create AI comment';
+        const error = new Error(message) as AiCommentError;
+        error.status = res.status;
+        error.data = data;
+        throw error;
+      }
+      return res.data as AiComment;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['diaryAiComments', diaryId], (prev: unknown) => [data, ...(Array.isArray(prev) ? prev : [])]);
+    },
+    onError: (error) => {
+      if (error.status === 429) {
+        const message = getAiCommentErrorMessage(error);
+        const dailyLimit = error.data?.dailyLimit;
+        const remainingCount = error.data?.remainingCount;
+        const quotaText =
+          typeof dailyLimit === 'number' && typeof remainingCount === 'number'
+            ? ` (남은 횟수 ${remainingCount}/${dailyLimit})`
+            : '';
+        toast.error(`${message}${quotaText}`);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: AI_QUOTA_QUERY_KEY });
     },
   });
 
@@ -105,7 +159,11 @@ const AiCommentPanel = ({ diaryId }: { diaryId: number | null }) => {
         </p>
       </div>
       {commentsQuery.isError || createCommentMutation.isError ? (
-        <p className="text-center text-xs leading-relaxed text-destructive">AI 코멘트를 불러오거나 생성하지 못했습니다.</p>
+        <p className="text-center text-xs leading-relaxed text-destructive">
+          {createCommentMutation.isError
+            ? getAiCommentErrorMessage(createCommentMutation.error as AiCommentError)
+            : 'AI 코멘트를 불러오거나 생성하지 못했습니다.'}
+        </p>
       ) : null}
       <button
         type="button"

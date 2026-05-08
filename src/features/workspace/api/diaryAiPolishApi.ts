@@ -11,11 +11,14 @@ export type DiaryAiPolishRequest = {
 export type DiaryAiPolishResponse = {
   polishedContent?: string;
   remainingCount?: number;
+  dailyLimit?: number;
 };
 
 export type DiaryAiPolishErrorData = {
   message?: string;
   error?: string;
+  remainingCount?: number;
+  dailyLimit?: number;
 };
 
 export class DiaryAiPolishError extends Error {
