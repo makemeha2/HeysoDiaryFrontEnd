@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { authFetch } from '@lib/apiClient';
 import { useAuthStore, type AuthStore } from '@stores/authStore';
+import { DIARY_SUMMARY_QUERY_KEY } from './useDiarySummary';
 import type { MoodId } from '../constants/moodCatalog';
 import type { DiaryEntry } from '../types/api.types';
 
@@ -94,11 +95,16 @@ const useDiaryAuth = () => {
   return { authChecked, isSignedIn };
 };
 
-export const useDiaryEntries = (page = DEFAULT_PAGE, size = DEFAULT_SIZE) => {
+type DiaryQueryOptions = {
+  enabled?: boolean;
+};
+
+export const useDiaryEntries = (page = DEFAULT_PAGE, size = DEFAULT_SIZE, options: DiaryQueryOptions = {}) => {
+  const { enabled = true } = options;
   const { authChecked, isSignedIn } = useDiaryAuth();
   const diariesQuery = useQuery<DiaryEntry[]>({
     queryKey: ['diaryEntries', page, size],
-    enabled: isSignedIn,
+    enabled: enabled && isSignedIn,
     staleTime: 0,
     queryFn: async ({ signal }) => {
       const query = new URLSearchParams({ page: String(page), size: String(size) }).toString();
@@ -112,8 +118,8 @@ export const useDiaryEntries = (page = DEFAULT_PAGE, size = DEFAULT_SIZE) => {
   return { authChecked, isSignedIn, diariesQuery, diaries };
 };
 
-export const useRecentDiaries = (page = DEFAULT_PAGE, size = DEFAULT_SIZE) => {
-  const { authChecked, isSignedIn, diariesQuery, diaries } = useDiaryEntries(page, size);
+export const useRecentDiaries = (page = DEFAULT_PAGE, size = DEFAULT_SIZE, options: DiaryQueryOptions = {}) => {
+  const { authChecked, isSignedIn, diariesQuery, diaries } = useDiaryEntries(page, size, options);
   const recentDiaries = useMemo(() => {
     // 최신순 정렬: diaryId(숫자) 기반 정렬이 가장 안정적
     return [...diaries].sort((a, b) => (b?.diaryId ?? 0) - (a?.diaryId ?? 0));
@@ -216,6 +222,7 @@ export const useDiaryMutations = ({
       targetDiaryId
         ? queryClient.invalidateQueries({ queryKey: ['diaryDetail', targetDiaryId] })
         : Promise.resolve(),
+      queryClient.invalidateQueries({ queryKey: DIARY_SUMMARY_QUERY_KEY }),
     ]);
   };
 
@@ -228,6 +235,7 @@ export const useDiaryMutations = ({
         ? queryClient.refetchQueries({ queryKey: ['monthlyDiaryCounts', monthKey] })
         : queryClient.invalidateQueries({ queryKey: ['monthlyDiaryCounts'] }),
       queryClient.removeQueries({ queryKey: ['diaryDetail', deletedDiaryId] }),
+      queryClient.invalidateQueries({ queryKey: DIARY_SUMMARY_QUERY_KEY }),
     ]);
   };
 

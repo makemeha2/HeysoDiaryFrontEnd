@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Sparkles } from 'lucide-react';
 import MarkdownIt from 'markdown-it';
-import { toast } from 'sonner';
 import { authFetch } from '@lib/apiClient';
+import { confirm } from '@/lib/confirm';
 import { AI_QUOTA_QUERY_KEY } from '../../hooks/useAiQuota';
 
 const mdParser = new MarkdownIt({ breaks: true });
@@ -42,6 +42,18 @@ const getAiCommentErrorMessage = (error: AiCommentError) => {
 
 const AiCommentPanel = ({ diaryId }: { diaryId: number | null }) => {
   const queryClient = useQueryClient();
+  const handleQuotaExhausted = async () => {
+    const confirmed = await confirm({
+      title: '오늘의 AI 사용 횟수를 모두 사용했어요. 광고를 시청하면 추가 사용이 가능합니다.',
+      confirmLabel: '광고 보기',
+      cancelLabel: '닫기',
+    });
+
+    if (confirmed) {
+      // TODO: 광고 시청 흐름 연결
+    }
+  };
+
   const commentsQuery = useQuery({
     queryKey: ['diaryAiComments', diaryId],
     enabled: !!diaryId,
@@ -80,16 +92,9 @@ const AiCommentPanel = ({ diaryId }: { diaryId: number | null }) => {
     onSuccess: (data) => {
       queryClient.setQueryData(['diaryAiComments', diaryId], (prev: unknown) => [data, ...(Array.isArray(prev) ? prev : [])]);
     },
-    onError: (error) => {
+    onError: async (error) => {
       if (error.status === 429) {
-        const message = getAiCommentErrorMessage(error);
-        const dailyLimit = error.data?.dailyLimit;
-        const remainingCount = error.data?.remainingCount;
-        const quotaText =
-          typeof dailyLimit === 'number' && typeof remainingCount === 'number'
-            ? ` (남은 횟수 ${remainingCount}/${dailyLimit})`
-            : '';
-        toast.error(`${message}${quotaText}`);
+        await handleQuotaExhausted();
       }
     },
     onSettled: () => {
