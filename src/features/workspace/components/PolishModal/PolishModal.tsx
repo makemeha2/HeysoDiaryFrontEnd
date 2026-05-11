@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { diffSentences } from 'diff';
+import { diffArrays, diffWordsWithSpace } from 'diff';
 import { Check, HelpCircle, Loader2, RefreshCw, Wand2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAiQuota from '../../hooks/useAiQuota';
@@ -15,6 +15,11 @@ type Props = {
 
 type PolishUiMode = 'strict' | 'active';
 type PolishApiMode = 'STRICT' | 'RELAXED';
+type DiffPart = {
+  value: string;
+  added?: boolean;
+  removed?: boolean;
+};
 
 const MODE_INFO: Record<PolishUiMode, { label: string; description: string; apiMode: PolishApiMode }> = {
   strict: {
@@ -29,8 +34,47 @@ const MODE_INFO: Record<PolishUiMode, { label: string; description: string; apiM
   },
 };
 
+const POLISH_MODE_STORAGE_KEY = 'heysodiary:polish-mode';
+
+const splitIntoParagraphs = (content: string) => content.match(/[^\r\n]+(?:\r?\n+|$)|\r?\n+/g) ?? [];
+
+const getStoredPolishMode = (): PolishUiMode => {
+  if (typeof window === 'undefined') return 'strict';
+
+  const storedMode = window.localStorage.getItem(POLISH_MODE_STORAGE_KEY);
+  return storedMode === 'active' || storedMode === 'strict' ? storedMode : 'strict';
+};
+
+const createPolishedDiff = (source: string, polishedContent: string): DiffPart[] => {
+  const paragraphDiff = diffArrays(splitIntoParagraphs(source), splitIntoParagraphs(polishedContent));
+  const result: DiffPart[] = [];
+
+  for (let index = 0; index < paragraphDiff.length; index += 1) {
+    const part = paragraphDiff[index];
+    const nextPart = paragraphDiff[index + 1];
+
+    if (part.removed && nextPart?.added) {
+      result.push(
+        ...diffWordsWithSpace(part.value.join(''), nextPart.value.join('')).map((wordPart) => ({
+          ...wordPart,
+          value: wordPart.value,
+        }))
+      );
+      index += 1;
+      continue;
+    }
+
+    result.push({
+      ...part,
+      value: part.value.join(''),
+    });
+  }
+
+  return result;
+};
+
 const PolishModal = ({ open, diaryId, source, onClose, onApply }: Props) => {
-  const [mode, setMode] = useState<PolishUiMode>('strict');
+  const [mode, setMode] = useState<PolishUiMode>(() => getStoredPolishMode());
   const [showTooltip, setShowTooltip] = useState<PolishUiMode | null>(null);
   const { polishedContent, polishError, isPolishing, requestPolish, clearPolishResult } = useDiaryAiPolish();
   const { usedCount, dailyLimit, isLoading: isQuotaLoading } = useAiQuota();
@@ -39,11 +83,11 @@ const PolishModal = ({ open, diaryId, source, onClose, onApply }: Props) => {
   const tooShort = normalizedSource.length > 0 && normalizedSource.length < 50;
   const canRequest = normalizedSource.length >= 50 && !isPolishing;
   const hasResult = polishedContent.trim().length > 0;
-  const polishedDiff = useMemo(() => diffSentences(source, polishedContent), [polishedContent, source]);
+  const polishedDiff = useMemo(() => createPolishedDiff(source, polishedContent), [polishedContent, source]);
 
   useEffect(() => {
     if (!open) return;
-    setMode('strict');
+    setMode(getStoredPolishMode());
     setShowTooltip(null);
     clearPolishResult();
   }, [clearPolishResult, open]);
@@ -64,6 +108,11 @@ const PolishModal = ({ open, diaryId, source, onClose, onApply }: Props) => {
   const handleApply = () => {
     if (!hasResult || isPolishing) return;
     onApply(polishedContent);
+  };
+
+  const handleModeChange = (nextMode: PolishUiMode) => {
+    setMode(nextMode);
+    window.localStorage.setItem(POLISH_MODE_STORAGE_KEY, nextMode);
   };
 
   return (
@@ -173,7 +222,7 @@ const PolishModal = ({ open, diaryId, source, onClose, onApply }: Props) => {
                   <div key={item} className="relative">
                     <button
                       type="button"
-                      onClick={() => setMode(item)}
+                      onClick={() => handleModeChange(item)}
                       disabled={isPolishing}
                       className={cn(
                         'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
