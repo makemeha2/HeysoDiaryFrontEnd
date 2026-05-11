@@ -36,7 +36,8 @@ const LeftSidebar = ({
   onWidthChange,
   isMobile = false,
 }: Props) => {
-  const { recentDiaries } = useRecentDiaries();
+  const shouldLoadRecentDiaries = state.sidebarTab === 'diary' || state.sidebarTab === 'search';
+  const { recentDiaries } = useRecentDiaries(undefined, undefined, { enabled: shouldLoadRecentDiaries });
   const isDragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
@@ -146,7 +147,7 @@ const LeftSidebar = ({
               onSelectDiary={onSelectDiary}
             />
           ) : state.sidebarTab === 'summary' ? (
-            <SummaryTab diaries={recentDiaries} />
+            <SummaryTab enabled={state.sidebarTab === 'summary'} />
           ) : (
             <SearchTab diaries={recentDiaries} onSelectDiary={onSelectDiary} />
           )}

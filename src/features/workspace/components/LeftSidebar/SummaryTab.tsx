@@ -1,22 +1,10 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import dayjs from 'dayjs';
-import { BookOpen, Flame, TrendingUp, User } from 'lucide-react';
-import type { DiaryEntry } from '@features/workspace/types/api.types';
+import { useEffect, useState, type ReactNode } from 'react';
+import { AlertCircle, BookOpen, Flame, Loader2, TrendingUp, User } from 'lucide-react';
+import { useDiarySummary, type DiarySummaryTagCount } from '@features/workspace/hooks/useDiarySummary';
 
 type Props = {
-  diaries: DiaryEntry[];
+  enabled?: boolean;
 };
-
-type TagCount = {
-  tag: string;
-  count: number;
-};
-
-function normalizeTags(tags: unknown): string[] {
-  if (Array.isArray(tags)) return tags.map(String).filter(Boolean);
-  if (typeof tags === 'string') return tags.split(',').map((tag) => tag.trim()).filter(Boolean);
-  return [];
-}
 
 const StatCard = ({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) => {
   return (
@@ -30,7 +18,16 @@ const StatCard = ({ icon, label, value }: { icon: ReactNode; label: string; valu
   );
 };
 
-const TagRanking = ({ title, tags }: { title: string; tags: TagCount[] }) => {
+const StatusMessage = ({ icon, children }: { icon?: ReactNode; children: ReactNode }) => {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-border/40 bg-muted/30 p-3 text-xs text-muted-foreground">
+      {icon ? <span className="shrink-0">{icon}</span> : null}
+      <span>{children}</span>
+    </div>
+  );
+};
+
+const TagRanking = ({ title, tags }: { title: string; tags: DiarySummaryTagCount[] }) => {
   const maxCount = tags[0]?.count ?? 1;
 
   return (
@@ -56,47 +53,45 @@ const TagRanking = ({ title, tags }: { title: string; tags: TagCount[] }) => {
   );
 };
 
-const SummaryTab = ({ diaries }: Props) => {
-  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
-  const { topTags, yearlyTags, years } = useMemo(() => {
-    const allTagCounts = new Map<string, number>();
-    const yearlyTagCounts = new Map<string, Map<string, number>>();
+const SummaryTab = ({ enabled = true }: Props) => {
+  const summaryQuery = useDiarySummary({ enabled });
+  const summary = summaryQuery.data;
+  const yearlyRankings = summary?.tagRankings.yearly ?? [];
+  const [selectedYear, setSelectedYear] = useState('');
 
-    diaries.forEach((diary) => {
-      const year = dayjs(diary.diaryDate ?? diary.createdAt).isValid()
-        ? dayjs(diary.diaryDate ?? diary.createdAt).format('YYYY')
-        : String(new Date().getFullYear());
-      const yearMap = yearlyTagCounts.get(year) ?? new Map<string, number>();
+  useEffect(() => {
+    if (yearlyRankings.length === 0) {
+      setSelectedYear('');
+      return;
+    }
 
-      normalizeTags(diary.tags).forEach((tag) => {
-        allTagCounts.set(tag, (allTagCounts.get(tag) ?? 0) + 1);
-        yearMap.set(tag, (yearMap.get(tag) ?? 0) + 1);
-      });
-      yearlyTagCounts.set(year, yearMap);
-    });
+    if (!yearlyRankings.some((ranking) => ranking.year === selectedYear)) {
+      setSelectedYear(yearlyRankings[0]?.year ?? '');
+    }
+  }, [selectedYear, yearlyRankings]);
 
-    const toSorted = (counts: Map<string, number>) =>
-      [...counts.entries()].sort((left, right) => right[1] - left[1]).map(([tag, count]) => ({ tag, count }));
-
-    const nextYears = [...yearlyTagCounts.keys()].sort().reverse();
-    return {
-      topTags: toSorted(allTagCounts),
-      yearlyTags: Object.fromEntries([...yearlyTagCounts.entries()].map(([year, counts]) => [year, toSorted(counts)])),
-      years: nextYears.length ? nextYears : [String(new Date().getFullYear())],
-    };
-  }, [diaries]);
-
-  const consecutiveDays = Math.min(diaries.length, 7);
+  const selectedYearTags = yearlyRankings.find((ranking) => ranking.year === selectedYear)?.tags ?? [];
+  const totalDiaryCount = summary?.stats.totalDiaryCount ?? 0;
+  const currentStreakDays = summary?.stats.currentStreakDays ?? 0;
+  const allTimeTags = summary?.tagRankings.allTime ?? [];
 
   return (
     <div className="flex flex-col gap-4 overflow-y-auto pr-1" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+      {summaryQuery.isLoading ? (
+        <StatusMessage icon={<Loader2 className="h-3.5 w-3.5 animate-spin" />}>요약을 불러오는 중입니다.</StatusMessage>
+      ) : null}
+
+      {summaryQuery.isError ? (
+        <StatusMessage icon={<AlertCircle className="h-3.5 w-3.5 text-destructive" />}>요약을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</StatusMessage>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-2">
-        <StatCard icon={<BookOpen className="h-3.5 w-3.5 text-primary" />} label="전체 일기" value={`${diaries.length}편`} />
-        <StatCard icon={<Flame className="h-3.5 w-3.5 text-orange-500" />} label="연속 작성" value={`${consecutiveDays}일`} />
+        <StatCard icon={<BookOpen className="h-3.5 w-3.5 text-primary" />} label="전체 일기" value={`${totalDiaryCount}편`} />
+        <StatCard icon={<Flame className="h-3.5 w-3.5 text-orange-500" />} label="연속 작성" value={`${currentStreakDays}일`} />
       </div>
 
       <div className="h-px bg-border/60" />
-      <TagRanking title="가장 많이 쓴 태그 Top 10" tags={topTags} />
+      <TagRanking title="가장 많이 쓴 태그 Top 10" tags={allTimeTags} />
       <div className="h-px bg-border/60" />
 
       <div>
@@ -104,22 +99,25 @@ const SummaryTab = ({ diaries }: Props) => {
           <TrendingUp className="h-3 w-3 text-muted-foreground" />
           <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">연도별 태그 Top 10</span>
         </div>
-        <div className="mb-2 flex gap-1">
-          {years.map((year) => (
-            <button
-              key={year}
-              type="button"
-              onClick={() => setSelectedYear(year)}
-              className={[
-                'rounded-full border px-2 py-0.5 text-[10px] transition-colors',
-                selectedYear === year ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/30',
-              ].join(' ')}
-            >
-              {year}
-            </button>
-          ))}
-        </div>
-        <TagRanking title="" tags={yearlyTags[selectedYear] ?? []} />
+        {yearlyRankings.length > 0 ? (
+          <div className="mb-2 flex flex-wrap gap-1">
+            {yearlyRankings.map((ranking) => (
+              <button
+                key={ranking.year}
+                type="button"
+                onClick={() => setSelectedYear(ranking.year)}
+                aria-pressed={selectedYear === ranking.year}
+                className={[
+                  'rounded-full border px-2 py-0.5 text-[10px] transition-colors',
+                  selectedYear === ranking.year ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/30',
+                ].join(' ')}
+              >
+                {ranking.year}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <TagRanking title="" tags={selectedYearTags} />
       </div>
 
       <div className="h-px bg-border/60" />
