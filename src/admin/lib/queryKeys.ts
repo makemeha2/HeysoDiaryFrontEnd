@@ -29,6 +29,10 @@ type UserPageFilter = {
   page?: number;
 };
 
+type BatchExecutionFilter = {
+  page?: number;
+};
+
 export const adminKeys = {
   all: ['admin'] as const,
 
@@ -59,6 +63,13 @@ export const adminKeys = {
   monitoring: {
     page: (filter: MonitoringPageFilter) => ['admin', 'monitoring', 'page', filter] as const,
     detail: (eventId: number) => ['admin', 'monitoring', 'detail', eventId] as const,
+  },
+
+  batch: {
+    all: () => ['admin', 'batch'] as const,
+    list: () => ['admin', 'batch', 'list'] as const,
+    executions: (batchKey: string, filter: BatchExecutionFilter) =>
+      ['admin', 'batch', 'executions', batchKey, filter] as const,
   },
 
   user: {

@@ -48,6 +48,9 @@ const AdminLayout = () => {
             <NavLink to="/admin/monitoring-events" className={navClass}>
               모니터링 이벤트
             </NavLink>
+            <NavLink to="/admin/batches" className={navClass}>
+              배치 관리
+            </NavLink>
             <NavLink to="/admin/user-mng" className={navClass}>
               회원 관리
             </NavLink>
